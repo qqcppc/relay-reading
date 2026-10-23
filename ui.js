@@ -74,12 +74,17 @@ function drawProgress() {
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
   let full = true; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
   $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
-  for (let i = from; i < to; i++) {
+  const total = Math.max(30, Math.ceil((to - from) / 30) * 30);
+  for (let k = 0; k < total; k++) {
+    const band = Math.floor(k / 30), m = k % 30, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
     const seg = document.createElement('button'); seg.type = 'button';
+    seg.style.gridColumn = String(block * 6 + c + 1); seg.style.gridRow = String(band * 2 + r + 1);
+    const i = from + k;
+    if (i >= to) { seg.className = 'seg off'; seg.disabled = true; seg.tabIndex = -1; bar.append(seg); continue; }
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i === selected ? ' cur' : '');
     const who = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
-    const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty('--assignment-color',personColor(assigned));}
-    seg.setAttribute('aria-label', `${i - from + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
+    const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty?.('--assignment-color',personColor(assigned));}
+    seg.setAttribute('aria-label', `${k + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
     seg.onclick = () => { if (locked() || !ready) return; if(globalThis.RelayF5?.manual()){RelayF5.choose(i+1);return;} selected = i; revealSelected(); };
     bar.append(seg);
   }
@@ -302,19 +307,11 @@ function showSampleChapters(name) {
 let bookTab = 0;
 try { bookTab = Number(localStorage.getItem('relay.bookTab')) || 0; } catch {}
 function showBooks() {
-  $('picker-title').textContent = '책'; $('picker-back').hidden = true;
+  $('picker-tabs').hidden = true;
   const known = new Set(BIBLE.map(b => b[0]));
-  const extra = books.map((b, i) => [b, i]).filter(([b]) => !known.has(b.title));
-  const tabs = [['구약', BIBLE.slice(0, 39).map(([t]) => [t, books.findIndex(b => b.title === t)])], ['신약', BIBLE.slice(39).map(([t]) => [t, books.findIndex(b => b.title === t)])]];
-  if (extra.length) tabs.push(['기타', extra.map(([b, i]) => [b.title, i])]);
-  if (bookTab >= tabs.length) bookTab = 0;
-  const bar = $('picker-tabs'); bar.replaceChildren(); bar.hidden = false; bar.style?.setProperty?.('--tabs', tabs.length);
-  tabs.forEach(([name], k) => {
-    const t = document.createElement('button'); t.type = 'button'; t.textContent = name; t.setAttribute('aria-pressed', String(k === bookTab));
-    t.onclick = () => { bookTab = k; try { localStorage.setItem('relay.bookTab', k); } catch {} showBooks(); }; bar.append(t);
-  });
   const items = $('picker-items'); items.replaceChildren(); items.className = 'books';
-  tabs[bookTab][1].forEach(([t, i]) => items.append(bookButton(t, i)));
+  BIBLE.forEach(([t]) => items.append(bookButton(t, books.findIndex(b => b.title === t))));
+  books.forEach((b, i) => { if (!known.has(b.title)) items.append(bookButton(b.title, i)); });
   items.scrollTop = 0;
 }
 function showChapters(index) {

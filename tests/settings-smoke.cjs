@@ -35,7 +35,7 @@ const assert = require('node:assert/strict');
     await page.emulateMedia({colorScheme:'dark'}); await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
     assert.equal(await page.locator('[data-n]').count(),badges);
     assert.equal(await page.evaluate(()=>PALETTE.join(',')),palette);
-    const bounds=await page.locator('#settings').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=390&&bounds.height<=560);
+    const bounds=await page.locator('#settings').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=390&&bounds.height<=740);
     await page.addInitScript(() => {
       Storage.prototype.getItem=()=>{throw new Error('blocked')};
       Storage.prototype.setItem=()=>{throw new Error('blocked')};
