@@ -215,15 +215,23 @@ $('save-text').onclick = async () => {
   const parsed = parsePages(newline < 0 ? '' : input.slice(newline + 1), nextTitle);
   const verses = parsed.verses;
   if (parsed.books.some(b => !b.title || b.title.length > 80) || parsed.chapters.some(c => !c.title || c.title.length > 80 || !Number.isSafeInteger(c.startVerse) || c.startVerse > 1000000) || !nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
-  busy = true; stopPlayback(); controls();
-  try {
-    const text = RelayStorage.connected ? await RelayStorage.request('saveText', {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, books: parsed.books, revision}) : {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, books: parsed.books};
-    title = text.title; lines = text.verses; pageStarts = text.pageStarts || [0]; chapters = text.chapters || []; books = text.books || [{title:title.slice(0,80),startChapter:0}]; page = 0; revision = text.revision; recordings = []; local.clear(); selected = 0;
-    globalThis.RelayF5?.reset();
-    $('erase-confirm').checked = false; $('editor').open = false; status('본문 저장 완료 · 기존 녹음 초기화');
-  } catch (err) { await failure(err); }
-  finally { busy = false; render(); }
+  try {await saveBody({title:nextTitle,verses,pageStarts:parsed.pageStarts,chapters:parsed.chapters,books:parsed.books});}
+  catch (err) {await failure(err);}
 };
+function replaceBody(text) {
+  title=text.title;lines=text.verses;pageStarts=text.pageStarts || [0];chapters=text.chapters || [];books=text.books || [{title:title.slice(0,80),startChapter:0}];page=0;revision=text.revision;recordings=[];local.clear();selected=0;
+}
+async function saveBody(next) {
+  if(locked() || !ready)throw Error('녹음 확인 또는 연결을 먼저 마쳐야 함');
+  globalThis.RelayF8?.validate(next);
+  busy=true;stopPlayback();globalThis.RelayF4?.cancel();controls();
+  try {
+    const text=RelayStorage.connected?await RelayStorage.request('saveText',{...next,revision}):next;
+    globalThis.RelayF8?.remember(text);replaceBody(text);globalThis.RelayF5?.reset();
+    $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
+  } finally {busy=false;render();}
+}
+
 function cancelGesture() { clearTimeout(holdTimer); holdTimer = null; gesture = null; }
 function wireCard(row, i) {
   row.addEventListener('contextmenu', e => e.preventDefault());
@@ -425,6 +433,8 @@ document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.close
 // F2 stays dormant while OFF. Polling is only for a connected, enabled phone.
 globalThis.RelayF2?.init(()=>revision,()=>render(),()=>{stop();status('잠금 만료. 취소 후 다시 녹음');});
 
+const f8Restored=globalThis.RelayF8?.restore();if(f8Restored){replaceBody(f8Restored);$('text-input').value=editorText();render();}
+globalThis.RelayF8?.init({locked:()=>locked(),save:saveBody});
 // F5 context is lazy so OFF adds no state changes or server requests.
 globalThis.RelayF5?.init({
   text:()=>({title,verses:lines,pageStarts,chapters,books}),revision:()=>revision,

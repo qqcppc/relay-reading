@@ -60,7 +60,7 @@
   root.RelayF5={enabled,owner:verse=>enabled()?assignments[verse] || '':'',refresh,paint,
     choose:verse=>{if(manual)choose(verse);},
     manual:()=>enabled() && manual,
-    reset:()=>{assignments={};assignmentRevision='0';paint();},
+    reset:()=>{assignments={};assignmentRevision='0';if(!root.RelayStorage.connected){try{localStorage.removeItem('relay.assignments.v1');}catch(_){}}paint();},
     init(ctx){
       context=ctx;$('f5-controls').hidden=!enabled();if(!enabled())return;
       $('f5-manual').onchange=()=>{manual=$('f5-manual').checked;};
