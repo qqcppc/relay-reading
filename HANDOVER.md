@@ -25,7 +25,7 @@
 
 ## 다음 할 일
 1. `녹음시험.html` → `index.html`로 저장소에 올리고 **GitHub Pages** 켜기 → 폰에서 재확인
-2. **녹음·본문 저장 장소** 결정: Google 드라이브(Apps Script) vs Firebase
+2. **녹음·본문 저장 장소: Google 드라이브 + Apps Script로 확정** (2026-10-23)
    - ⚠️ 녹음 파일은 **저장소에 넣지 말 것** (소그룹원 목소리, 공개 저장소)
 3. 여러 폰 간 릴레이: 절별 저장·재생, 읽은 사람 이름, 다시 녹음, 이어듣기, 본문 편집
 4. 소그룹 시험 → 나중에 앱 전환 (홈화면 추가 → APK → 스토어)
@@ -44,9 +44,12 @@
 - Claude Code: `claude/…` 브랜치 / Codex: `codex/…` 브랜치
 - 같은 파일 동시 수정 금지. 시작 전 최신 `main` 받기
 
-## 담당 (미정 — 사용자가 정함)
-- Claude Code: 
-- Codex: 
+## 담당 (제안 — 사용자 확정 전)
+- Claude Code: 화면 `index.html` (녹음·재생·본문 표시, Apps Script 주소 호출)
+- Codex: 저장 `apps-script/` 폴더 (Code.gs: 녹음 파일 드라이브 저장, 절별 목록·읽은 사람·본문 저장/조회)
+- 둘 사이 약속(주고받는 데이터 모양)은 `apps-script/API.md`에 먼저 적고 시작
+- Apps Script 배포(웹 앱 주소 발급)는 사용자 구글 계정으로 1회 필요
 
 ## 작업 기록
-- 2026-10-23 · Claude · index.html(녹음 시험판), HANDOVER/AGENTS/CLAUDE.md 추가 · 남은 일: Pages 주소 폰 확인, 저장 장소 결정
+- 2026-10-23 · Claude · index.html(녹음 시험판), HANDOVER/AGENTS/CLAUDE.md 추가 · 남은 일: Pages 주소 폰 확인
+- 2026-10-23 · Claude · 저장 장소 Apps Script 확정, 담당 제안 기록
