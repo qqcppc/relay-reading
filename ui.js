@@ -31,7 +31,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #19`; $('page-label').style.whiteSpace = 'pre-line';
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #20`; $('page-label').style.whiteSpace = 'pre-line';
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -42,9 +42,9 @@ function render() {
     row.style.textAlign = 'left'; row.style.width = '100%';
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i);
-    tag.textContent = `${chapter.startVerse + i - pageStarts[page]}절 · ${item ? '✅ ' + item.readerName + ' (눌러 재생 · 꾹 눌러 재녹음)' : i === selected ? '⏩ 지금 차례' : '대기'}`;
-    const content = document.createElement('span'); content.className = 't'; content.textContent = text;
-    if (recorder && i === selected) tag.textContent = `${chapter.startVerse + i - pageStarts[page]}절`;
+    tag.textContent = item ? item.readerName : '';
+    const vn = document.createElement('span'); vn.className = 'vn'; vn.textContent = String(chapter.startVerse + i - pageStarts[page]);
+    const content = document.createElement('span'); content.className = 't'; content.append(vn, ' ' + text);
     trigger.setAttribute('aria-label', `${chapter.startVerse + i - pageStarts[page]}절 ${text}${recorder && i === selected ? ' · 녹음 중, 누르면 정지' : ''}`);
     trigger.append(tag, content); row.append(trigger);
     trigger.onclick = () => { if (suppressClick) { suppressClick = false; return; } if (recorder && i === selected) { stop(); return; } if (locked() || !ready) return; selected = i; followSelected(); if (hasAudio(i)) play(i); };
@@ -53,7 +53,19 @@ function render() {
     $('list').append(row);
   });
   if (!draft) { review.hidden = true; $('list').after(review); }
+  drawProgress();
   controls();
+}
+function drawProgress() {
+  const bar = $('progress'); if (!bar) return; bar.replaceChildren();
+  const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
+  for (let i = from; i < to; i++) {
+    const seg = document.createElement('button'); seg.type = 'button';
+    seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i === selected ? ' cur' : '');
+    seg.setAttribute('aria-label', `${i - from + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
+    seg.onclick = () => { if (locked() || !ready) return; selected = i; revealSelected(); };
+    bar.append(seg);
+  }
 }
 function pageFor(i) { return Math.max(0, pageStarts.findLastIndex(start => start <= i)); }
 function followSelected() { page = pageFor(selected); render(); }
@@ -316,3 +328,5 @@ function applyFont() { document.documentElement?.style?.setProperty('--fs', font
 $('font-down').onclick = () => { fontScale = Math.max(.9, +(fontScale - .1).toFixed(2)); applyFont(); };
 $('font-up').onclick = () => { fontScale = Math.min(2, +(fontScale + .1).toFixed(2)); applyFont(); };
 applyFont();
+
+$('edit-toggle').onclick = () => { $('editor').open = !$('editor').open; };
