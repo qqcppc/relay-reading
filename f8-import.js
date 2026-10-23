@@ -8,6 +8,7 @@
   function parse(source,title='본문'){
     if(typeof source!=='string' || !source.trim() || source.length>500000)throw Error('본문 크기 확인');
     const result={title:title.trim(),verses:[],pageStarts:[],chapters:[],books:[]};
+    const groupMarkers=[];
     let book=result.title || '본문', chapter='1장', page=null, last=0, start=1, paragraph=true, pending=null;
     const fullBook=value=>aliases[value.trim()] || value.trim();
     function setBook(value){const next=fullBook(value);if(next!==book){book=next;chapter='1장';page=null;start=1;}paragraph=true;}
@@ -27,6 +28,7 @@
     for(const raw of rows){
       const line=raw.trim();if(!line){paragraph=true;continue;}
       let match;
+      if(root.RelayF9?.enabled() && (match=line.match(/^\|\s*([1-9][0-9]*)\s*[-–]\s*([1-9][0-9]*)$/))){groupMarkers.push({book,chapter,start:Number(match[1]),end:Number(match[2])});continue;}
       if(pending!==null){if(/^(?:#|@|---$)/.test(line))throw Error('절 내용 필요');add(line,pending);pending=null;continue;}
       if((match=line.match(/^#\s+(.+)$/))){if(pending!==null)throw Error('절 내용 필요');setBook(match[1]);continue;}
       if(aliases[line]){if(pending!==null)throw Error('절 내용 필요');setBook(line);continue;}
@@ -45,12 +47,13 @@
       if(pending!==null){add(line,pending);pending=null;continue;}
       if(paragraph || page===null)add(line);else result.verses[result.verses.length-1]+='\n'+line;
     }
-    if(pending!==null)throw Error('절 내용 필요');if(page===null && result.verses.length)throw Error('빈 장 내용 확인');validate(result);return result;
+    if(pending!==null)throw Error('절 내용 필요');if(page===null && result.verses.length)throw Error('빈 장 내용 확인');if(root.RelayF9?.enabled())result.groups=root.RelayF9.fromMarkers(result,groupMarkers);validate(result);return result;
   }
   function validate(text){
     if(!text || typeof text.title!=='string' || !text.title.trim() || text.title.length>200 || !Array.isArray(text.verses) || !text.verses.length || text.verses.length>500 || text.verses.some(v=>typeof v!=='string'||!v.trim()||v.length>10000) || JSON.stringify(text).length>500000)throw Error('제목·본문 길이 확인');
     if(!Array.isArray(text.pageStarts)||!text.pageStarts.length||text.pageStarts[0]!==0||text.pageStarts.some((n,i)=>!Number.isInteger(n)||n<0||n>=text.verses.length||(i>0&&n<=text.pageStarts[i-1])))throw Error('장 구분 확인');
     if(!Array.isArray(text.chapters)||text.chapters.length!==text.pageStarts.length||text.chapters.some(c=>!c||typeof c.title!=='string'||!c.title.trim()||c.title.length>80||!Number.isInteger(c.startVerse)||c.startVerse<1||c.startVerse>1000000))throw Error('장 정보 확인');
+    if(text.groups!==undefined && root.RelayF9)root.RelayF9.validate(text.groups,text);
     if(!Array.isArray(text.books)||!text.books.length||text.books[0].startChapter!==0||text.books.some((b,i)=>!b||typeof b.title!=='string'||!b.title.trim()||b.title.length>80||!Number.isInteger(b.startChapter)||b.startChapter<0||b.startChapter>=text.chapters.length||(i>0&&b.startChapter<=text.books[i-1].startChapter)))throw Error('책 정보 확인');
   }
   let context=null, candidate=null;
@@ -66,8 +69,8 @@
       $('f8-preview-button').onclick=()=>{
         invalidate();try{
           const text=parse($('f8-source').value,$('f8-title').value);candidate={text,source:$('f8-source').value,title:$('f8-title').value};
-          const summary=document.createElement('p');summary.textContent=`${text.books.length}권 · ${text.chapters.length}장 · ${text.verses.length}절`;$('f8-preview').append(summary);
-          text.chapters.forEach((chapter,index)=>{const heading=document.createElement('b');const book=text.books.findLast(b=>b.startChapter<=index);heading.textContent=book.title+' '+chapter.title;$('f8-preview').append(heading);const list=document.createElement('ol');list.start=chapter.startVerse;for(const verse of text.verses.slice(text.pageStarts[index],text.pageStarts[index+1]??text.verses.length)){const li=document.createElement('li');li.textContent=verse;list.append(li);}$('f8-preview').append(list);});
+          const summary=document.createElement('p');summary.textContent=`${text.books.length}권 · ${text.chapters.length}장 · ${text.verses.length}절`+(text.groups?.length?` · ${text.groups.length}묶음`:'');$('f8-preview').append(summary);
+          text.chapters.forEach((chapter,index)=>{const heading=document.createElement('b');const book=text.books.findLast(b=>b.startChapter<=index);heading.textContent=book.title+' '+chapter.title;$('f8-preview').append(heading);const list=document.createElement('ol');list.start=chapter.startVerse;for(const verse of text.verses.slice(text.pageStarts[index],text.pageStarts[index+1]??text.verses.length)){const li=document.createElement('li');const position=text.pageStarts[index]+list.children.length+1;const group=text.groups?.find(g=>g.start===position);li.textContent=verse+(group?` [${chapter.startVerse+group.start-text.pageStarts[index]-1}–${chapter.startVerse+group.end-text.pageStarts[index]-1} 묶음]`:'');list.append(li);}$('f8-preview').append(list);});
           $('f8-status').textContent='';$('f8-save').disabled=false;
         }catch(error){$('f8-status').textContent=error.message;}
       };

@@ -18,9 +18,12 @@
       button.onclick=()=>choose(index+1);grid.append(button);
     }
   }
+  function normalize(plan,list=root.RelayF9?.raw() || []) {
+    const next={...plan};for(const group of list)for(let verse=group.start;verse<=group.end;verse++){if(next[group.start])next[verse]=next[group.start];else delete next[verse];}return next;
+  }
   async function save(next){
     if(saving || context.locked())return;
-    saving=true;
+    saving=true;next=normalize(next);
     try{
       if(root.RelayStorage.connected){
         const data=await root.RelayStorage.request('saveAssignments',{revision:context.revision(),assignmentRevision,assignments:next});
@@ -53,11 +56,12 @@
     $('f5-person-title').textContent=context.label(verse-1);
     for(const name of ['',...names]){
       const button=document.createElement('button');button.type='button';button.textContent=name || '미배정';
-      button.onclick=async()=>{if(saving)return;const next={...assignments};if(name)next[verse]=name;else delete next[verse];await save(next);$('f5-person').close();};list.append(button);
+      button.onclick=async()=>{if(saving)return;const next={...assignments},span=root.RelayF9?.canonical(verse-1)||{start:verse-1,end:verse-1};for(let index=span.start;index<=span.end;index++){if(name)next[index+1]=name;else delete next[index+1];}await save(next);$('f5-person').close();};list.append(button);
     }
     $('f5-person').showModal();
   }
-  root.RelayF5={enabled,owner:verse=>enabled()?assignments[verse] || '':'',refresh,paint,
+  root.RelayF5={enabled,owner:verse=>enabled()?assignments[(root.RelayF9?.enabled()?root.RelayF9.unit(verse-1).start+1:verse)] || '':'',refresh,paint,
+    regroup(list){if(!enabled()&&!root.RelayStorage.connected){try{const saved=JSON.parse(localStorage.getItem('relay.assignments.v1')||'null');if(saved?.signature===signature())assignments=saved.assignments || {};}catch(_){}}assignments=normalize(assignments,list);if(!root.RelayStorage.connected){try{localStorage.setItem('relay.assignments.v1',JSON.stringify({signature:signature(),assignments}));}catch(_){}}},
     choose:verse=>{if(manual)choose(verse);},
     manual:()=>enabled() && manual,
     reset:()=>{assignments={};assignmentRevision='0';if(!root.RelayStorage.connected){try{localStorage.removeItem('relay.assignments.v1');}catch(_){}}paint();},
@@ -65,7 +69,7 @@
       context=ctx;$('f5-controls').hidden=!enabled();if(!enabled())return;
       $('f5-manual').onchange=()=>{manual=$('f5-manual').checked;paint();};
       for(const size of [1,2])$('f5-round-'+size).onclick=()=>{
-        try{const names=roster();validRoster(names);manual=false;$('f5-manual').checked=false;const next={};for(let i=0;i<context.text().verses.length;i++)next[i+1]=names[Math.floor(i/size)%names.length];save(next);}catch(error){$('f5-status').textContent=error.message;}
+        try{const names=roster();validRoster(names);manual=false;$('f5-manual').checked=false;const next={};for(let i=0,unit=0;i<context.text().verses.length;unit++){const span=root.RelayF9?.canonical(i)||{start:i,end:i};for(let verse=span.start;verse<=span.end;verse++)next[verse+1]=names[Math.floor(unit/size)%names.length];i=span.end+1;}save(next);}catch(error){$('f5-status').textContent=error.message;}
       };
       $('f5-refresh').onclick=()=>refresh().catch(error=>{$('f5-status').textContent=error.message;});
       refresh().catch(error=>{$('f5-status').textContent=error.message;});

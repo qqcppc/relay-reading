@@ -23,7 +23,7 @@
   root.RelayF2={
     revision:()=>null,
     active,
-    blocked(verse) {return shared() && locks.some(item=>item.verse===verse && item.expiresAt>Date.now() && !(live() && lease.verse===verse));},
+    blocked(verse) {return shared() && locks.some(item=>item.verse<=verse && (item.endVerse??item.verse)>=verse && item.expiresAt>Date.now() && !(live() && lease.verse<=verse && (lease.endVerse??lease.verse)>=verse));},
     ownerBlocked(item,name) {return active() && item && !item.demo && item.readerName!==name.trim();},
     async acquire(target) {
       if(!shared()) return;

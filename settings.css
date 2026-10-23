@@ -65,3 +65,8 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f8-preview ol{padding-left:2em}#f8-preview li{margin-bottom:8px}#f8-status{display:block;color:var(--terra);font-size:.85rem}
 /* Keep the fixed location/settings row at its specified 48px including borders. */
 #title-btn{box-sizing:border-box}
+
+/* F9: selection tools exist only in explicit grouping edit mode. */
+.line.f9-selected{outline:2px dashed var(--blue);outline-offset:-4px}.line.f9-unit .t{white-space:pre-line}
+#f9-tools{position:sticky;top:64px;z-index:10;background:var(--bg);padding:6px 0}
+#f9-status{font-size:.85rem;color:var(--terra)}.seg.f9-group{box-shadow:inset 0 -2px color-mix(in srgb,var(--blue) 45%,transparent)}

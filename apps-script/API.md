@@ -118,3 +118,15 @@ audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호�
 ## F8: 본문 가져오기
 
 화면에서 책·장·절을 자동 분리한 뒤 기존 saveText의 title/verses/pageStarts/chapters/books 형태로 보낸다. 서버 형식 변경 없음. 저장 시 기존 녹음·잠금·배정표를 초기화한다. 관리자용 화면이지만 기존 공유키 권한 모델이며 별도 관리자 로그인은 추가하지 않는다.
+
+## F9 묶어 읽기 (#34)
+
+본문 `groups`는 전체 verses 배열 기준 **1부터 시작하는** `{start,end}` 배열이다. 예: `[{"start":3,"end":5}]`. 같은 장 안에서 2절 이상, 시작 순서, 겹침 없음. 나머지는 단독 절이다. 기존 데이터/생략한 saveText는 `[]`이다. getText/saveText 응답에 포함한다.
+
+녹음 객체에는 `endVerse`가 추가된다(기존 단독 녹음은 verse와 같음). 3–5절은 `verse:3,endVerse:5`인 파일 하나이며 목록·playbackUrl·getAudio 모두 첫 절 키 3을 사용한다. uploadRecording은 `endVerse`를 함께 전송한다. 단독 절만 생략 가능하며 현재 묶음과 다르면 INVALID_REQUEST. 내부 절 4로 getAudio하면 NOT_FOUND이다.
+
+`saveGroups` POST 요청: `{action:"saveGroups",key,revision,groups:[{start:3,end:5}],discardRecordings:false}`. 응답 data는 `{text,recordings}`. 본문 저장과 달리 범위가 바뀌지 않은 녹음은 유지한다. 범위가 바뀔 실제 녹음이 있으면 `RECORDINGS_EXIST`; 사용자에게 삭제 동의를 받은 뒤 `discardRecordings:true`로 재요청한다. 해당 파일만 Drive 휴지통으로 옮긴다. 실패·충돌이면 재조회한다. 동일 groups 저장은 변경 없음.
+
+묶음 변경은 본문 revision과 assignmentRevision을 갱신하고 잠금을 해제한다. 이전 revision의 업로드는 CONFLICT. F2 잠금 응답/목록에도 endVerse가 있으며 범위 전체에 적용한다. F5는 첫 절의 배정으로 묶음 전체를 통일한다(첫 절 미배정이면 전체 미배정). saveAssignments에서 묶음 안의 배정이 다르면 INVALID_REQUEST.
+
+F9는 화면 스위치이며 서버는 항상 저장된 범위를 검증한다. OFF/구형 화면이 묶음을 단독 절로 덮어쓸 수 없다. 별도 서버 속성·관리자 인증은 없고 F8과 같은 공유키 권한이다. saveText는 기존처럼 전체 음성·배정을 초기화한다.

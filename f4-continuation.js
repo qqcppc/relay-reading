@@ -8,6 +8,7 @@
     current:ticket=>ticket===generation,
     next(after,count,occupied,name){
       for(let index=after+1;index<count;index++) {
+        if(root.RelayF9?.enabled() && root.RelayF9.unit(index).start!==index)continue;
         if(occupied(index)) continue;
         if(root.RelayF5?.enabled() && root.RelayF5.owner(index+1)!==name) continue;
         if(root.RelayF2?.blocked(index+1)) continue;
