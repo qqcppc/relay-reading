@@ -2,17 +2,19 @@
 const $ = id => document.getElementById(id);
 const review = $('review');
 const ANTHEM = ['동해 물과 백두산이 마르고 닳도록','하느님이 보우하사 우리나라 만세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세','남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','가을 하늘 공활한데 높고 구름 없이','밝은 달은 우리 가슴 일편단심일세','이 기상과 이 맘으로 충성을 다하여','괴로우나 즐거우나 나라 사랑하세'];
-const SAMPLE_VERSES = 24, SAMPLE_CHAPTERS = 4;
-let lines = Array.from({length: SAMPLE_VERSES * SAMPLE_CHAPTERS}, (_, i) => ANTHEM[i % 10] + ' ' + ANTHEM[(i + 3) % 10] + (i % 3 ? '' : ' ' + ANTHEM[(i + 6) % 10]));
-let books = [{title:'창세기',startChapter:0},{title:'출애굽기',startChapter:2}];
-let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:1},{title:'1장',startVerse:1},{title:'2장',startVerse:1}];
-let pageStarts = Array.from({length: SAMPLE_CHAPTERS}, (_, c) => c * SAMPLE_VERSES), page = 0, holdTimer = null, gesture = null, suppressClick = false;
+const SAMPLE_COUNTS = [31,25,24,26,32,22,24,22,29,32, 22,25];
+const SAMPLE_TOTAL = SAMPLE_COUNTS.reduce((a, b) => a + b, 0);
+let lines = Array.from({length: SAMPLE_TOTAL}, (_, i) => ANTHEM[i % 10] + ' ' + ANTHEM[(i + 3) % 10] + (i % 3 ? '' : ' ' + ANTHEM[(i + 6) % 10]));
+let books = [{title:'창세기',startChapter:0},{title:'출애굽기',startChapter:10}];
+let chapters = SAMPLE_COUNTS.map((_, c) => ({title: `${c < 10 ? c + 1 : c - 9}장`, startVerse: 1}));
+let pageStarts = SAMPLE_COUNTS.map((_, c) => SAMPLE_COUNTS.slice(0, c).reduce((a, b) => a + b, 0)), page = 0, holdTimer = null, gesture = null, suppressClick = false;
 let title = '애국가', revision = null, recordings = [], selected = 0;
 let busy = false, ready = !RelayStorage.connected, acquiring = false;
 let recorder = null, stream = null, draft = null, recordTarget = null;
 let captureEpoch = 0;
 let playbackId = 0, playbackUrl = null;
 const local = new Map(), player = new Audio();
+let playingIndex = -1;
 function status(message) { $('st').textContent = message; }
 function hasAudio(i) { return RelayStorage.connected ? recordings.some(r => r.verse === i + 1) : local.has(i); }
 function locked() { return busy || acquiring || !!recorder || !!draft; }
@@ -31,7 +33,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #21`; $('page-label').style.whiteSpace = 'pre-line';
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #22`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -45,10 +47,11 @@ function render() {
     tag.textContent = item ? item.readerName : '';
     if (item) row.style.setProperty?.('--pc', personColor(item.readerName));
     const vn = document.createElement('span'); vn.className = 'vn'; vn.textContent = String(chapter.startVerse + i - pageStarts[page]);
-    const content = document.createElement('span'); content.className = 't'; content.append(vn, ' ' + text);
+    const side = document.createElement('span'); side.className = 'side'; side.append(vn, tag);
+    const content = document.createElement('span'); content.className = 't'; content.textContent = text;
     trigger.setAttribute('aria-label', `${chapter.startVerse + i - pageStarts[page]}절 ${text}${recorder && i === selected ? ' · 녹음 중, 누르면 정지' : ''}`);
-    trigger.append(tag, content); row.append(trigger);
-    trigger.onclick = () => { if (suppressClick) { suppressClick = false; return; } if (recorder && i === selected) { stop(); return; } if (locked() || !ready) return; selected = i; followSelected(); if (hasAudio(i)) play(i); };
+    trigger.append(side, content); row.append(trigger);
+    trigger.onclick = () => { if (suppressClick) { suppressClick = false; return; } if (recorder && i === selected) { stop(); return; } if (locked() || !ready) return; if (playingIndex === i) { stopPlayback(); status(''); return; } selected = i; followSelected(); if (hasAudio(i)) play(i); };
     wireCard(trigger, i);
     if (draft && draft.verse === i + 1) row.append(review);
     $('list').append(row);
@@ -78,6 +81,7 @@ function revealSelected() {
   });
 }
 function stopPlayback() {
+  playingIndex = -1;
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
   $('all').textContent = '▶'; $('play-ic').textContent = '▶';
@@ -94,7 +98,7 @@ async function play(i, chain = false, sequence) {
     } else blob = local.get(i)?.blob;
     if (sequence !== playbackId || !blob) return;
     if (playbackUrl) URL.revokeObjectURL(playbackUrl);
-    playbackUrl = URL.createObjectURL(blob); player.src = playbackUrl; if (chain) { $('all').textContent = '■'; $('play-ic').textContent = '■'; }
+    playbackUrl = URL.createObjectURL(blob); player.src = playbackUrl; playingIndex = i; if (chain) { $('all').textContent = '■'; $('play-ic').textContent = '■'; }
     selected = i; followSelected();
     player.onended = () => {
       if (sequence !== playbackId) return;
@@ -318,7 +322,7 @@ render();
 $('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
-$('version').onclick = () => $('book-open').onclick();
+$('title-btn').onclick = () => $('book-open').onclick();
 $('center').onclick = () => $('all').onclick();
 $('reader').addEventListener('change', () => $('identity').onsubmit({preventDefault(){}}));
 let swipeX = null;
@@ -341,9 +345,29 @@ function personColor(name) {
   let h = 0; for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return PALETTE[1 + h % (PALETTE.length - 1)];
 }
-// 연출용 가상 녹음 (#21): 민지·도윤 녹음, 하늘 미참여. 실제 녹음본 표시로 바꿀 때 삭제
+// 연출용 가상 녹음 (#22): 창세기 1~10장에 민지(많이)·도윤(조금) 녹음, 하늘 미참여. 실제 녹음본만 표시할 때 이 블록 삭제
+const DEMO_PEOPLE = ['민지', '도윤', '하늘'];
 if (!RelayStorage.connected) {
-  [3,4,5,6,7,8].forEach(i => local.set(i, {demo: true, readerName: '민지'}));
-  [11,12,13].forEach(i => local.set(i, {demo: true, readerName: '도윤'}));
-  selected = lines.findIndex((_, i) => !local.has(i)); render();
+  let seed = 7; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let i = 0; i < pageStarts[10]; ) {
+    const r = rnd(), run = 2 + Math.floor(rnd() * 6);
+    const who = r < .45 ? '민지' : r < .65 ? '도윤' : null;
+    for (let k = 0; k < run && i < pageStarts[10]; k++, i++) if (who) local.set(i, {demo: true, readerName: who});
+  }
+  selected = lines.findIndex((_, i) => !local.has(i)); page = pageFor(selected); render();
 }
+function showPeople() {
+  const list = $('people-list'); list.replaceChildren();
+  const counts = new Map(); const me = $('reader').value.trim();
+  if (me) counts.set(me, 0); DEMO_PEOPLE.forEach(n => counts.set(n, 0));
+  const all = RelayStorage.connected ? recordings : [...local.values()];
+  all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
+  counts.forEach((n, name) => {
+    const li = document.createElement('li'); li.style.setProperty?.('--pc', personColor(name));
+    li.textContent = `${name}${name === me ? ' (나)' : ''} · ${n}절`; list.append(li);
+  });
+}
+$('people-open').onclick = () => { showPeople(); $('people').showModal(); };
+$('settings-open').onclick = () => $('settings').showModal();
+document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.closest('dialog').close());
+
