@@ -79,7 +79,7 @@ function render() {
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();globalThis.RelayF14?.paint();
+  controls();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
 const DEMO_LOCKS = new Map();
@@ -155,7 +155,7 @@ async function refresh() {
   selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = 0;
   ready = true; $('connection').textContent = '공유 모드 · 녹음·본문을 그룹과 공유';
   page = pageFor(selected);
-  $('text-input').value = editorText();
+  if(globalThis.RelayDrafts)RelayDrafts.serverText(editorText());else $('text-input').value=editorText();
   await globalThis.RelayF2?.refresh();
   await globalThis.RelayF5?.refresh();
 }
@@ -270,7 +270,7 @@ $('save-text').onclick = async () => {
   const parsed = parsePages(newline < 0 ? '' : input.slice(newline + 1), nextTitle);
   const verses = parsed.verses;
   if (parsed.books.some(b => !b.title || b.title.length > 80) || parsed.chapters.some(c => !c.title || c.title.length > 80 || !Number.isSafeInteger(c.startVerse) || c.startVerse > 1000000) || !nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
-  try {await saveBody({title:nextTitle,verses,pageStarts:parsed.pageStarts,chapters:parsed.chapters,books:parsed.books});}
+  try {await saveBody({title:nextTitle,verses,pageStarts:parsed.pageStarts,chapters:parsed.chapters,books:parsed.books});globalThis.RelayDrafts?.saved('editor');}
   catch (err) {await failure(err);}
 };
 function replaceBody(text) {
@@ -284,7 +284,7 @@ async function saveBody(next) {
   try {
     const text=RelayStorage.connected?await RelayStorage.request('saveText',{...next,revision}):next;
     globalThis.RelayF8?.remember(text);try{localStorage.removeItem('relay.groups.v1');}catch(_){}replaceBody(text);globalThis.RelayF5?.reset();
-    $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
+    if(globalThis.RelayDrafts)RelayDrafts.serverText(editorText());else $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
   } catch(error) {await failure(error);throw error;} finally {busy=false;render();}
 }
 
@@ -587,3 +587,5 @@ globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;contro
 globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});
 
 globalThis.RelayF14?.init({state:()=>({book:bookAt(page).title,chapter:chapterAt(page).title,from:pageStarts[page],startVerse:chapterAt(page).startVerse,count:(pageStarts[page+1]??lines.length)-pageStarts[page]})});
+
+globalThis.RelayDrafts?.init({revision:()=>revision,ready:()=>ready&&!busy,locked});

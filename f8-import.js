@@ -82,7 +82,7 @@
         if(!enabled()||context.locked())return;
         const file=$('f8-file').files[0],epoch=++fileEpoch;invalidate();if(!file){$('f8-preview-button').disabled=false;return;}
         $('f8-preview-button').disabled=true;$('f8-status').textContent='파일 불러오는 중';
-        try{const source=await readFile(file);if(epoch!==fileEpoch||context.locked())return;$('f8-source').value=source;$('f8-status').textContent='파일 불러옴 · 미리보기 필요';}
+        try{const source=await readFile(file);if(epoch!==fileEpoch||context.locked())return;$('f8-source').value=source;root.RelayDrafts?.capture('import');$('f8-status').textContent='파일 불러옴 · 미리보기 필요';}
         catch(error){if(epoch===fileEpoch)$('f8-status').textContent=error.message;}
         finally{if(epoch===fileEpoch){$('f8-preview-button').disabled=false;$('f8-file').value='';}}
       };
@@ -99,8 +99,8 @@
         if(!enabled() || !candidate || context.locked())return;
         if(candidate.source!==$('f8-source').value || candidate.title!==$('f8-title').value){invalidate();return;}
         if(!$('f8-consent').checked){$('f8-status').textContent='기존 녹음 삭제 동의 필요';return;}
-        $('f8-save').disabled=true;
-        try{await context.save(candidate.text);$('f8-import').close();invalidate();}
+        $('f8-save').disabled=true;const submitted=[$('f8-title').value,$('f8-source').value];
+        try{await context.save(candidate.text);root.RelayDrafts?.saved('import',submitted);$('f8-import').close();invalidate();}
         catch(error){$('f8-status').textContent=error.message;$('f8-save').disabled=false;}
       };
     }
