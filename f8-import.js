@@ -56,18 +56,39 @@
     if(text.groups!==undefined && root.RelayF9)root.RelayF9.validate(text.groups,text);
     if(!Array.isArray(text.books)||!text.books.length||text.books[0].startChapter!==0||text.books.some((b,i)=>!b||typeof b.title!=='string'||!b.title.trim()||b.title.length>80||!Number.isInteger(b.startChapter)||b.startChapter<0||b.startChapter>=text.chapters.length||(i>0&&b.startChapter<=text.books[i-1].startChapter)))throw Error('책 정보 확인');
   }
-  let context=null, candidate=null;
+  async function readFile(file){
+    if(!file||!/\.txt$/i.test(file.name)||file.size<=0||file.size>2*1024*1024)throw Error('.txt 파일은 0바이트 초과 2MiB 이하만 가능');
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    const encoding=bytes[0]===255&&bytes[1]===254?'utf-16le':bytes[0]===254&&bytes[1]===255?'utf-16be':'utf-8';
+    let text;try{text=new TextDecoder(encoding,{fatal:true}).decode(bytes);}catch(_){throw Error('UTF-8 또는 BOM 있는 UTF-16 .txt로 저장 후 다시 선택');}
+    if(!text.trim()||text.length>500000||text.includes('\0'))throw Error('본문 크기·텍스트 형식 확인');return text;
+  }
+  let context=null, candidate=null,fileEpoch=0;
+  function open(activate=false){
+    if(!context||context.locked())return false;
+    if(!enabled()){if(!activate)return false;root.RelayFeatures.enableImport();}
+    $('f8-open').hidden=false;$('settings').close();$('f8-import').showModal();return true;
+  }
   const $=id=>document.getElementById(id);
-  root.RelayF8={enabled,parse,validate,
+  root.RelayF8={enabled,parse,validate,readFile,open,
     remember(text){if(enabled()&&!root.RelayStorage.connected)localStorage.setItem('relay.import.v1',JSON.stringify(text));},
     restore(){if(!enabled()||root.RelayStorage.connected)return null;try{const text=JSON.parse(localStorage.getItem('relay.import.v1')||'null');validate(text);return text;}catch(_){return null;}},
     init(ctx){
-      context=ctx;$('f8-open').hidden=!enabled();if(!enabled())return;
+      context=ctx;$('f8-open').hidden=!enabled();
       function invalidate(){candidate=null;$('f8-save').disabled=true;$('f8-preview').replaceChildren();$('f8-consent').checked=false;}
-      $('f8-source').oninput=$('f8-title').oninput=invalidate;
-      $('f8-open').onclick=()=>{if(context.locked())return;$('settings').close();$('f8-import').showModal();};
+      $('f8-source').oninput=$('f8-title').oninput=()=>{fileEpoch++;invalidate();$('f8-file').value='';$('f8-preview-button').disabled=false;$('f8-status').textContent='';};
+      $('f8-open').onclick=()=>open();
+      $('f8-file').onchange=async()=>{
+        if(!enabled()||context.locked())return;
+        const file=$('f8-file').files[0],epoch=++fileEpoch;invalidate();if(!file){$('f8-preview-button').disabled=false;return;}
+        $('f8-preview-button').disabled=true;$('f8-status').textContent='파일 불러오는 중';
+        try{const source=await readFile(file);if(epoch!==fileEpoch||context.locked())return;$('f8-source').value=source;$('f8-status').textContent='파일 불러옴 · 미리보기 필요';}
+        catch(error){if(epoch===fileEpoch)$('f8-status').textContent=error.message;}
+        finally{if(epoch===fileEpoch){$('f8-preview-button').disabled=false;$('f8-file').value='';}}
+      };
+      $('f8-import').addEventListener('close',()=>{fileEpoch++;$('f8-preview-button').disabled=false;$('f8-file').value='';});
       $('f8-preview-button').onclick=()=>{
-        invalidate();try{
+        if(!enabled()||context.locked())return;invalidate();try{
           const text=parse($('f8-source').value,$('f8-title').value);candidate={text,source:$('f8-source').value,title:$('f8-title').value};
           const summary=document.createElement('p');summary.textContent=`${text.books.length}권 · ${text.chapters.length}장 · ${text.verses.length}절`+(text.groups?.length?` · ${text.groups.length}묶음`:'');$('f8-preview').append(summary);
           text.chapters.forEach((chapter,index)=>{const heading=document.createElement('b');const book=text.books.findLast(b=>b.startChapter<=index);heading.textContent=book.title+' '+chapter.title;$('f8-preview').append(heading);const list=document.createElement('ol');list.start=chapter.startVerse;for(const verse of text.verses.slice(text.pageStarts[index],text.pageStarts[index+1]??text.verses.length)){const li=document.createElement('li');const position=text.pageStarts[index]+list.children.length+1;const group=text.groups?.find(g=>g.start===position);li.textContent=verse+(group?` [${chapter.startVerse+group.start-text.pageStarts[index]-1}–${chapter.startVerse+group.end-text.pageStarts[index]-1} 묶음]`:'');list.append(li);}$('f8-preview').append(list);});
@@ -75,7 +96,7 @@
         }catch(error){$('f8-status').textContent=error.message;}
       };
       $('f8-save').onclick=async()=>{
-        if(!candidate || context.locked())return;
+        if(!enabled() || !candidate || context.locked())return;
         if(candidate.source!==$('f8-source').value || candidate.title!==$('f8-title').value){invalidate();return;}
         if(!$('f8-consent').checked){$('f8-status').textContent='기존 녹음 삭제 동의 필요';return;}
         $('f8-save').disabled=true;

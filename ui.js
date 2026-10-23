@@ -36,11 +36,12 @@ function controls() {
 }
 function render() {
   $('heading').textContent = title || '공유 본문 없음';
+  if($('empty-text')){$('empty-text').hidden=!(RelayStorage.connected&&ready&&!lines.length);$('empty-import').disabled=locked()||!ready;}
   page = Math.max(0, Math.min(page, pageStarts.length - 1));
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = chapter.title.replace(/장$/, ''); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):''; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -78,7 +79,7 @@ function render() {
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();
+  controls();globalThis.RelayF14?.paint();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
 const DEMO_LOCKS = new Map();
@@ -86,7 +87,7 @@ function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1) || DEMO
 function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
-  let full = true; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
+  let full = to>from; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
   $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
   const bands = Math.max(1, Math.ceil((to - from) / 20));
   if (selected >= from && selected < to && !gridManual) gridBand = Math.floor((selected - from) / 20);
@@ -424,7 +425,7 @@ $('listen').onclick = () => { const a = $('au'); if (a.paused) { if(draft)a.src=
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
 $('tb-book').onclick = () => $('book-open').onclick();
-$('tb-ch').onclick = () => { if (locked() || !ready) return; showChapters(bookIndex(page)); $('book-picker').showModal(); };
+$('tb-ch').onclick = () => { if (locked() || !ready || !lines.length) return; showChapters(bookIndex(page)); $('book-picker').showModal(); };
 $('tb-vs').onclick = () => { if (locked() || !ready) return; showVerses(); $('book-picker').showModal(); };
 function showVerses() {
   const chapter = chapterAt(page); $('picker-title').textContent = `${bookAt(page).title} ${chapter.title}`; $('picker-back').hidden = true; $('picker-tabs').hidden = true;
@@ -514,6 +515,7 @@ globalThis.RelayF2?.init(()=>revision,()=>render(),()=>{stop();status('잠금 �
 
 const f8Restored=globalThis.RelayF8?.restore();if(f8Restored){replaceBody(f8Restored);$('text-input').value=editorText();render();}
 globalThis.RelayF8?.init({locked:()=>locked(),save:saveBody});
+if($('empty-import'))$('empty-import').onclick=()=>{if(locked()||!ready)return;try{globalThis.RelayF8?.open(true);}catch(error){status(error.message);}};
 // F5 context is lazy so OFF adds no state changes or server requests.
 globalThis.RelayF5?.init({
   text:()=>({title,verses:lines,pageStarts,chapters,books}),revision:()=>revision,
@@ -583,3 +585,5 @@ globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;contro
 });
 
 globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});
+
+globalThis.RelayF14?.init({state:()=>({book:bookAt(page).title,chapter:chapterAt(page).title,from:pageStarts[page],startVerse:chapterAt(page).startVerse,count:(pageStarts[page+1]??lines.length)-pageStarts[page]})});
