@@ -22,7 +22,7 @@ function controls() {
   $('prev-page').disabled = locked() || page === 0;
   $('next-page').disabled = locked() || page >= pageStarts.length - 1;
   ['all','refresh','save-text','disconnect'].forEach(id => { $(id).disabled = locked() || !ready && id !== 'refresh' && id !== 'disconnect'; });
-  ['ok','re','no'].forEach(id => { $(id).disabled = busy; });
+  ['ok','no'].forEach(id => { $(id).disabled = busy; });
   $('text-input').disabled = locked();
   $('identity').querySelector('button').disabled = busy || acquiring || !!recorder;
 }
@@ -54,7 +54,7 @@ function followSelected() { page = pageFor(selected); render(); }
 function revealSelected() {
   followSelected();
   requestAnimationFrame(() => {
-    $('list').children[selected - pageStarts[page]]?.scrollIntoView({behavior: 'instant', block: 'start'});
+    $('list').children[selected - pageStarts[page]]?.scrollIntoView({behavior: 'instant', block: 'nearest'});
   });
 }
 function stopPlayback() {
@@ -161,7 +161,6 @@ $('ok').onclick = async () => {
   finally { busy = false; render(); if (saved) revealSelected(); }
 };
 $('no').onclick = () => { if (!busy) { discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status('취소됨'); } };
-$('re').onclick = () => { if (!busy) { discard(); status('줄 카드를 다시 꾹 눌러 녹음'); } };
 $('save-text').onclick = async () => {
   if (locked() || !ready) return;
   if (!$('erase-confirm').checked) { status('기존 녹음 삭제 동의에 체크 필요'); return; }
