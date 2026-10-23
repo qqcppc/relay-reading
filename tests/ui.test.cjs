@@ -1,7 +1,7 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
 function setup(){
  const elements=new Map();
- class Element{constructor(){this.value='';this.disabled=false;this.hidden=false;this.listeners={};this.children=[];this.classList={add(){},remove(){}};this.style={};}append(...c){this.children.push(...c)}replaceChildren(){this.children=[]}addEventListener(t,f){this.listeners[t]=f}querySelector(){return this.button||(this.button=new Element())}removeAttribute(){}load(){}pause(){}focus(){}async play(){}}
+ class Element{constructor(){this.value='';this.disabled=false;this.hidden=false;this.listeners={};this.children=[];this.classList={add(){},remove(){}};this.style={};}append(...c){this.children.push(...c)}replaceChildren(){this.children=[]}addEventListener(t,f){this.listeners[t]=f}querySelector(){return this.button||(this.button=new Element())}scrollIntoView(){}removeAttribute(){}load(){}pause(){}focus(){}async play(){}}
  const $=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id)};
  $('review').hidden=true;
  let failUpload=false, conflict=false, reads=[], uploads=[], records=[], released=false;
@@ -12,7 +12,7 @@ function setup(){
  }};
  class Recorder{static isTypeSupported(){return true}constructor(){this.mimeType='audio/webm';this.state='inactive'}start(){this.state='recording'}stop(){this.state='inactive';this.ondataavailable({data:new Blob(['voice'])});this.onstop()}}
  class Reader{readAsDataURL(){this.result='data:audio/webm;base64,dm9pY2U=';this.onload()}}
- const ctx=vm.createContext({console,Blob,Uint8Array,atob,FileReader:Reader,MediaRecorder:Recorder,Audio:Element,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},RelayStorage:api,document:{getElementById:$,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){released=true}}]})}},location:{},history:{}});
+ const ctx=vm.createContext({requestAnimationFrame: fn => fn(),console,Blob,Uint8Array,atob,FileReader:Reader,MediaRecorder:Recorder,Audio:Element,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},RelayStorage:api,document:{getElementById:$,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){released=true}}]})}},location:{},history:{}});
  vm.runInContext(fs.readFileSync('ui.js','utf8'),ctx);
  return {$,ctx,uploads,reads,setFailure:v=>failUpload=v,setConflict:v=>conflict=v,released:()=>released};
 }

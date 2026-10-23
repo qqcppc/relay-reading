@@ -33,6 +33,11 @@ function render() {
   });
   controls();
 }
+function revealSelected() {
+  requestAnimationFrame(() => {
+    $('list').children[selected]?.scrollIntoView({behavior: 'instant', block: 'start'});
+  });
+}
 function stopPlayback() {
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
@@ -123,18 +128,18 @@ function base64(blob) {
 }
 $('ok').onclick = async () => {
   if (!draft || busy || !ready) return;
-  busy = true; controls(); const pending = draft;
+  busy = true; controls(); const pending = draft; let saved = false;
   try {
     if (RelayStorage.connected) {
       const item = await RelayStorage.request('uploadRecording', {revision: pending.revision, verse: pending.verse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName});
     discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
-    status(`✅ ${pending.verse}줄 저장 완료`);
+    status(`✅ ${pending.verse}줄 저장 완료`); saved = true;
   } catch (err) { await failure(err); if (ready) status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침'); }
-  finally { busy = false; render(); }
+  finally { busy = false; render(); if (saved) revealSelected(); }
 };
-$('no').onclick = () => { if (!busy) { discard(); status('취소됨'); } };
+$('no').onclick = () => { if (!busy) { discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status('취소됨'); } };
 $('re').onclick = () => { if (!busy) { discard(); status('다시 꾹 눌러 녹음'); } };
 $('save-text').onclick = async () => {
   if (locked() || !ready) return;
