@@ -17,6 +17,9 @@ const {chromium}=require('playwright');const {server}=require('./helpers/apps-sc
   await p.reload();await p.waitForFunction(()=>revision!==null&&!busy);assert.equal(await queueCount(p),1);assert.equal(await p.locator('.f11-pending').count(),2);
   // Two tabs see one persistent entry; server idempotency protects the retry as well.
   const peer=await p.context().newPage();peer.on('pageerror',e=>errors.push(e.message));await peer.goto(origin);await peer.waitForFunction(()=>revision!==null&&!busy);fail=false;await Promise.all([p.evaluate(()=>RelayF11.flush()),peer.evaluate(()=>RelayF11.flush())]);await p.waitForFunction(()=>!RelayF11.hasPending());assert.equal(await queueCount(p),0);assert.equal(backend.call({action:'listRecordings'}).data.recordings.length,1);assert.equal(await p.locator('.f11-pending').count(),0);await peer.close();
+  // F4 skips an already queued later unit after another confirmation succeeds.
+  await p.evaluate(async()=>{const blob=RelayAudio.wav(new Float32Array(2400).fill(.1));await RelayF11.enqueue({uploadId:'future-queued-verse',verse:3,endVerse:3,revision,readerName:'나',expectedPrevious:null,blob});});await record(p,0);await p.locator('#ok').click();await p.waitForSelector('#review',{state:'hidden'});assert.equal(await p.locator('.line.recording').count(),0);await p.evaluate(()=>RelayF11.flush());assert.equal(await queueCount(p),0);
+
   // Record last singleton; lost upload reply recovers by ID, without replacement.
   await p.evaluate(()=>{RelayFeatures.enabled=(name)=>name==='F4'?false:true;});await record(p,1);lostReply=true;await p.locator('#ok').click();await p.waitForSelector('#review',{state:'hidden'});assert.equal(await queueCount(p),1);const before=backend.files.size;await p.evaluate(()=>RelayF11.flush());assert.equal(await queueCount(p),0);assert.equal(backend.files.size,before);
   // F9 whole range counts toward own goal, not the number of files.

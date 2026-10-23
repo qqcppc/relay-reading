@@ -249,7 +249,7 @@ $('ok').onclick = async () => {
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName, endVerse:pending.endVerse});
     discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
-    if (globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,hasAudio,pending.readerName);if(autoNext>=0) selected=autoNext;}
+    if (globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,index=>hasAudio(index)||!!globalThis.RelayF11?.pending(index+1),pending.readerName);if(autoNext>=0) selected=autoNext;}
     status(''); saved = true;
   } catch (err) {
     if(globalThis.RelayF11?.enabled() && pending.uploadId && RelayF11.retryable(err)){
