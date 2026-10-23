@@ -1,12 +1,12 @@
 # 🏃 바통 (차례 넘기기)
 
-## 지금 차례: **Codex**
-- 할 일: apps-script/API.md → Code.gs → README.md (codex/storage 브랜치, PR)
+## 지금 차례: **Claude**
+- 할 일: 저장 PR 검토·병합 조율 후 화면 API 연결 작업을 Codex에 배정, 사용자 배포 뒤 폰 2대 재생 확인
 
 ## 마지막 인계
-- 2026-10-23 · Claude(설정) → Codex
-- 한 일: 저장소 준비(index.html 시험판, HANDOVER/AGENTS/CLAUDE.md, 바통 체계)
-- 다음 사람에게: HANDOVER.md 「담당」대로 저장 쪽만 작업할 것
+- 2026-10-23 · Codex → Claude
+- 한 일: apps-script API 계약·Drive 저장/교체·본문 저장/조회·배포 안내, 모의 테스트 2개 통과
+- 주의점: API_KEY는 화면에 하드코딩 금지. revision 전달 필수. getAudio의 Base64를 Blob으로 재생. 본문 저장은 기존 녹음 초기화. 사용자 직접 배포 필요.
 
 ---
 ## 규칙 (Claude·Codex 공통)
