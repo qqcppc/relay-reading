@@ -46,3 +46,22 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 
 /* F3: actions only appear when explicitly enabled. */
 #f3-copy{box-sizing:border-box;width:100%;margin-top:8px}#f3-invite{margin-top:12px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font:inherit}
+
+/* F5 assignment previews stay separate from actual recorded-person colors. */
+.line.f5-assigned{border-left-color:color-mix(in srgb,var(--assignment-color) 65%,var(--surface))!important}
+.line.f5-mine:not(.recording){box-shadow:0 0 0 1px var(--green)}
+.seg.f5-assigned:not(.done){background:color-mix(in srgb,var(--assignment-color) 28%,var(--surface))}
+#f5-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;max-height:32dvh;overflow:auto;margin:12px 0}
+#f5-grid button{padding:10px 2px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--assignment-color,var(--surface)) 25%,var(--surface));font:inherit}
+#f5-people{display:grid;gap:8px;max-height:55dvh;overflow:auto}#f5-people button{padding:12px;font:inherit;background:var(--surface);border:1px solid var(--border);border-radius:9px}
+#f5-status{font-size:.85rem;color:var(--terra)}
+
+/* F7 appears only for the current draft when a check finds a warning. */
+#review #f7-warning{position:absolute;top:2px;right:4px;z-index:6;font-size:.8rem;color:var(--terra);font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0 3px!important;line-height:1.2}
+
+/* F8 is an opt-in editor; keep the normal reading screen unchanged. */
+#f8-import{box-sizing:border-box;max-height:85dvh;overflow:auto}#f8-source{box-sizing:border-box;width:100%}
+#f8-preview{max-height:35dvh;overflow:auto;margin:12px 0;font-size:.9rem;white-space:pre-wrap}
+#f8-preview ol{padding-left:2em}#f8-preview li{margin-bottom:8px}#f8-status{display:block;color:var(--terra);font-size:.85rem}
+/* Keep the fixed location/settings row at its specified 48px including borders. */
+#title-btn{box-sizing:border-box}
