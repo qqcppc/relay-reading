@@ -35,3 +35,14 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 .segments button {flex:1;min-width:0;border:1px solid transparent;border-radius:9px;padding:10px 3px;font:inherit;font-size:.9rem;background:transparent;color:var(--muted)}
 .segments button[aria-pressed="true"] {background:var(--surface);border-color:var(--green);color:var(--text);font-weight:700}
 :focus-visible {outline:2px solid var(--terra);outline-offset:3px}
+/* F1/F2/F3 switch controls are only inside the settings sheet. */
+.feature-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;font-weight:500}
+.feature-toggle input{width:2.4em;height:1.3em;accent-color:var(--green);cursor:pointer}
+#f1-connection{padding:10px 0}#feature-status,#f1-status{display:block;color:var(--terra);font-size:.85rem;margin-top:6px}
+#feature-status:empty,#f1-status:empty{display:none}
+
+/* F2: locked by a different phone; playback remains available. */
+.line.f2-locked{opacity:.45}.line.f2-locked .card-trigger{cursor:not-allowed}
+
+/* F3: actions only appear when explicitly enabled. */
+#f3-copy{box-sizing:border-box;width:100%;margin-top:8px}#f3-invite{margin-top:12px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font:inherit}

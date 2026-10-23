@@ -90,3 +90,18 @@ audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호�
 `saveText`에 선택 필드 `books: [{title:"첫 책",startChapter:0},{title:"둘째 책",startChapter:2}]`를 보내고 본문 응답에서도 반환한다. startChapter는 pageStarts/chapters 배열의 **0부터 시작하는 장 위치**다. 첫 책은 0, 이후 값은 엄격한 오름차순 정수이며 pageStarts.length 미만이어야 한다. 제목 1~80자, 책 수는 전체 장 수 이하. 66권 지원(기존 전체 줄 500개 제한 적용).
 
 생략된 구형 요청·기존 저장 데이터는 `[{title:본문제목의_앞80자,startChapter:0}]` 한 책으로 처리하며 빈 본문의 책 제목은 `본문`. books 변경도 revision 변경과 녹음 초기화를 수반한다. 녹음 verse는 책/장에 상관없이 전체 verses 배열의 1부터 시작하는 위치를 유지한다. 최신 Code.gs 배포 필요.
+
+## F2: 읽는 중 잠금·이름별 재녹음 (기본 OFF)
+
+배포자 스크립트 속성 `F2_ENABLED=true`일 때만 서버가 그룹 전체에 적용한다. 폰의 F2 스위치도 켜야 잠금을 요청한다. 속성 없음/false이면 기존 API 그대로다. 활성 배포에서는 OFF/구형 클라이언트의 무잠금 업로드도 거부하므로 그룹원 모두 F2를 켜야 한다. 한 폰에서 OFF로 바꿔도 다른 폰의 잠금이나 서버 정책을 우회하지 않는다.
+
+모든 요청은 기존 key 인증. 아래 변경 요청은 revision과 전체 줄 기준 verse를 보낸다.
+- `listLocks` → `{enabled, revision, locks:[{verse,readerName,expiresAt}]}`. expiresAt은 UTC epoch 밀리초, 만료된 항목 제외. 토큰은 공개하지 않음.
+- `acquireLock` + readerName → `{verse,leaseToken,expiresAt}`. 유효기간 120초. 이미 잠겼으면 `LOCKED`, 기존 녹음 이름이 다르면 `FORBIDDEN`.
+- `renewLock` + readerName + leaseToken → 같은 응답. 30초마다 갱신 권장. 만료 후 갱신은 `LOCK_EXPIRED`.
+- `releaseLock` + leaseToken → `{released:true}`. 자신이 받은 토큰과 일치하는 잠금만 해제. 이미 없으면 성공.
+- `uploadRecording`에 leaseToken 추가. 활성 배포는 토큰·이름·유효기간을 검증하고 성공 후 잠금 해제. 무잠금/만료는 `LOCK_EXPIRED`, 다른 이름의 녹음 교체는 `FORBIDDEN`.
+
+녹음·확인 대기 중 갱신, 취소/실패 시 해제. 폰 종료·네트워크 단절 시 최대 120초 뒤 자동 해제. 폰의 타인 잠금 표시는 10초마다 갱신(시작 시 서버 재검증). 본문 저장은 이전 revision의 잠금도 초기화한다. 배포 비활성 상태에서 잠금 요청은 `FEATURE_DISABLED`.
+
+이름은 사용자가 입력하는 값으로, 계정 인증이 아니다. 같은 이름을 입력한 다른 사람을 구분하는 권한 모델은 아니다. 공유키를 아는 그룹의 이름별 사용 규칙이며, 진짜 사용자 인증이 필요하면 별도 로그인 설계가 필요하다.

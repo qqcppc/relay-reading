@@ -1,39 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const fs = require('node:fs');
 
-function server() {
-  let next = 0;
-  const files = new Map();
-  const props = { API_KEY: 'test-key', DRIVE_FOLDER_ID: 'folder' };
-  const blob = (bytes, mime) => ({ getBytes: () => [...bytes],
-    getDataAsString: () => Buffer.from(bytes).toString('utf8'), mime });
-  const folder = { createFile(name, content) {
-    const id = String(++next);
-    const file = { id, trashed: false, data: typeof name === 'string' ? blob(Buffer.from(content)) : name,
-      getId: () => id, getUrl: () => 'https://drive.google.com/file/d/' + id + '/view',
-      getBlob() { return this.data; }, setContent(s) { this.data = blob(Buffer.from(s)); },
-      setSharing() {}, setTrashed(v) { this.trashed = v; } };
-    files.set(id, file); return file;
-  } };
-  const context = vm.createContext({ console, PropertiesService: { getScriptProperties: () => ({
-    getProperty: k => props[k], setProperty: (k, v) => { props[k] = v; }
-  }) }, DriveApp: { getFolderById: () => folder, getFileById: id => files.get(id),
-    Access: { PRIVATE: 'private' }, Permission: { VIEW: 'view' } },
-    LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
-    Utilities: { getUuid: () => 'uuid-' + (++next),
-      newBlob: (b, mime) => blob(b, mime), base64Decode: s => [...Buffer.from(s, 'base64')],
-      base64Encode: b => Buffer.from(b).toString('base64') }, MimeType: { PLAIN_TEXT: 'text/plain' },
-    ContentService: { MimeType: { JSON: 'json' }, createTextOutput: text => ({
-      setMimeType: () => JSON.parse(text)
-    }) }
-  });
-  vm.runInContext(fs.readFileSync(__dirname + '/Code.gs', 'utf8'), context);
-  return { files, context, call: data => context.doPost({ postData: {
-    contents: JSON.stringify({ key: 'test-key', ...data })
-  } }) };
-}
+const {server}=require('../tests/helpers/apps-script.cjs');
 
 test('본문, 재녹음 교체, 다른 기기 음성 조회, 오래된 버전 거부', () => {
   const s = server();
@@ -99,4 +67,29 @@ test('66권 책 구조 저장·조회, 구형 요청 호환과 경계 검사',()
  const text=s.call({action:'saveText',revision:'0',title:'본문',verses,pageStarts,books}).data;
  assert.deepEqual(text.books,books);assert.deepEqual(s.call({action:'getText'}).data.books,books);
  assert.deepEqual(s.call({action:'saveText',revision:text.revision,title:'구형',verses:['a']}).data.books,[{title:'구형',startChapter:0}]);
+});
+
+test('F2: phone contention, renewal, expiry, owner-only replacement, OFF compatibility',()=>{
+ const s=server();let now=1000000;s.context.Date=class extends Date {static now(){return now}};
+ const text=s.call({action:'saveText',revision:'0',title:'본문',verses:['a','b']}).data;
+ const base={revision:text.revision,verse:1,readerName:'민수'};
+ assert.equal(s.call({action:'acquireLock',...base}).error.code,'FEATURE_DISABLED');
+ s.props.F2_ENABLED='true';
+ const a=s.call({action:'acquireLock',...base}).data;
+ assert.equal(s.call({action:'acquireLock',...base,readerName:'지수'}).error.code,'LOCKED');
+ assert.equal(s.call({action:'acquireLock',...base}).error.code,'LOCKED');
+ const publicLocks=s.call({action:'listLocks'}).data;assert.equal(publicLocks.locks.length,1);assert.equal('leaseToken' in publicLocks.locks[0],false);
+ now+=30000;const renewed=s.call({action:'renewLock',...base,leaseToken:a.leaseToken}).data;assert(renewed.expiresAt>a.expiresAt);
+ const upload={action:'uploadRecording',...base,mimeType:'audio/webm',audioBase64:Buffer.from([26,69,223,163,1]).toString('base64')};
+ assert.equal(s.call(upload).error.code,'LOCK_EXPIRED');
+ assert.equal(s.call({...upload,leaseToken:a.leaseToken}).ok,true);assert.equal(s.call({action:'listLocks'}).data.locks.length,0);
+ assert.equal(s.call({action:'acquireLock',...base,readerName:'지수'}).error.code,'FORBIDDEN');
+ const b=s.call({action:'acquireLock',...base}).data;
+ assert.equal(s.call({...upload,leaseToken:b.leaseToken,readerName:'지수'}).error.code,'FORBIDDEN');
+ now+=120001;assert.equal(s.call({action:'listLocks'}).data.locks.length,0);
+ assert.equal(s.call({...upload,leaseToken:b.leaseToken}).error.code,'LOCK_EXPIRED');
+ const c=s.call({action:'acquireLock',...base}).data;
+ s.call({action:'releaseLock',...base,leaseToken:'wrong'});assert.equal(s.call({action:'listLocks'}).data.locks.length,1);
+ s.call({action:'releaseLock',...base,leaseToken:c.leaseToken});assert.equal(s.call({action:'listLocks'}).data.locks.length,0);
+ s.props.F2_ENABLED='false';assert.equal(s.call({...upload,readerName:'지수'}).ok,true);
 });

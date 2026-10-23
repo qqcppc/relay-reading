@@ -41,10 +41,11 @@ function render() {
     const row = document.createElement('div');
     const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'card-trigger';
     row.className = 'line' + (i === selected ? ' sel' : '') + (hasAudio(i) ? ' done' : '') + (recorder && i === selected ? ' recording' : '');
+    if (globalThis.RelayF2?.blocked(i + 1)) row.className += ' f2-locked';
     row.style.textAlign = 'left'; row.style.width = '100%';
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i);
-    tag.textContent = item ? item.readerName : '';
+    tag.textContent = globalThis.RelayF2?.blocked(i + 1) ? '잠금' : item ? item.readerName : '';
     if (item) row.style.setProperty?.('--pc', personColor(item.readerName));
     const vn = document.createElement('span'); vn.className = 'vn'; vn.textContent = String(chapter.startVerse + i - pageStarts[page]);
     const side = document.createElement('span'); side.className = 'side'; side.append(vn, tag);
@@ -117,6 +118,7 @@ async function refresh() {
   ready = true; $('connection').textContent = '공유 모드 · 녹음·본문을 그룹과 공유';
   page = pageFor(selected);
   $('text-input').value = editorText();
+  await globalThis.RelayF2?.refresh();
 }
 async function failure(err) {
   status('실패: ' + err.message);
@@ -130,18 +132,21 @@ async function loadShared() {
   if (locked()) return;
   stopPlayback(); busy = true; controls();
   try { await refresh(); status(''); }
-  catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; }
+  catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; status('공유 연결 실패. 새로고침 또는 F1 해제'); }
   finally { busy = false; render(); }
 }
 function discard() {
   $('au').pause(); $('au').removeAttribute('src'); $('au').load();
-  $('au').pause(); if (draft) URL.revokeObjectURL(draft.url); draft = null; $('review').hidden = true; controls();
+  $('au').pause(); if (draft) URL.revokeObjectURL(draft.url); globalThis.RelayF2?.release(); draft = null; $('review').hidden = true; controls();
 }
 async function start(event) {
   event.preventDefault();
   if (locked() || !ready || !lines.length) return;
   if (!$('reader').value.trim()) { status('먼저 읽는 사람 이름 입력'); $('reader').focus(); return; }
   if (!navigator.mediaDevices?.getUserMedia || !globalThis.MediaRecorder) { status('HTTPS와 녹음을 지원하는 브라우저 필요'); return; }
+  const item = RelayStorage.connected ? recordings.find(r => r.verse === selected + 1) : local.get(selected);
+  if (globalThis.RelayF2?.blocked(selected + 1)) { status('다른 폰에서 읽는 중'); return; }
+  if (globalThis.RelayF2?.ownerBlocked(item, $('reader').value)) { status('녹음한 이름만 다시 녹음 가능'); return; }
   const epoch = ++captureEpoch;
   acquiring = true; stopPlayback(); controls();
   const target = {verse: selected + 1, revision, readerName: $('reader').value.trim()};
@@ -149,6 +154,8 @@ async function start(event) {
     RelayStorage.setReaderName(target.readerName);
     stream = await navigator.mediaDevices.getUserMedia({audio: true});
     if (epoch !== captureEpoch || document.hidden) { stream.getTracks().forEach(track => track.stop()); stream = null; return; }
+    await globalThis.RelayF2?.acquire(target);
+    if (epoch !== captureEpoch || document.hidden) { stream.getTracks().forEach(track => track.stop()); stream = null; globalThis.RelayF2?.release(); return; }
     const mime = ['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/webm','audio/ogg'].find(type => MediaRecorder.isTypeSupported(type));
     if (!mime) throw new Error('이 브라우저는 webm/ogg 녹음 미지원');
     const chunks = []; let total = 0, tooLarge = false;
@@ -158,13 +165,13 @@ async function start(event) {
     current.onstop = () => {
       stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null;
       const blob = new Blob(chunks, {type: current.mimeType});
-      if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음');
-      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(''); }
+      if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
+      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
       render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
     current.start(250); render(); status('');
-  } catch (err) { stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null; status('녹음 실패: ' + err.message); }
+  } catch (err) { stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null; globalThis.RelayF2?.release(); status('녹음 실패: ' + err.message); }
   finally { acquiring = false; controls(); }
 }
 function stop() { if (acquiring) captureEpoch++; if (recorder?.state === 'recording') recorder.stop(); }
@@ -176,7 +183,7 @@ $('ok').onclick = async () => {
   busy = true; controls(); const pending = draft; let saved = false;
   try {
     if (RelayStorage.connected) {
-      const item = await RelayStorage.request('uploadRecording', {revision: pending.revision, verse: pending.verse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
+      const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), revision: pending.revision, verse: pending.verse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName});
     discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
@@ -359,7 +366,7 @@ if (!RelayStorage.connected) {
 function showPeople() {
   const list = $('people-list'); list.replaceChildren();
   const counts = new Map(); const me = $('reader').value.trim();
-  DEMO_PEOPLE.forEach(n => counts.set(n, 0));
+  if (!RelayStorage.connected) DEMO_PEOPLE.forEach(n => counts.set(n, 0));
   const all = RelayStorage.connected ? recordings : [...local.values()];
   all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
   $('me-count').textContent = `${counts.get(me) || 0}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
@@ -375,3 +382,6 @@ $('people-open').onclick = () => { showPeople(); $('people').showModal(); };
 $('settings-open').onclick = () => $('settings').showModal();
 document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.closest('dialog').close());
 
+
+// F2 stays dormant while OFF. Polling is only for a connected, enabled phone.
+globalThis.RelayF2?.init(()=>revision,()=>render(),()=>{stop();status('잠금 만료. 취소 후 다시 녹음');});

@@ -16,14 +16,14 @@
     if (typeof key !== 'string' || !key.trim()) throw new Error('공유키 필요');
     return {url: parsed.href, key};
   }
-  async function request(action, fields = {}) {
-    if (!config) throw new Error('공유 연결 정보 없음');
+  async function request(action, fields = {}, connection = config) {
+    if (!connection) throw new Error('공유 연결 정보 없음');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45000);
     try {
-      const response = await fetch(config.url, {
+      const response = await fetch(connection.url, {
         method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'},
-        body: JSON.stringify({...fields, action, key: config.key}), signal: controller.signal,
+        body: JSON.stringify({...fields, action, key: connection.key}), signal: controller.signal,
         credentials: 'omit', referrerPolicy: 'no-referrer'
       });
       if (!response.ok) throw new Error('서버 응답 오류');
@@ -36,7 +36,16 @@
     } finally { clearTimeout(timer); }
   }
   root.RelayStorage = {
-    get connected() {return !!config;}, get readerName() {return readerName;},
+    get connected() {return !!config && (!root.RelayFeatures || root.RelayFeatures.enabled('F1'));}, get readerName() {return readerName;},
+    // F1: explicit connection setup, validated against the actual deployment before saving.
+    get connectionUrl() {return config?.url || '';},
+    async connect(url, key) {
+      const next = validate(url, key);
+      await request('getText', {}, next);
+      if (typeof root.locked === 'function' && root.locked()) throw new Error('녹음 확인을 먼저 마쳐야 함');
+      localStorage.setItem(CONFIG, JSON.stringify(next));
+      config = next;
+    },
     acceptLink(location, history) {
       const params = new URLSearchParams(location.hash.slice(1));
       if (!params.has('url') && !params.has('key')) return;
@@ -57,6 +66,12 @@
       try {localStorage.removeItem(CONFIG);}
       catch (_) {throw new Error('연결 정보 삭제 실패. 브라우저 저장 설정 확인');}
       config = null;
+    },
+    // F3: invitation credentials stay in the fragment, never the server query.
+    invitation(base) {
+      const url=new URL(base); url.hash='';url.search='';
+      if (this.connected) url.hash=new URLSearchParams({url:config.url,key:config.key}).toString();
+      return url.href;
     },
     request,
     async load() {

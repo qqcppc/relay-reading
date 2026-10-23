@@ -6,7 +6,7 @@ function setup(responses=[]){
  const values=new Map(), calls=[];
  const ctx=vm.createContext({URL,URLSearchParams,AbortController,setTimeout,clearTimeout,localStorage:{getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)},fetch:async(url,opts)=>{calls.push({url,...opts});return {ok:true,json:async()=>responses.shift()}}});
  vm.runInContext(fs.readFileSync('storage.js','utf8'),ctx);
- return {api:ctx.RelayStorage,values,calls};
+ return {ctx,api:ctx.RelayStorage,values,calls};
 }
 function connect(api){const history={replaceState(...args){this.args=args}};api.acceptLink({hash:'#'+new URLSearchParams({url:'https://script.google.com/macros/s/test/exec',key:'private-key'}),pathname:'/index.html',search:''},history);return history;}
 test('link credentials persist, fragment clears, name persists, unsafe URLs rejected',()=>{
@@ -23,4 +23,16 @@ test('POST contract, revision retry, and API authentication error',async()=>{
  connect(api);assert.equal((await api.load()).text.title,'new');assert.equal(calls.length,4);
  assert.equal(calls[0].method,'POST');assert.equal(calls[0].headers['Content-Type'],'text/plain;charset=utf-8');assert.equal(JSON.parse(calls[0].body).key,'private-key');
  await assert.rejects(api.request('getText'),{code:'UNAUTHORIZED'});
+});
+
+test('F1 OFF gates stored connections; failed connection preserves old binding; F3 invitation uses fragment',async()=>{
+ const s=setup([{ok:false,error:{code:'UNAUTHORIZED',message:'bad key'}},{ok:true,data:{title:'ok'}}]);
+ connect(s.api);let enabled=false;s.ctx.RelayFeatures={enabled:()=>enabled};
+ assert.equal(s.api.connected,false);assert.equal(new URL(s.api.invitation('https://app.test/index.html')).hash,'');
+ enabled=true;assert.equal(s.api.connected,true);
+ await assert.rejects(s.api.connect('https://script.google.com/macros/s/other/exec','wrong'));
+ assert.equal(s.api.connectionUrl,'https://script.google.com/macros/s/test/exec');
+ await s.api.connect('https://script.google.com/macros/s/other/exec','new-key');
+ const invite=new URL(s.api.invitation('https://app.test/index.html?old=1#old'));
+ assert.equal(invite.search,'');assert.equal(new URLSearchParams(invite.hash.slice(1)).get('key'),'new-key');
 });
