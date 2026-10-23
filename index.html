@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>녹음 시험</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 auto;padding:20px 16px;display:grid;gap:12px;max-width:520px}
+.line{background:#fff;border:2px solid #e2ddd2;border-radius:12px;padding:14px;display:grid;gap:10px}
+.line.sel{border-color:#b4432f}.line.done .t{color:#2f5d50}
+.t{font-size:1.15rem;line-height:1.6;cursor:pointer}
+.tag{font-size:.8rem;color:#7a7366}
+#hold{position:sticky;bottom:12px;width:100%;padding:24px;font-size:1.2rem;border:0;border-radius:16px;background:#b4432f;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
+#hold.on{background:#7a1f10}
+#st{text-align:center;color:#7a7366;font-size:.9rem}
+.row{display:flex;gap:8px}.row button{flex:1;padding:12px;font-size:.95rem;border-radius:10px;border:1px solid #ccc;background:#fff}
+#all{padding:12px;border-radius:10px;border:0;background:#2f5d50;color:#fff;font-size:1rem}
+</style></head><body>
+<h2>🎤 릴레이 녹음 시험</h2>
+<button id="all">▶ 처음부터 이어듣기</button>
+<div id="list"></div>
+<div id="st">줄을 골라 아래 버튼을 꾹 누르고 읽기</div>
+<div id="review" hidden>
+  <audio id="au" controls style="width:100%"></audio>
+  <div class="row"><button id="ok">✅ 확인</button><button id="re">🔁 다시</button><button id="no">✖ 취소</button></div>
+</div>
+<button id="hold">꾹 누르고 읽기</button>
+<script>
+const lines=['동해 물과 백두산이 마르고 닳도록','하느님이 보우하사 우리나라 만세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세'];
+const saved=[],$=id=>document.getElementById(id);let sel=0,rec,chunks=[],stream,t0,timer,draft=null,player=new Audio();
+function render(){const L=$('list');L.innerHTML='';lines.forEach((t,i)=>{const d=document.createElement('div');d.className='line'+(i===sel?' sel':'')+(saved[i]?' done':'');
+ d.innerHTML=`<div class="tag">${i+1}줄 · ${saved[i]?'✅ 녹음됨 (누르면 재생)':(i===sel?'⏩ 지금 차례':'⏺️ 대기')}</div><div class="t"></div>`;d.querySelector('.t').textContent=t;
+ d.onclick=()=>{sel=i;render();if(saved[i])play(i)};L.append(d)})}
+function play(i,chain){const u=saved[i];if(!u){if(chain)return;return}player.src=u;player.play();$('st').textContent=`▶ ${i+1}줄 재생`;
+ player.onended=chain?()=>{for(let k=i+1;k<lines.length;k++)if(saved[k])return play(k,true);$('st').textContent='재생 끝'}:null}
+$('all').onclick=()=>{const f=saved.findIndex(Boolean);if(f<0){$('st').textContent='아직 녹음 없음';return}play(f,true)};
+async function start(e){e.preventDefault();player.pause();
+ try{stream=stream||await navigator.mediaDevices.getUserMedia({audio:true})}catch(err){$('st').textContent='마이크 허용 필요: '+err.name;return}
+ chunks=[];rec=new MediaRecorder(stream);rec.ondataavailable=d=>chunks.push(d.data);
+ rec.onstop=()=>{draft=URL.createObjectURL(new Blob(chunks,{type:rec.mimeType}));$('au').src=draft;$('review').hidden=false;$('st').textContent=`${sel+1}줄 녹음 완료 (${((Date.now()-t0)/1000).toFixed(1)}초)`};
+ rec.start();t0=Date.now();$('hold').classList.add('on');$('review').hidden=true;
+ timer=setInterval(()=>$('st').textContent=`● ${sel+1}줄 녹음 중 ${((Date.now()-t0)/1000).toFixed(1)}초`,100)}
+function stop(){if(rec&&rec.state==='recording'){rec.stop();clearInterval(timer);$('hold').classList.remove('on')}}
+const h=$('hold');h.addEventListener('pointerdown',start);['pointerup','pointercancel','pointerleave'].forEach(ev=>h.addEventListener(ev,stop));h.addEventListener('contextmenu',e=>e.preventDefault());
+$('ok').onclick=()=>{saved[sel]=draft;$('review').hidden=true;$('st').textContent=`✅ ${sel+1}줄 저장`;const n=lines.findIndex((_,i)=>!saved[i]);if(n>=0)sel=n;render()};
+$('re').onclick=()=>{$('review').hidden=true;$('st').textContent='다시 꾹 눌러 녹음'};
+$('no').onclick=()=>{$('review').hidden=true;draft=null;$('st').textContent='취소됨'};
+render();
+</script></body></html>
