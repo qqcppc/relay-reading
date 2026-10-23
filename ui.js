@@ -48,6 +48,8 @@ function render() {
     const item = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i);
     tag.textContent = globalThis.RelayF2?.blocked(i + 1) ? '잠금' : item ? item.readerName : '';
     if (item) row.style.setProperty?.('--pc', personColor(item.readerName));
+    const assigned=globalThis.RelayF5?.owner(i+1);
+    if(assigned){row.className+=' f5-assigned'+(assigned===$('reader').value.trim()?' f5-mine':'');row.style.setProperty('--assignment-color',personColor(assigned));}
     const vn = document.createElement('span'); vn.className = 'vn'; vn.textContent = String(chapter.startVerse + i - pageStarts[page]);
     const side = document.createElement('span'); side.className = 'side'; side.append(vn, tag);
     const content = document.createElement('span'); content.className = 't'; content.textContent = text;
@@ -73,8 +75,9 @@ function drawProgress() {
     const seg = document.createElement('button'); seg.type = 'button';
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i === selected ? ' cur' : '');
     const who = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
+    const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty('--assignment-color',personColor(assigned));}
     seg.setAttribute('aria-label', `${i - from + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
-    seg.onclick = () => { if (locked() || !ready) return; selected = i; revealSelected(); };
+    seg.onclick = () => { if (locked() || !ready) return; if(globalThis.RelayF5?.manual()){RelayF5.choose(i+1);return;} selected = i; revealSelected(); };
     bar.append(seg);
   }
 }
@@ -124,6 +127,7 @@ async function refresh() {
   page = pageFor(selected);
   $('text-input').value = editorText();
   await globalThis.RelayF2?.refresh();
+  await globalThis.RelayF5?.refresh();
 }
 async function failure(err) {
   status('실패: ' + err.message);
@@ -211,6 +215,7 @@ $('save-text').onclick = async () => {
   try {
     const text = RelayStorage.connected ? await RelayStorage.request('saveText', {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, books: parsed.books, revision}) : {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, books: parsed.books};
     title = text.title; lines = text.verses; pageStarts = text.pageStarts || [0]; chapters = text.chapters || []; books = text.books || [{title:title.slice(0,80),startChapter:0}]; page = 0; revision = text.revision; recordings = []; local.clear(); selected = 0;
+    globalThis.RelayF5?.reset();
     $('erase-confirm').checked = false; $('editor').open = false; status('본문 저장 완료 · 기존 녹음 초기화');
   } catch (err) { await failure(err); }
   finally { busy = false; render(); }
@@ -415,3 +420,11 @@ document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.close
 
 // F2 stays dormant while OFF. Polling is only for a connected, enabled phone.
 globalThis.RelayF2?.init(()=>revision,()=>render(),()=>{stop();status('잠금 만료. 취소 후 다시 녹음');});
+
+// F5 context is lazy so OFF adds no state changes or server requests.
+globalThis.RelayF5?.init({
+  text:()=>({title,verses:lines,pageStarts,chapters,books}),revision:()=>revision,
+  render:()=>render(),locked:()=>locked(),range:()=>({from:pageStarts[page],to:pageStarts[page+1]??lines.length}),
+  color:personColor,label:index=>`${chapterAt(pageFor(index)).title} ${chapterAt(pageFor(index)).startVerse+index-pageStarts[pageFor(index)]}절`,
+  names:()=>[...new Set([$('reader').value.trim(),...(RelayStorage.connected?recordings.map(r=>r.readerName):DEMO_PEOPLE)].filter(Boolean))]
+});

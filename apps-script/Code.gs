@@ -59,11 +59,25 @@ function dispatch_(request) {
         .sort(function (a, b) { return Number(a) - Number(b); })
         .map(function (verse) { return recording_(state.recordings[verse]); }) };
     }
+    if (request.action === 'getAssignments') return f5Plan_(state);
     if (request.action === 'listLocks') return f2List_(state, properties);
-    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock'].indexOf(request.action) < 0) {
+    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock','saveAssignments'].indexOf(request.action) < 0) {
       fail_('INVALID_REQUEST', '지원하지 않는 action');
     }
     if (request.revision !== state.revision) fail_('CONFLICT', '본문을 다시 조회한 뒤 재시도');
+    // F5: plans use an independent revision to reject stale simultaneous edits.
+    if (request.action === 'saveAssignments') {
+      if (request.assignmentRevision !== (state.assignmentRevision || '0')) fail_('CONFLICT', '배정표 다시 조회 필요');
+      var plan=request.assignments;
+      if (!plan || typeof plan !== 'object' || Array.isArray(plan) || Object.keys(plan).length > state.verses.length) fail_('INVALID_REQUEST', '배정표 형식 오류');
+      var clean={};
+      Object.keys(plan).forEach(function (verse) {
+        if (!/^[1-9][0-9]*$/.test(verse) || Number(verse)>state.verses.length) fail_('INVALID_REQUEST', '배정 절 번호 오류');
+        clean[verse]=string_(plan[verse],80,'배정 이름');
+      });
+      state.assignments=clean;state.assignmentRevision=Utilities.getUuid();
+      persist_(folder,properties,stateFile,state);return f5Plan_(state);
+    }
     if (request.action === 'saveText') {
       var title = string_(request.title, 200, '제목');
       if (!Array.isArray(request.verses) || !request.verses.length || request.verses.length > 500) {
@@ -226,3 +240,6 @@ function f2AuthorizeUpload_(request, state) {
   var lease=(state.locks || {})[request.verse];
   if (!lease || lease.expiresAt <= Date.now() || lease.token !== request.leaseToken || lease.readerName !== request.readerName) fail_('LOCK_EXPIRED', '녹음 잠금 만료. 다시 녹음 필요');
 }
+
+// F5: absent plan is compatible with existing deployments/data.
+function f5Plan_(state) {return {revision:state.revision,assignmentRevision:state.assignmentRevision || '0',assignments:state.assignments || {}};}
