@@ -53,6 +53,7 @@ function render() {
     if(unit.end>unit.start)row.className+=' f9-unit';
     if(globalThis.RelayF9?.selected(i))row.className+=' f9-selected';
     if (globalThis.RelayF2?.blocked(i + 1)) row.className += ' f2-locked';
+    if (otherRecording(i)) { row.className += ' other-rec'; row.style.setProperty?.('--oc', personColor(DEMO_LOCKS.get(i) || '?')); }
     row.style.textAlign = 'left'; row.style.width = '100%';
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = recordingAt(i);
@@ -79,6 +80,8 @@ function render() {
   controls();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
+const DEMO_LOCKS = new Map();
+function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1) || DEMO_LOCKS.has(i); }
 function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
@@ -87,14 +90,14 @@ function drawProgress() {
   const bands = Math.max(1, Math.ceil((to - from) / 20));
   if (selected >= from && selected < to && !gridManual) gridBand = Math.floor((selected - from) / 20);
   gridBand = Math.max(0, Math.min(gridBand, bands - 1)); gridManual = false;
-  [0, 1].forEach(blk => { const n = document.createElement('span'); n.className = 'blk-no'; n.textContent = String(gridBand * 20 + blk * 10 + 1); n.style.left = blk ? 'calc(50% + 4px)' : '0'; bar.append(n); });
+  [['prev', gridBand > 0, '‹'], ['next', gridBand < bands - 1, '›']].forEach(([c, on, t]) => { if (!on) return; const a = document.createElement('span'); a.className = 'grid-arrow ' + c; a.textContent = t; bar.append(a); });
   for (let k = gridBand * 20; k < gridBand * 20 + 20; k++) {
     const m = k % 20, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
     const seg = document.createElement('button'); seg.type = 'button';
     seg.style.gridColumn = String(block * 6 + c + 1); seg.style.gridRow = String(r + 1);
-    const i = from + k;
+    const i = from + k; seg.textContent = String(k + 1);
     if (i >= to) { seg.className = 'seg off'; seg.disabled = true; seg.tabIndex = -1; bar.append(seg); continue; }
-    seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i >= unitAt(selected).start && i <= unitAt(selected).end ? ' cur' : '');
+    seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i >= unitAt(selected).start && i <= unitAt(selected).end ? ' cur' : '') + (otherRecording(i) ? ' other-rec' : '');
     const who = recordingAt(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
     if(unitAt(i).end>unitAt(i).start)seg.className+=' f9-group';
     const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty?.('--assignment-color',personColor(assigned));}
@@ -319,18 +322,25 @@ function shortBook(label) {
   return [m[1] === '요한' ? '요한서' : m[1], rn];
 }
 function bookButton(label, index) {
-  const button = document.createElement('button'); button.type = 'button'; const short = label === '예레미야애가' ? '애가' : label; const rn = ''; button.textContent = short;
+  const button = document.createElement('button'); button.type = 'button'; const nt = BIBLE.findIndex(b => b[0] === label) >= 39; const [short, rn] = nt ? shortBook(label) : [label, '']; button.textContent = short;
   button.setAttribute('aria-label', label); if (rn) { const r = document.createElement('span'); r.className = 'rn'; r.textContent = rn; button.append?.(r); }
   if (index < 0) { button.className = 'empty'; button.onclick = () => showSampleChapters(label); }
   else { button.setAttribute('aria-current', String(index === bookIndex(page))); button.onclick = () => showChapters(index); }
   return button;
 }
+let chPage = 0, chRender = null;
+function pagedNumbers(total, make) {
+  const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
+  const pages = Math.max(1, Math.ceil(total / 50)); chPage = Math.min(chPage, pages - 1);
+  for (let k = chPage * 50; k < Math.min(total, chPage * 50 + 50); k++) items.append(make(k));
+  const hint = $('picker-hint'); if (hint) { hint.hidden = pages < 2; hint.textContent = (chPage > 0 ? '‹ ' : '') + `${chPage * 50 + 1}–${Math.min(total, chPage * 50 + 50)}` + (chPage < pages - 1 ? ' ›' : ''); }
+  chRender = next => { const n = chPage + next; if (n < 0 || n >= pages) return; chPage = n; pagedNumbers(total, make); };
+  items.scrollTop = 0;
+}
 function showSampleChapters(name) {
   const count = (BIBLE.find(b => b[0] === name) || [name, 1])[1];
   $('picker-title').textContent = name + ' (준비 중)'; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
-  const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
-  for (let c = 1; c <= count; c++) { const button = document.createElement('button'); button.type = 'button'; button.textContent = String(c); button.disabled = true; items.append(button); }
-  items.scrollTop = 0;
+  chPage = 0; pagedNumbers(count, k => { const button = document.createElement('button'); button.type = 'button'; button.textContent = String(k + 1); button.disabled = true; return button; });
 }
 let bookTab = 0;
 try { bookTab = Number(localStorage.getItem('relay.bookTab')) || 0; } catch {}
@@ -344,22 +354,22 @@ function showBooks(flash) {
   const anyKnown = books.some(b => known.has(b.title));
   if (!anyKnown) { extra.forEach(([b, i]) => items.append(bookButton(b.title, i))); items.scrollTop = 0; return; }
   (bookSide === 0 ? BIBLE.slice(0, 39) : BIBLE.slice(39)).forEach(([t]) => items.append(bookButton(t, books.findIndex(b => b.title === t))));
-  if (bookSide === 1) extra.forEach(([b, i]) => items.append(bookButton(b.title, i)));
+  if (bookSide === 1) { extra.forEach(([b, i]) => items.append(bookButton(b.title, i))); items.append(sideButtons()); }
+  const hint = $('picker-hint'); if (hint) { hint.hidden = false; hint.textContent = bookSide ? '‹ 구약' : '신약 ›'; }
   const f = $('picker-flash'); if (f) { f.textContent = ['구약', '신약', '기타'][bookSide]; f.style.opacity = flash ? '1' : '.55'; if (flash) setTimeout(() => { f.style.opacity = '.55'; }, 600); }
   items.scrollTop = 0;
 }
+function sideButtons() { const w = document.createElement('div'); w.className = 'side-btns'; [['people','온기목장'],['settings','설정']].forEach(([id, t]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => { $('book-picker').close(); openSheet(id); }; w.append(b); }); return w; }
 function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true); }
 function showChapters(index) {
   const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
-  const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
   const end = books[index + 1]?.startChapter ?? pageStarts.length;
-  for (let chapter = book.startChapter; chapter < end; chapter++) {
+  chPage = Math.floor(Math.max(0, page - book.startChapter) / 50);
+  pagedNumbers(end - book.startChapter, k => { const chapter = book.startChapter + k;
     const button = document.createElement('button'); button.type = 'button'; button.textContent = globalThis.RelayF8?.enabled() ? (chapterAt(chapter).title.match(/^(\d+)장$/)?.[1] || String(chapter-book.startChapter+1)) : String(chapter-book.startChapter+1);
     button.setAttribute('aria-label', chapterAt(chapter).title); button.setAttribute('aria-current', String(chapter === page));
     button.onclick = () => { if (locked() || !ready) return; $('book-picker').close(); changePage(chapter); };
-    items.append(button);
-  }
-  items.scrollTop = 0;
+    return button; });
 }
 $('book-open').onclick = () => { if (locked() || !ready) return; showBooks(); $('book-picker').showModal(); };
 $('picker-back').onclick = showBooks;
@@ -431,7 +441,8 @@ if (!RelayStorage.connected) {
     for (let r = 0; r < run && i < pageStarts[10]; r++, i++) if (who) local.set(i, {demo: true, readerName: who});
   }
   for (let i = pageStarts[1]; i < pageStarts[2]; i++) if (!local.has(i)) local.set(i, {demo: true, readerName: ['민지', '도윤', '하늘'][i % 3]});
-  selected = lines.findIndex((_, i) => !local.has(i)); page = pageFor(selected); render();
+  local.delete(11); DEMO_LOCKS.set(11, '도윤');
+  selected = lines.findIndex((_, i) => !local.has(i) && !DEMO_LOCKS.has(i)); page = pageFor(selected); render();
 }
 function showPeople() {
   const list = $('people-list'); list.replaceChildren();
@@ -503,7 +514,7 @@ function sheetTop() { const r = document.getElementById('sticky')?.getBoundingCl
 // 책 창 좌우 쓸기: 구약 ↔ 신약 (넘어가지 않음)
 { let x0 = null; const it = $('picker-items');
   it.addEventListener?.('touchstart', e => { x0 = e.touches[0].clientX; }, {passive: true});
-  it.addEventListener?.('touchend', e => { if (x0 === null || it.className !== 'books') return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 60) setBookSide(bookSide + (dx < 0 ? 1 : -1)); }); }
+  it.addEventListener?.('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) <= 60) return; if (it.className === 'books') setBookSide(bookSide + (dx < 0 ? 1 : -1)); else chRender?.(dx < 0 ? 1 : -1); }); }
 // ⑥ 절 블록 좌우 쓸기
 { let x0 = null; const c = $('center');
   c.addEventListener?.('touchstart', e => { x0 = e.touches[0].clientX; gridSwiped = false; e.stopPropagation(); }, {passive: true});
@@ -518,3 +529,10 @@ $('bfont-up').onclick = () => { bookFont = Math.min(1.3, +(bookFont + .05).toFix
 applyBookFont();
 $('settings-open').addEventListener?.('click', e => e.stopPropagation());
 $('center').addEventListener?.('touchmove', e => { e.preventDefault?.(); e.stopPropagation(); }, {passive: false});
+
+let headFont = 1.15;
+try { headFont = Number(localStorage.getItem('relay.hfont')) || 1.15; } catch {}
+function applyHeadFont() { document.documentElement?.style?.setProperty?.('--hfs', headFont + 'rem'); try { localStorage.setItem('relay.hfont', headFont); } catch {} }
+$('hfont-down').onclick = () => { headFont = Math.max(.8, +(headFont - .05).toFixed(2)); applyHeadFont(); };
+$('hfont-up').onclick = () => { headFont = Math.min(1.6, +(headFont + .05).toFixed(2)); applyHeadFont(); };
+applyHeadFont();
