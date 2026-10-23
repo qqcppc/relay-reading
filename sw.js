@@ -5,7 +5,7 @@ const PREFIX='relay-reading:'+ROOT.pathname+':';
 const CACHE=PREFIX+VERSION;
 const ASSETS=['./','index.html','settings.css?v='+VERSION,'settings.js?v='+VERSION,
   'features.js?v='+VERSION,'storage.js?v='+VERSION,'f2-locks.js?v='+VERSION,
-  'f5-assignments.js?v='+VERSION,'f4-continuation.js?v='+VERSION,'f3-app.js?v='+VERSION,'ui.js?v='+VERSION,'manifest.webmanifest?v='+VERSION,
+  'f7-quality.js?v='+VERSION,'f5-assignments.js?v='+VERSION,'f4-continuation.js?v='+VERSION,'f3-app.js?v='+VERSION,'ui.js?v='+VERSION,'manifest.webmanifest?v='+VERSION,
   'icons/icon-192.png','icons/icon-512.png'].map(path=>new URL(path,ROOT).href);
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);await cache.addAll(ASSETS);await self.skipWaiting();

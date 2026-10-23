@@ -25,6 +25,7 @@ function controls() {
   $('next-page').disabled = locked() || page >= pageStarts.length - 1;
   ['all','refresh','save-text','disconnect'].forEach(id => { $(id).disabled = locked() || !ready && id !== 'refresh' && id !== 'disconnect'; });
   ['ok','listen','no'].forEach(id => { $(id).disabled = busy; });
+  $('ok').disabled = busy || !!draft?.qualityChecking;
   $('text-input').disabled = locked();
   $('reader').disabled = busy || acquiring || !!recorder;
 }
@@ -61,6 +62,8 @@ function render() {
     $('list').append(row);
   });
   if (!draft) { review.hidden = true; $('list').after(review); }
+  if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent=warning;$('f7-warning').hidden=!warning;}
+  globalThis.RelayF5?.paint();
   drawProgress();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
@@ -169,13 +172,14 @@ async function start(event) {
     if (!mime) throw new Error('이 브라우저는 webm/ogg 녹음 미지원');
     const chunks = []; let total = 0, tooLarge = false;
     recorder = new MediaRecorder(stream, {mimeType: mime}); recordTarget = target;
-    const current = recorder;
+    const current = recorder, startedAt = Date.now();
     current.ondataavailable = e => { if (e.data.size) { chunks.push(e.data); total += e.data.size; if (total > 5 * 1024 * 1024) { tooLarge = true; stop(); } } };
     current.onstop = () => {
       stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null;
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
       else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
+      if(draft && globalThis.RelayF7?.enabled()){const targetDraft=draft;targetDraft.qualityChecking=true;RelayF7.analyze(blob,(Date.now()-startedAt)/1000).then(warnings=>{if(draft===targetDraft){draft.quality=warnings;draft.qualityChecking=false;render();}});}
       render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
@@ -188,7 +192,7 @@ function base64(blob) {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('녹음 읽기 실패')); reader.readAsDataURL(blob); });
 }
 $('ok').onclick = async () => {
-  if (!draft || busy || !ready) return;
+  if (!draft || busy || !ready || draft.qualityChecking) return;
   busy = true; controls(); const pending = draft; let saved = false, autoNext = -1; const f4Ticket = globalThis.RelayF4?.ticket();
   try {
     if (RelayStorage.connected) {

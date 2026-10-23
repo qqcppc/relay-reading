@@ -55,3 +55,7 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f5-grid button{padding:10px 2px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--assignment-color,var(--surface)) 25%,var(--surface));font:inherit}
 #f5-people{display:grid;gap:8px;max-height:55dvh;overflow:auto}#f5-people button{padding:12px;font:inherit;background:var(--surface);border:1px solid var(--border);border-radius:9px}
 #f5-status{font-size:.85rem;color:var(--terra)}
+
+/* F7 appears only for the current draft when a check finds a warning. */
+#review:has(#f7-warning:not([hidden])){flex-direction:column;justify-content:center;gap:5px}
+#f7-warning{font-size:.75rem;color:var(--terra);font-weight:700;background:var(--surface);border-radius:6px;padding:2px 5px}
