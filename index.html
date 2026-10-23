@@ -17,6 +17,13 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 <form id="identity"><label>읽는 사람 이름 <input id="reader" required maxlength="80" autocomplete="nickname"></label> <button>이름 기억</button></form>
 <p id="connection" role="status">폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
 <div class="row"><button id="refresh" hidden>공유 본문·목록 새로고침</button><button id="disconnect" hidden>연결 지우고 시험 모드</button></div>
+<details id="editor"><summary>본문 편집</summary>
+<label for="text-input">첫 줄은 제목, 다음 줄부터 빈 줄로 절 구분</label>
+<textarea id="text-input" rows="10" style="width:100%;box-sizing:border-box"></textarea>
+<p><strong>본문을 저장하면 기존 녹음이 모두 지워짐.</strong></p>
+<label><input id="erase-confirm" type="checkbox">기존 녹음 삭제에 동의</label>
+<button id="save-text">본문 저장</button></details>
+<button id="stop-play">■ 재생 멈추기</button>
 <button id="all">▶ 처음부터 이어듣기</button>
 <div id="list"></div>
 <div id="st">줄을 골라 아래 버튼을 꾹 누르고 읽기</div>
@@ -26,39 +33,5 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 </div>
 <button id="hold">꾹 누르고 읽기</button>
 <script src="storage.js"></script>
-<script>
-let lines=['동해 물과 백두산이 마르고 닳도록','하느님이 보우하사 우리나라 만세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세'];
-const saved=[],$=id=>document.getElementById(id);let sel=0,rec,chunks=[],stream,t0,timer,draft=null,player=new Audio();
-let remoteRecordings=[];
-function render(){const L=$('list');L.innerHTML='';lines.forEach((t,i)=>{const d=document.createElement('div');d.className='line'+(i===sel?' sel':'')+(saved[i]?' done':'');
- d.innerHTML=`<div class="tag">${i+1}줄 · ${saved[i]?'✅ 녹음됨 (누르면 재생)':(i===sel?'⏩ 지금 차례':'⏺️ 대기')}</div><div class="t"></div>`;d.querySelector('.t').textContent=t;
- const remote=remoteRecordings.find(r=>r.verse===i+1);if(remote)d.querySelector('.tag').textContent=`${i+1}줄 · ${remote.readerName} · 공유 녹음 있음 (재생 연결은 다음 작업)`;d.onclick=()=>{if(rec&&rec.state==='recording'||draft)return;sel=i;render();if(saved[i])play(i)};L.append(d)})}
-function play(i,chain){const u=saved[i];if(!u){if(chain)return;return}player.src=u;player.play();$('st').textContent=`▶ ${i+1}줄 재생`;
- player.onended=chain?()=>{for(let k=i+1;k<lines.length;k++)if(saved[k])return play(k,true);$('st').textContent='재생 끝'}:null}
-$('all').onclick=()=>{const f=saved.findIndex(Boolean);if(f<0){$('st').textContent='아직 녹음 없음';return}play(f,true)};
-async function start(e){e.preventDefault();if(RelayStorage.connected||!$('reader').value.trim()){ $('st').textContent=RelayStorage.connected?'공유 녹음·재생 연결은 다음 작업 예정':'먼저 읽는 사람 이름 입력';return}player.pause();
- try{stream=stream||await navigator.mediaDevices.getUserMedia({audio:true})}catch(err){$('st').textContent='마이크 허용 필요: '+err.name;return}
- chunks=[];rec=new MediaRecorder(stream);rec.ondataavailable=d=>chunks.push(d.data);
- rec.onstop=()=>{draft=URL.createObjectURL(new Blob(chunks,{type:rec.mimeType}));$('au').src=draft;$('review').hidden=false;$('st').textContent=`${sel+1}줄 녹음 완료 (${((Date.now()-t0)/1000).toFixed(1)}초)`};
- rec.start();t0=Date.now();$('hold').classList.add('on');$('review').hidden=true;
- timer=setInterval(()=>$('st').textContent=`● ${sel+1}줄 녹음 중 ${((Date.now()-t0)/1000).toFixed(1)}초`,100)}
-function stop(){if(rec&&rec.state==='recording'){rec.stop();clearInterval(timer);$('hold').classList.remove('on')}}
-const h=$('hold');h.addEventListener('pointerdown',start);['pointerup','pointercancel','pointerleave'].forEach(ev=>h.addEventListener(ev,stop));h.addEventListener('contextmenu',e=>e.preventDefault());
-$('ok').onclick=()=>{if(saved[sel])URL.revokeObjectURL(saved[sel]);saved[sel]=draft;draft=null;$('review').hidden=true;$('st').textContent=`✅ ${sel+1}줄 저장`;const n=lines.findIndex((_,i)=>!saved[i]);if(n>=0)sel=n;render()};
-$('re').onclick=()=>{if(draft)URL.revokeObjectURL(draft);draft=null;$('review').hidden=true;$('st').textContent='다시 꾹 눌러 녹음'};
-$('no').onclick=()=>{if(draft)URL.revokeObjectURL(draft);$('review').hidden=true;draft=null;$('st').textContent='취소됨'};
-function clearLocalAudio(){player.pause();saved.forEach(u=>{if(u)URL.revokeObjectURL(u)});saved.length=0;if(draft)URL.revokeObjectURL(draft);draft=null;$('review').hidden=true;}
-async function loadShared(){
- $('refresh').disabled=true;$('hold').disabled=true;$('all').disabled=true;
- try{const snapshot=await RelayStorage.load();clearLocalAudio();lines=snapshot.text.verses;remoteRecordings=snapshot.recordings;sel=lines.findIndex((_,i)=>!remoteRecordings.some(r=>r.verse===i+1));if(sel<0)sel=0;$('heading').textContent=snapshot.text.title||'공유 본문 없음';$('connection').textContent='공유 연결됨 · 본문·목록 조회 모드 (녹음 업로드·재생은 다음 작업)';render();}
- catch(err){$('connection').textContent='연결 실패: '+err.message+' · 연결을 지우면 시험 모드 사용 가능';}
- finally{$('refresh').disabled=false;}
-}
-$('reader').value=RelayStorage.readerName;
-$('identity').onsubmit=e=>{e.preventDefault();try{RelayStorage.setReaderName($('reader').value);$('st').textContent='이름 기억 완료'}catch(err){$('st').textContent=err.message}};
-$('refresh').onclick=loadShared;
-$('disconnect').onclick=()=>{try{RelayStorage.disconnect();location.reload()}catch(err){$('connection').textContent=err.message}};
-try{RelayStorage.acceptLink(location,history)}catch(err){$('connection').textContent=err.message}
-if(RelayStorage.connected){$('refresh').hidden=false;$('disconnect').hidden=false;loadShared()}
-render();
-</script></body></html>
+<script src="ui.js"></script>
+</body></html>
