@@ -1,3 +1,4 @@
+const {switchFeature}=require('./helpers/switch.cjs');
 const {chromium}=require('playwright');const {server}=require('./helpers/apps-script.cjs');const http=require('node:http');const fs=require('node:fs');const path=require('node:path');const assert=require('node:assert/strict');
 (async()=>{
  const backend=server(),api='https://script.google.com/macros/s/test/exec';backend.props.F2_ENABLED='true';backend.call({action:'saveText',revision:'0',title:'본문',verses:['a','b','c','d','e','f','g']});const requests=[];
@@ -11,7 +12,7 @@ const {chromium}=require('playwright');const {server}=require('./helpers/apps-sc
  async function stop(p){await p.waitForTimeout(250);await p.locator('.line.recording .card-trigger').click();await p.waitForSelector('.line #review',{state:'visible'});await p.waitForFunction(()=>!document.querySelector('#ok').disabled);}
  async function importText(p,source){await settings(p);await p.locator('#f8-open').click();await p.locator('#f8-source').fill(source);await p.locator('#f8-preview-button').click();await p.locator('#f8-consent').check();await p.locator('#f8-save').click();await p.waitForSelector('#f8-import',{state:'hidden'});}
  try{
-  const off=await page();const baseline=await off.locator('.t').allTextContents();await settings(off);assert.equal(await off.locator('#feature-f9').isChecked(),false);await Promise.all([off.waitForEvent('load'),off.locator('#feature-f9').check()]);assert.deepEqual(await off.locator('.t').allTextContents(),baseline);await settings(off);await Promise.all([off.waitForEvent('load'),off.locator('#feature-f9').uncheck()]);assert.deepEqual(await off.locator('.t').allTextContents(),baseline);
+  const off=await page();const baseline=await off.locator('.t').allTextContents();await settings(off);assert.equal(await off.locator('#feature-f9').isChecked(),false);await switchFeature(off,'#feature-f9',true);assert.deepEqual(await off.locator('.t').allTextContents(),baseline);await settings(off);await switchFeature(off,'#feature-f9',false);assert.deepEqual(await off.locator('.t').allTextContents(),baseline);
   const p=await page({F1:true,F2:true,F4:true,F5:true,F7:true,F8:true,F9:true});
   await importText(p,'# 창세기\n@1장 | 1\n| 3-5\n1 하나\n2 둘\n3 셋\n4 넷\n5 다섯\n6 여섯\n7 일곱');assert.equal(await p.locator('.line').count(),5);assert.equal(await p.locator('.vn').nth(2).textContent(),'3–5');
   await settings(p);await p.locator('#f5-names').fill('나, 친구');await p.locator('#f5-round-1').click();await p.waitForFunction(()=>RelayF5.owner(7)==='나');assert.equal(await p.evaluate(()=>RelayF5.owner(4)),'나');await close(p);

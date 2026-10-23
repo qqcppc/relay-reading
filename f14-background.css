@@ -1,0 +1,24 @@
+/* All treatments are scoped to opt-in Genesis chapters; the reading palette stays intact. */
+body.f14-active{isolation:isolate}
+#f14-scene{position:fixed;top:0;bottom:0;left:50%;width:100%;max-width:560px;transform:translateX(-50%);pointer-events:none;z-index:-1;overflow:hidden;--f14-opacity:.3;--f14-filter:none}
+.f14-active #f14-scene::before{content:'';position:absolute;inset:-3%;background-image:url('assets/bg/genesis-creation.webp');background-size:max(100%,55vh) auto;background-position:center var(--f14-y,50%);background-repeat:no-repeat;opacity:var(--f14-opacity);filter:var(--f14-filter)}
+#f14-scene[data-mode=A]{--f14-opacity:.32}#f14-scene[data-mode=A]::before{transition:background-position .3s linear}
+#f14-scene[data-mode=B]{--f14-opacity:.15}
+#f14-scene[data-mode=C]{--f14-opacity:.3}
+#f14-scene[data-mode=D]{--f14-opacity:.45;--f14-filter:blur(20px) saturate(.8)}
+#f14-scene[data-mode=E]{--f14-opacity:.35}#f14-scene[data-mode=E]::before{background-size:auto 310%;background-position:center bottom}
+#f14-scene[data-mode=F]{--f14-opacity:.2;--f14-filter:grayscale(1)}
+#f14-scene[data-mode=G]{--f14-opacity:.65;--f14-filter:brightness(.35)}#f14-scene[data-mode=G]::before{background-size:auto 310%;background-position:center top}
+#f14-scene[data-mode=H]{--f14-opacity:.5}#f14-scene[data-mode=H]::before{mask-image:linear-gradient(to right,#000,transparent 34%,transparent 66%,#000)}
+#f14-scene[data-mode=I]{--f14-opacity:.5}
+#f14-scene[data-mode=J]{--f14-opacity:.3}#f14-scene[data-mode=J]::before{animation:f14-drift 80s ease-in-out infinite alternate;background-position:center 65%}
+@keyframes f14-drift{from{transform:scale(1.02) translate(-1%,-1%)}to{transform:scale(1.12) translate(1%,1%)}}
+body.f14-paused #f14-scene::before{animation-play-state:paused}
+.f14-active #list .line{background:color-mix(in srgb,var(--surface) 80%,transparent)!important}
+.f14-active #list .line.done{background:linear-gradient(color-mix(in srgb,var(--pc,var(--green)) 12%,transparent),color-mix(in srgb,var(--pc,var(--green)) 12%,transparent)),color-mix(in srgb,var(--surface) 84%,transparent)!important}
+.f14-active #list .line.sel{background:color-mix(in srgb,var(--terra) 8%,color-mix(in srgb,var(--surface) 90%,transparent))!important}
+.f14-active #list .line.recording{background:color-mix(in srgb,var(--record) 10%,var(--surface))!important}
+body.f14-active:has(#f14-scene[data-mode=C]) #list .line:not(.recording),body.f14-active:has(#f14-scene[data-mode=G]) #list .line:not(.recording){background:color-mix(in srgb,var(--surface) 94%,transparent)!important}
+body:has(#f14-scene[data-mode=I]) #list .t{text-shadow:0 1px 2px var(--surface),0 0 4px var(--surface)}
+#f14-label{position:absolute;top:calc(100% + 1px);right:16px;font-size:.65rem;line-height:1.3;color:var(--muted);background:var(--bg);padding:1px 5px;border-radius:5px;pointer-events:none}
+@media(prefers-reduced-motion:reduce){body.f14-active #f14-scene::before{animation:none!important;transition:none!important}#f14-scene[data-mode=A]::before{background-position:center 50%!important}}

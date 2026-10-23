@@ -84,3 +84,13 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f12-controls output{display:block;font-size:.8rem;margin:6px 0}#f12-download{padding:10px;color:var(--blue)}
 
 #f13-controls{margin-top:12px}#f13-text{width:100%;box-sizing:border-box;font:inherit;font-size:.85rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px}#f13-status{display:block;font-size:.8rem}
+
+#empty-text{padding:24px 16px;text-align:center;border:1px dashed var(--border-strong);border-radius:12px;background:var(--surface)}
+#empty-text p{color:var(--text);line-height:1.5}#empty-import{border:0;border-radius:9px;background:var(--green);color:var(--on-accent);font:inherit;padding:12px 18px}
+#f8-file{font-size:.85rem}
+
+#f8-draft-status,#editor-draft-status{display:block;font-size:.8rem;color:var(--muted);margin:6px 0}#f8-draft-status:empty,#editor-draft-status:empty{display:none}
+
+/* Actual saved coverage fills both books and chapters from the bottom. */
+#picker-items button.ch-full{background:var(--green)!important;border-color:var(--green)!important;color:var(--on-accent)!important}
+#picker-items button.ch-part{background:linear-gradient(to top,color-mix(in srgb,var(--green) 35%,var(--surface)) var(--pct),var(--surface) var(--pct))!important}

@@ -1,9 +1,10 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
-<link rel="stylesheet" href="settings.css?v=39">
-<script src="features.js?v=39"></script>
-<script src="settings.js?v=39"></script>
+<link rel="stylesheet" href="settings.css?v=44">
+<link rel="stylesheet" href="f14-background.css?v=44">
+<script src="features.js?v=44"></script>
+<script src="settings.js?v=44"></script>
 <style>
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
 .line{box-sizing:border-box;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:10px}
@@ -227,7 +228,8 @@ body.modal-open{overflow:hidden}
 #title-btn{border:0!important;background:none!important;grid-template-columns:3fr 2fr!important}
 #title-btn button{border:0!important}#tb-book{border-right:0!important}#tb-ch{border-right:0!important;text-align:left}
 </style></head><body>
-<div id="sticky"><header id="top"><button id="prev-page" aria-label="이전 장" hidden>‹</button><button id="next-page" aria-label="다음 장" hidden>›</button><div id="title-btn" role="group" aria-label="위치" data-n="3"><span id="settings-open" aria-label="화면 번호">#38</span><button id="tb-book" type="button" aria-label="책 고르기"><span id="version">책</span></button><button id="tb-ch" type="button" aria-label="장 고르기"></button><button id="tb-vs" type="button" aria-label="절 범위" hidden></button><small id="ver-sub" hidden></small></div><div id="center" data-n="6"><div id="progress" aria-label="녹음 진행"></div><button id="grid-page" type="button" hidden aria-label="다음 30절">1/2</button><button id="center-play" type="button" hidden><span id="play-ic">▶</span> <span id="center-txt">처음부터 듣기</span></button><span id="page-label" hidden></span></div><button id="people-open" type="button" aria-label="사람" hidden>👤</button></header></div>
+<div id="f14-scene" aria-hidden="true" hidden></div>
+<div id="sticky"><header id="top"><button id="prev-page" aria-label="이전 장" hidden>‹</button><button id="next-page" aria-label="다음 장" hidden>›</button><div id="title-btn" role="group" aria-label="위치" data-n="3"><span id="settings-open" aria-label="화면 번호">#38</span><button id="tb-book" type="button" aria-label="책 고르기"><span id="version">책</span></button><button id="tb-ch" type="button" aria-label="장 고르기"></button><button id="tb-vs" type="button" aria-label="절 범위" hidden></button><small id="ver-sub" hidden></small></div><div id="center" data-n="6"><div id="progress" aria-label="녹음 진행"></div><button id="grid-page" type="button" hidden aria-label="다음 30절">1/2</button><button id="center-play" type="button" hidden><span id="play-ic">▶</span> <span id="center-txt">처음부터 듣기</span></button><span id="page-label" hidden></span></div><button id="people-open" type="button" aria-label="사람" hidden>👤</button></header><small id="f14-label" hidden></small></div>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
 <form id="identity" hidden><button id="all" type="button" hidden>▶</button><button id="edit-toggle" type="button" hidden>✎</button><button id="book-open" type="button" hidden>책</button></form>
 <dialog id="people" class="sheet"><div class="dlg-tabs" data-n="20"><button type="button" data-go="people" aria-pressed="true">👤 사람</button><button type="button" data-go="settings">⚙ 설정</button></div><div id="me-chip" class="me" data-n="13"><button id="me-name" type="button" aria-label="내 이름 바꾸기"></button><input id="reader" maxlength="80" autocomplete="nickname" placeholder="내 이름" hidden><button id="me-ok" type="button" hidden aria-label="이름 확인" data-n="14">확인</button><button id="me-count" type="button" aria-label="내 목표 바꾸기"></button></div><ul id="people-list" data-n="15"></ul><button id="f3-invite" type="button" hidden data-n="16">초대 링크 보내기</button><textarea id="f3-copy" readonly aria-label="초대 링크" hidden></textarea><output id="f3-share-status" role="status"></output><div id="f13-controls" hidden data-n="47"><textarea id="f13-text" readonly rows="3" aria-label="진행 문구"></textarea><button id="f13-copy" type="button">진행 문구 복사</button><output id="f13-status" role="status"></output></div></dialog>
@@ -240,9 +242,9 @@ body.modal-open{overflow:hidden}
 <label class="feature-toggle"><span>F2 잠금·본인 재녹음</span><input id="feature-f2" type="checkbox" role="switch"></label>
 <label class="feature-toggle"><span>F3 앱·초대</span><input id="feature-f3" type="checkbox" role="switch"></label>
 <div id="f3-actions" hidden><button id="f3-install" type="button">홈 화면에 추가</button><output id="f3-install-status" role="status"></output></div><label class="feature-toggle" data-n="21"><span>F4 이어 말하기</span><input id="feature-f4" type="checkbox" role="switch"></label><label class="feature-toggle" data-n="22"><span>F5 배정표</span><input id="feature-f5" type="checkbox" role="switch"></label>
-<div id="f5-controls" hidden data-n="23"><label class="fld">참여 이름<input id="f5-names" placeholder="민수, 지수" maxlength="8000"></label><div class="row" role="group" aria-label="돌아가며 배정"><button id="f5-round-1" type="button">1절씩</button><button id="f5-round-2" type="button">2절씩</button><button id="f5-refresh" type="button">새로고침</button></div><label class="feature-toggle"><span>직접 지정</span><input id="f5-manual" type="checkbox"></label><div id="f5-grid" data-n="24"></div><output id="f5-status" role="status"></output></div><label class="feature-toggle" data-n="26"><span>F7 녹음 품질 검사</span><input id="feature-f7" type="checkbox" role="switch"></label><label class="feature-toggle" data-n="28"><span>F8 본문 넣기(관리자)</span><input id="feature-f8" type="checkbox" role="switch"></label><button id="f8-open" type="button" hidden data-n="29">본문 넣기</button><label class="feature-toggle" data-n="35"><span>F9 묶어 읽기</span><input id="feature-f9" type="checkbox" role="switch"></label><div id="f9-controls" hidden><label class="feature-toggle" data-n="36"><span>묶음 편집</span><input id="f9-edit" type="checkbox"></label><output id="f9-status" role="status"></output></div><label class="feature-toggle" data-n="40"><span>F10 앞뒤 무음 자르기</span><input id="feature-f10" type="checkbox" role="switch"></label><label class="feature-toggle" data-n="42"><span>F11 끊김 대비 대기열</span><input id="feature-f11" type="checkbox" role="switch"></label><div id="f11-controls" hidden data-n="43"><output id="f11-status" role="status"></output><button id="f11-retry" type="button">다시 확인·전송</button><ul id="f11-list"></ul></div><label class="feature-toggle" data-n="44"><span>F12 장 합본 내려받기</span><input id="feature-f12" type="checkbox" role="switch"></label><div id="f12-controls" hidden data-n="45"><button id="f12-build" type="button">현재 장 합본 만들기</button><output id="f12-status" role="status"></output><div class="row"><a id="f12-download" hidden>WAV 내려받기</a><button id="f12-share" type="button" hidden>합본 공유</button></div></div><label class="feature-toggle" data-n="46"><span>F13 진행 문구</span><input id="feature-f13" type="checkbox" role="switch"></label><output id="feature-status" role="status"></output></fieldset></dialog>
+<div id="f5-controls" hidden data-n="23"><label class="fld">참여 이름<input id="f5-names" placeholder="민수, 지수" maxlength="8000"></label><div class="row" role="group" aria-label="돌아가며 배정"><button id="f5-round-1" type="button">1절씩</button><button id="f5-round-2" type="button">2절씩</button><button id="f5-refresh" type="button">새로고침</button></div><label class="feature-toggle"><span>직접 지정</span><input id="f5-manual" type="checkbox"></label><div id="f5-grid" data-n="24"></div><output id="f5-status" role="status"></output></div><label class="feature-toggle" data-n="26"><span>F7 녹음 품질 검사</span><input id="feature-f7" type="checkbox" role="switch"></label><label class="feature-toggle" data-n="28"><span>F8 본문 넣기(관리자)</span><input id="feature-f8" type="checkbox" role="switch"></label><button id="f8-open" type="button" hidden data-n="29">본문 넣기</button><label class="feature-toggle" data-n="35"><span>F9 묶어 읽기</span><input id="feature-f9" type="checkbox" role="switch"></label><div id="f9-controls" hidden><label class="feature-toggle" data-n="36"><span>묶음 편집</span><input id="f9-edit" type="checkbox"></label><output id="f9-status" role="status"></output></div><label class="feature-toggle" data-n="40"><span>F10 앞뒤 무음 자르기</span><input id="feature-f10" type="checkbox" role="switch"></label><label class="feature-toggle" data-n="42"><span>F11 끊김 대비 대기열</span><input id="feature-f11" type="checkbox" role="switch"></label><div id="f11-controls" hidden data-n="43"><output id="f11-status" role="status"></output><button id="f11-retry" type="button">다시 확인·전송</button><ul id="f11-list"></ul></div><label class="feature-toggle" data-n="44"><span>F12 장 합본 내려받기</span><input id="feature-f12" type="checkbox" role="switch"></label><div id="f12-controls" hidden data-n="45"><button id="f12-build" type="button">현재 장 합본 만들기</button><output id="f12-status" role="status"></output><div class="row"><a id="f12-download" hidden>WAV 내려받기</a><button id="f12-share" type="button" hidden>합본 공유</button></div></div><label class="feature-toggle" data-n="46"><span>F13 진행 문구</span><input id="feature-f13" type="checkbox" role="switch"></label><label class="feature-toggle" data-n="48"><span>F14 창세기 그림 배경</span><input id="feature-f14" type="checkbox" role="switch"></label><output id="feature-status" role="status"></output></fieldset></dialog>
 <dialog id="f5-person" class="sheet" aria-labelledby="f5-person-title" data-n="25"><div class="dlg-head"><b id="f5-person-title"></b><button class="dlg-close" type="button" aria-label="닫기">✕</button></div><div id="f5-people"></div></dialog>
-<dialog id="f8-import" class="sheet" aria-label="본문 넣기"><div class="dlg-head"><b>본문 넣기</b><button class="dlg-close" type="button" aria-label="닫기">✕</button></div><label class="fld" data-n="33">제목<input id="f8-title" value="본문" maxlength="200"></label><textarea id="f8-source" rows="8" maxlength="500000" aria-label="붙여넣을 본문" data-n="30"></textarea><button id="f8-preview-button" type="button" data-n="31">미리보기</button><div id="f8-preview"></div><label class="feature-toggle" data-n="34"><span>기존 녹음 삭제 동의</span><input id="f8-consent" type="checkbox"></label><button id="f8-save" type="button" data-n="32" disabled>저장</button><output id="f8-status" role="status"></output></dialog>
+<dialog id="f8-import" class="sheet" aria-label="본문 넣기"><div class="dlg-head"><b>본문 넣기</b><button class="dlg-close" type="button" aria-label="닫기">✕</button></div><label class="fld" data-n="33">제목<input id="f8-title" value="본문" maxlength="200"></label><label class="fld" data-n="51">.txt 파일 불러오기<input id="f8-file" type="file" accept=".txt,text/plain"></label><textarea id="f8-source" rows="8" maxlength="500000" aria-label="붙여넣을 본문" data-n="30"></textarea><output id="f8-draft-status" role="status"></output><button id="f8-draft-discard" type="button" hidden>임시 입력 지우기</button><button id="f8-preview-button" type="button" data-n="31">미리보기</button><div id="f8-preview"></div><label class="feature-toggle" data-n="34"><span>기존 녹음 삭제 동의</span><input id="f8-consent" type="checkbox"></label><button id="f8-save" type="button" data-n="32" disabled>저장</button><output id="f8-status" role="status"></output></dialog>
 <dialog id="f9-confirm" class="sheet" aria-label="묶음 변경" data-n="38"><div class="dlg-head"><b>묶음 변경</b><button class="dlg-close" type="button" aria-label="닫기">✕</button></div><label class="feature-toggle"><span>범위가 바뀌는 녹음 삭제 동의</span><input id="f9-consent" type="checkbox"></label><button id="f9-confirm-save" type="button" data-n="39">변경</button></dialog>
 <dialog id="book-picker" aria-labelledby="picker-title"><div id="picker-head" hidden><button id="picker-back" type="button" hidden aria-label="책 목록" data-n="17">◀</button><h2 id="picker-title">책</h2><button id="picker-close" type="button" hidden aria-label="닫기">✕</button></div><div id="picker-tabs" class="segments" hidden></div><div id="picker-flash"></div><div id="picker-hint" hidden></div><div id="picker-items" data-n="19"></div></dialog>
 <p id="connection" role="status" hidden>폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
@@ -252,9 +254,11 @@ body.modal-open{overflow:hidden}
 <textarea id="text-input" rows="10" style="width:100%;box-sizing:border-box"></textarea>
 <p><strong>본문을 저장하면 기존 녹음이 모두 지워짐.</strong></p>
 <label><input id="erase-confirm" type="checkbox">기존 녹음 삭제에 동의</label>
+<output id="editor-draft-status" role="status"></output><button id="editor-draft-discard" type="button" hidden>임시 입력 지우기</button>
 <button id="save-text">본문 저장</button></details>
 
 <div id="f9-tools" class="row" data-n="37" hidden><button id="f9-merge" type="button">묶기</button><button id="f9-split" type="button">풀기</button><button id="f9-cancel" type="button">취소</button></div>
+<section id="empty-text" data-n="49" aria-label="본문 넣기 안내" hidden><p>공유 본문이 비어 있어. 읽을 본문을 넣어 줘.</p><button id="empty-import" type="button" data-n="50">본문 넣기</button></section>
 <div id="list" data-n="8"></div>
 <div id="st" role="status"></div>
 <div id="review" hidden>
@@ -263,19 +267,21 @@ body.modal-open{overflow:hidden}
   <div class="row"><button id="ok" aria-label="확인" data-n="10"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><button id="listen" aria-label="듣기" data-n="11"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg></button><button id="no" aria-label="취소" data-n="12"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
 </div>
 
-<script src="storage.js?v=39"></script>
-<script src="f2-locks.js?v=39"></script>
-<script src="f3-app.js?v=39"></script>
-<script src="f4-continuation.js?v=39"></script>
-<script src="f5-assignments.js?v=39"></script>
-<script src="f7-quality.js?v=39"></script>
-<script src="f9-groups.js?v=39"></script>
-<script src="f8-import.js?v=39"></script>
-<script src="audio-tools.js?v=39"></script>
-<script src="f10-trim.js?v=39"></script>
-<script src="f11-queue.js?v=39"></script>
-<script src="f12-chapter.js?v=39"></script>
-<script src="f13-progress.js?v=39"></script>
-<script src="ui.js?v=39"></script>
+<script src="storage.js?v=44"></script>
+<script src="f2-locks.js?v=44"></script>
+<script src="f3-app.js?v=44"></script>
+<script src="f4-continuation.js?v=44"></script>
+<script src="f5-assignments.js?v=44"></script>
+<script src="f7-quality.js?v=44"></script>
+<script src="f9-groups.js?v=44"></script>
+<script src="f8-import.js?v=44"></script>
+<script src="audio-tools.js?v=44"></script>
+<script src="f10-trim.js?v=44"></script>
+<script src="f11-queue.js?v=44"></script>
+<script src="f12-chapter.js?v=44"></script>
+<script src="f13-progress.js?v=44"></script>
+<script src="f14-background.js?v=44"></script>
+<script src="drafts.js?v=44"></script>
+<script src="ui.js?v=44"></script>
 <div id="toast" role="status" aria-live="polite"></div>
 </body></html>

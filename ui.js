@@ -36,11 +36,12 @@ function controls() {
 }
 function render() {
   $('heading').textContent = title || '공유 본문 없음';
+  if($('empty-text')){$('empty-text').hidden=!(RelayStorage.connected&&ready&&!lines.length);$('empty-import').disabled=locked()||!ready;}
   page = Math.max(0, Math.min(page, pageStarts.length - 1));
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = chapter.title.replace(/장$/, ''); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):''; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -53,7 +54,7 @@ function render() {
     if(unit.end>unit.start)row.className+=' f9-unit';
     if(globalThis.RelayF9?.selected(i))row.className+=' f9-selected';
     if (globalThis.RelayF2?.blocked(i + 1)) row.className += ' f2-locked';
-    if (otherRecording(i)) { row.className += ' other-rec'; row.style.setProperty?.('--oc', personColor(DEMO_LOCKS.get(i) || '?')); }
+    if (otherRecording(i)) { row.className += ' other-rec'; row.style.setProperty?.('--oc', personColor(globalThis.RelayF2?.reader?.(i+1) || '?')); }
     row.style.textAlign = 'left'; row.style.width = '100%';
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = recordingAt(i);
@@ -78,15 +79,14 @@ function render() {
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();
+  controls();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
-const DEMO_LOCKS = new Map();
-function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1) || DEMO_LOCKS.has(i); }
+function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1); }
 function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
-  let full = true; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
+  let full = to>from; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
   $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
   const bands = Math.max(1, Math.ceil((to - from) / 20));
   if (selected >= from && selected < to && !gridManual) gridBand = Math.floor((selected - from) / 20);
@@ -154,7 +154,7 @@ async function refresh() {
   selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = 0;
   ready = true; $('connection').textContent = '공유 모드 · 녹음·본문을 그룹과 공유';
   page = pageFor(selected);
-  $('text-input').value = editorText();
+  if(globalThis.RelayDrafts)RelayDrafts.serverText(editorText());else $('text-input').value=editorText();
   await globalThis.RelayF2?.refresh();
   await globalThis.RelayF5?.refresh();
 }
@@ -269,7 +269,7 @@ $('save-text').onclick = async () => {
   const parsed = parsePages(newline < 0 ? '' : input.slice(newline + 1), nextTitle);
   const verses = parsed.verses;
   if (parsed.books.some(b => !b.title || b.title.length > 80) || parsed.chapters.some(c => !c.title || c.title.length > 80 || !Number.isSafeInteger(c.startVerse) || c.startVerse > 1000000) || !nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
-  try {await saveBody({title:nextTitle,verses,pageStarts:parsed.pageStarts,chapters:parsed.chapters,books:parsed.books});}
+  try {await saveBody({title:nextTitle,verses,pageStarts:parsed.pageStarts,chapters:parsed.chapters,books:parsed.books});globalThis.RelayDrafts?.saved('editor');}
   catch (err) {await failure(err);}
 };
 function replaceBody(text) {
@@ -283,7 +283,7 @@ async function saveBody(next) {
   try {
     const text=RelayStorage.connected?await RelayStorage.request('saveText',{...next,revision}):next;
     globalThis.RelayF8?.remember(text);try{localStorage.removeItem('relay.groups.v1');}catch(_){}replaceBody(text);globalThis.RelayF5?.reset();
-    $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
+    if(globalThis.RelayDrafts)RelayDrafts.serverText(editorText());else $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
   } catch(error) {await failure(error);throw error;} finally {busy=false;render();}
 }
 
@@ -348,11 +348,23 @@ function shortBook(label) {
   const rn = {상:'Ⅰ',하:'Ⅱ',전서:'Ⅰ',후서:'Ⅱ',일서:'Ⅰ',이서:'Ⅱ',삼서:'Ⅲ'}[m[2]];
   return [m[1] === '요한' ? '요한서' : m[1], rn];
 }
+// Fill counts saved verses, including every member of F9 groups; demos and outbox are excluded.
+function pickerProgress(from,to){
+  let count=0;for(let index=from;index<to;index++){const item=recordingAt(index);if(item&&!item.demo&&(RelayStorage.connected||item.blob))count++;}
+  return {count,total:Math.max(0,to-from)};
+}
+function fillPicker(button,from,to,label){
+  const {count,total}=pickerProgress(from,to),percent=total?count/total*100:0;
+  button.style.setProperty?.('--pct',percent.toFixed(2)+'%');
+  if(total&&count===total)button.classList.add('ch-full');else if(count)button.classList.add('ch-part');
+  button.setAttribute('aria-label',`${label} · 불러온 본문 ${count}/${total}절 녹음`);
+  button.title=`불러온 본문 기준 ${count}/${total}절 · ${Math.round(percent)}%`;
+}
 function bookButton(label, index) {
   const button = document.createElement('button'); button.type = 'button'; const nt = BIBLE.findIndex(b => b[0] === label) >= 39; const [short, rn] = nt ? shortBook(label) : [label, '']; button.textContent = short;
   button.setAttribute('aria-label', label); if (rn) { const r = document.createElement('span'); r.className = 'rn'; r.textContent = rn; button.append?.(r); }
   if (index < 0) { button.className = 'empty'; button.onclick = () => showSampleChapters(label); }
-  else { button.setAttribute('aria-current', String(index === bookIndex(page))); button.onclick = () => showChapters(index); }
+  else { button.setAttribute('aria-current', String(index === bookIndex(page)));const first=books[index].startChapter,last=books[index+1]?.startChapter??pageStarts.length;fillPicker(button,pageStarts[first],pageStarts[last]??lines.length,label);button.onclick = () => showChapters(index); }
   return button;
 }
 let chPage = 0, chRender = null;
@@ -395,7 +407,7 @@ function showChapters(index) {
   pagedNumbers(end - book.startChapter, k => { const chapter = book.startChapter + k;
     const button = document.createElement('button'); button.type = 'button'; button.textContent = globalThis.RelayF8?.enabled() ? (chapterAt(chapter).title.match(/^(\d+)장$/)?.[1] || String(chapter-book.startChapter+1)) : String(chapter-book.startChapter+1);
     button.setAttribute('aria-label', chapterAt(chapter).title); button.setAttribute('aria-current', String(chapter === page));
-    { const f = pageStarts[chapter], t = pageStarts[chapter + 1] ?? lines.length; let n = 0; for (let i = f; i < t; i++) if (hasAudio(i)) n++; if (n === t - f) button.className = 'ch-full'; else if (n) { button.className = 'ch-part'; button.style.setProperty?.('--pct', Math.round(n / (t - f) * 100) + '%'); } }
+    fillPicker(button,pageStarts[chapter],pageStarts[chapter+1]??lines.length,chapterAt(chapter).title);
     button.onclick = () => { if (locked() || !ready) return; $('book-picker').close(); changePage(chapter); };
     return button; });
 }
@@ -424,7 +436,7 @@ $('listen').onclick = () => { const a = $('au'); if (a.paused) { if(draft)a.src=
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
 $('tb-book').onclick = () => $('book-open').onclick();
-$('tb-ch').onclick = () => { if (locked() || !ready) return; showChapters(bookIndex(page)); $('book-picker').showModal(); };
+$('tb-ch').onclick = () => { if (locked() || !ready || !lines.length) return; showChapters(bookIndex(page)); $('book-picker').showModal(); };
 $('tb-vs').onclick = () => { if (locked() || !ready) return; showVerses(); $('book-picker').showModal(); };
 function showVerses() {
   const chapter = chapterAt(page); $('picker-title').textContent = `${bookAt(page).title} ${chapter.title}`; $('picker-back').hidden = true; $('picker-tabs').hidden = true;
@@ -469,8 +481,8 @@ if (!RelayStorage.connected) {
     for (let r = 0; r < run && i < pageStarts[10]; r++, i++) if (who) local.set(i, {demo: true, readerName: who});
   }
   for (let i = pageStarts[1]; i < pageStarts[2]; i++) if (!local.has(i)) local.set(i, {demo: true, readerName: ['민지', '도윤', '하늘'][i % 3]});
-  local.delete(11); DEMO_LOCKS.set(11, '도윤');
-  selected = lines.findIndex((_, i) => !local.has(i) && !DEMO_LOCKS.has(i)); page = pageFor(selected); render();
+  local.delete(11);
+  selected = lines.findIndex((_, i) => !local.has(i)); page = pageFor(selected); render();
 }
 const DEMO_GOALS = {민지: 120, 도윤: 100, 하늘: 40};
 let myGoal = 100;
@@ -514,6 +526,7 @@ globalThis.RelayF2?.init(()=>revision,()=>render(),()=>{stop();status('잠금 �
 
 const f8Restored=globalThis.RelayF8?.restore();if(f8Restored){replaceBody(f8Restored);$('text-input').value=editorText();render();}
 globalThis.RelayF8?.init({locked:()=>locked(),save:saveBody});
+if($('empty-import'))$('empty-import').onclick=()=>{if(locked()||!ready)return;try{globalThis.RelayF8?.open(true);}catch(error){status(error.message);}};
 // F5 context is lazy so OFF adds no state changes or server requests.
 globalThis.RelayF5?.init({
   text:()=>({title,verses:lines,pageStarts,chapters,books}),revision:()=>revision,
@@ -583,3 +596,7 @@ globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;contro
 });
 
 globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});
+
+globalThis.RelayF14?.init({state:()=>({book:bookAt(page).title,chapter:chapterAt(page).title,from:pageStarts[page],startVerse:chapterAt(page).startVerse,count:(pageStarts[page+1]??lines.length)-pageStarts[page]})});
+
+globalThis.RelayDrafts?.init({revision:()=>revision,ready:()=>ready&&!busy,locked});

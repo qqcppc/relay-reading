@@ -15,13 +15,16 @@ npm run test:browser
 BROWSER_EXECUTABLE=/usr/bin/chromium npm run test:browser
 ```
 
-- `npm test`: 7개 파일의 단위/API 검사(27개 사례). Apps Script·Drive는 메모리 모의 서비스, WAV도 합성 PCM 바이트만 사용한다.
+- `npm test`: 8개 파일의 단위/API 검사(29개 사례). Apps Script·Drive는 메모리 모의 서비스, WAV도 합성 PCM 바이트만 사용한다.
 - `features-smoke.cjs`: F1 연결/두 폰 F2/이름별 교체/F3 실제 SW·오프라인·공유·OFF 복귀.
 - `settings-smoke.cjs`: 테마·글꼴·기억·저장 차단·모바일 시트.
 - `f4-f8-smoke.cjs`: F4+F5 자동 시작/배정 동기화/F7 실제 해독/F8 입력·동의·복원.
 - `f9-smoke.cjs`: 묶음 녹음/첫 절 키/범위 잠금/격자색/배정/편집·동의.
 - `long-1-smoke.cjs`: F10 실제 Web Audio 무음 자르기·비교, F11 IndexedDB 재시작·두 탭·응답 유실·본문 충돌·저장 실패, F12 묶음 WAV·명시적 파일 공유, F13 장 완성·목표·복사.
-- `screen-smoke.cjs`: 현재 한 줄 머리/20칸 격자 쓸기/구약·신약 4열/온기목장·설정 시트, 전체 기능 ON·OFF·교차 조합, F10~F13 스위치 재시작·복귀. `ui-smoke.cjs`는 이 검사의 호환 진입점이다.
+- `bg-seed-smoke.cjs`: F14 A~J·스크롤·동작 줄이기·다크·그림 오프라인 캐시, 빈 공유 본문의 F8 직접 진입, UTF-8/UTF-16 파일·오류·늦은 읽기·저장 동의. A~J와 다크 확인 화면은 `tests/results/background-*.png`에 생성한다. 실제 성경 본문은 테스트에 넣지 않는다.
+- `drafts-smoke.cjs`: 입력/파일 초안의 새로고침·스위치 재시작 복원, 저장 성공 정리, 서버 목록 갱신 중 입력 보존, 그룹 범위·삭제·저장 실패 이탈 경고.
+- `picker-progress-smoke.cjs`: 가짜 예약 없음/실제 F2 잠금·사람 색·해제, 책·장 실제 절 비율/묶음/대기·연출 제외/완료 표시.
+- `screen-smoke.cjs`: 현재 한 줄 머리/20칸 격자 쓸기/구약·신약 4열/온기목장·설정 시트, 전체 기능 ON·OFF·교차 조합, F10~F14 스위치 재시작·복귀. `ui-smoke.cjs`는 이 검사의 호환 진입점이다.
 
 ## 390×800 화면 비교
 
