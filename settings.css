@@ -90,3 +90,7 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f8-file{font-size:.85rem}
 
 #f8-draft-status,#editor-draft-status{display:block;font-size:.8rem;color:var(--muted);margin:6px 0}#f8-draft-status:empty,#editor-draft-status:empty{display:none}
+
+/* Actual saved coverage fills both books and chapters from the bottom. */
+#picker-items button.ch-full{background:var(--green)!important;border-color:var(--green)!important;color:var(--on-accent)!important}
+#picker-items button.ch-part{background:linear-gradient(to top,color-mix(in srgb,var(--green) 35%,var(--surface)) var(--pct),var(--surface) var(--pct))!important}
