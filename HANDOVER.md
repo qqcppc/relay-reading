@@ -38,3 +38,15 @@
 - '-요' 금지, 명사형·반말, 핵심만, 굵게·이모지 강조, 📁📄 표기
 - 선택지는 클릭 버튼 (안 되면 🅰🅱)
 - 크레딧 아끼기: **구현 전 확인**, 사용자가 원할 때만 만들기
+
+## 공동 작업 규칙 (Claude Code + Codex)
+- `main` = 완성본. 직접 수정 금지, 브랜치 → PR → 사용자가 합침
+- Claude Code: `claude/…` 브랜치 / Codex: `codex/…` 브랜치
+- 같은 파일 동시 수정 금지. 시작 전 최신 `main` 받기
+
+## 담당 (미정 — 사용자가 정함)
+- Claude Code: 
+- Codex: 
+
+## 작업 기록
+- 2026-10-23 · Claude · index.html(녹음 시험판), HANDOVER/AGENTS/CLAUDE.md 추가 · 남은 일: Pages 주소 폰 확인, 저장 장소 결정
