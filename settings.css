@@ -40,3 +40,6 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 .feature-toggle input{width:2.4em;height:1.3em;accent-color:var(--green);cursor:pointer}
 #f1-connection{padding:10px 0}#feature-status,#f1-status{display:block;color:var(--terra);font-size:.85rem;margin-top:6px}
 #feature-status:empty,#f1-status:empty{display:none}
+
+/* F2: locked by a different phone; playback remains available. */
+.line.f2-locked{opacity:.45}.line.f2-locked .card-trigger{cursor:not-allowed}

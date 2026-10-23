@@ -59,7 +59,8 @@ function dispatch_(request) {
         .sort(function (a, b) { return Number(a) - Number(b); })
         .map(function (verse) { return recording_(state.recordings[verse]); }) };
     }
-    if (['saveText', 'uploadRecording', 'getAudio'].indexOf(request.action) < 0) {
+    if (request.action === 'listLocks') return f2List_(state, properties);
+    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock'].indexOf(request.action) < 0) {
       fail_('INVALID_REQUEST', '지원하지 않는 action');
     }
     if (request.revision !== state.revision) fail_('CONFLICT', '본문을 다시 조회한 뒤 재시도');
@@ -104,6 +105,9 @@ function dispatch_(request) {
       fail_('INVALID_REQUEST', '현재 본문의 절 번호 필요');
     }
     var old = state.recordings[verse];
+    // F2: server policy is deployment-wide, never trusted from a caller's toggle.
+    if (['acquireLock','renewLock','releaseLock'].indexOf(request.action) >= 0) return f2Lease_(request, state, properties, folder, stateFile);
+    if (request.action === 'uploadRecording' && f2Enabled_(properties)) f2AuthorizeUpload_(request, state);
     if (request.action === 'getAudio') {
       if (!old) fail_('NOT_FOUND', '아직 녹음하지 않은 절');
       return { mimeType: old.mimeType,
@@ -133,6 +137,7 @@ function dispatch_(request) {
       state.recordings[verse] = { verse: verse, readerName: readerName,
         fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
         recordedAt: new Date().toISOString() };
+      if (f2Enabled_(properties) && state.locks) delete state.locks[verse];
       persist_(folder, properties, stateFile, state);
     } catch (error) {
       trash_(file.getId());
@@ -177,4 +182,47 @@ function fail_(code, message) {
   var error = new Error(message);
   error.apiCode = code;
   throw error;
+}
+
+// F2: opt-in deployment policy; 120-second leases, renewed by the recording phone.
+function f2Enabled_(properties) { return properties.getProperty('F2_ENABLED') === 'true'; }
+function f2List_(state, properties) {
+  return {enabled:f2Enabled_(properties), revision:state.revision,
+    locks: f2Enabled_(properties) ? Object.keys(state.locks || {}).filter(function (verse) {
+      return state.locks[verse].expiresAt > Date.now();
+    }).map(function (verse) {
+      var lease=state.locks[verse];
+      return {verse:Number(verse),readerName:lease.readerName,expiresAt:lease.expiresAt};
+    }) : []};
+}
+function f2Lease_(request, state, properties, folder, file) {
+  if (!f2Enabled_(properties)) fail_('FEATURE_DISABLED', '배포 설정에 F2_ENABLED=true 필요');
+  state.locks=state.locks || {};
+  var current=state.locks[request.verse], now=Date.now();
+  if (request.action === 'releaseLock') {
+    if (current && current.token === request.leaseToken) {
+      delete state.locks[request.verse]; persist_(folder, properties, file, state);
+    }
+    return {released:true};
+  }
+  var reader=string_(request.readerName,80,'읽은 사람 이름');
+  if (request.action === 'acquireLock') {
+    var recording=state.recordings[request.verse];
+    if (recording && recording.readerName !== reader) fail_('FORBIDDEN', '녹음한 이름만 다시 녹음 가능');
+    if (current && current.expiresAt > now) fail_('LOCKED', '다른 폰에서 읽는 중');
+    current={readerName:reader,token:Utilities.getUuid(),expiresAt:now+120000};
+  } else {
+    if (!current || current.token !== request.leaseToken || current.readerName !== reader || current.expiresAt <= now) fail_('LOCK_EXPIRED', '녹음 잠금 만료. 다시 녹음 필요');
+    current.expiresAt=now+120000;
+  }
+  // Prune expired leases to bound the state file even after interrupted sessions.
+  Object.keys(state.locks).forEach(function (verse) {if(state.locks[verse].expiresAt<=now) delete state.locks[verse];});
+  state.locks[request.verse]=current; persist_(folder,properties,file,state);
+  return {verse:request.verse,leaseToken:current.token,expiresAt:current.expiresAt};
+}
+function f2AuthorizeUpload_(request, state) {
+  var old=state.recordings[request.verse];
+  if (old && old.readerName !== request.readerName) fail_('FORBIDDEN', '녹음한 이름만 다시 녹음 가능');
+  var lease=(state.locks || {})[request.verse];
+  if (!lease || lease.expiresAt <= Date.now() || lease.token !== request.leaseToken || lease.readerName !== request.readerName) fail_('LOCK_EXPIRED', '녹음 잠금 만료. 다시 녹음 필요');
 }
