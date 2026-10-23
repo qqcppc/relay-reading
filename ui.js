@@ -1,5 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
+const review = $('review');
 let lines = [
 '동해 물과 백두산이 마르고 닳도록','하느님이 보우하사 우리나라 만세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
@@ -19,8 +20,6 @@ function hasAudio(i) { return RelayStorage.connected ? recordings.some(r => r.ve
 function locked() { return busy || acquiring || !!recorder || !!draft; }
 function controls() {
   $('book-open').disabled = locked() || !ready || !lines.length;
-  $('stop-record').hidden = !recorder;
-  $('stop-record').disabled = !recorder || recorder.state !== 'recording';
   $('prev-page').disabled = locked() || page === 0;
   $('next-page').disabled = locked() || page >= pageStarts.length - 1;
   ['all','refresh','save-text','disconnect'].forEach(id => { $(id).disabled = locked() || !ready && id !== 'refresh' && id !== 'disconnect'; });
@@ -35,21 +34,27 @@ function render() {
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
   $('page-label').textContent = `${bookAt(page).title} ${chapter.title}\n${chapter.startVerse}~${endVerse}절 ▾`; $('page-label').style.whiteSpace = 'pre-line';
+  review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
     if (i < pageStarts[page] || i >= (pageStarts[page + 1] ?? lines.length)) return;
-    const row = document.createElement('button'); row.type = 'button';
+    const row = document.createElement('div');
+    const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'card-trigger';
     row.className = 'line' + (i === selected ? ' sel' : '') + (hasAudio(i) ? ' done' : '') + (recorder && i === selected ? ' recording' : '');
     row.style.textAlign = 'left'; row.style.width = '100%';
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i);
     tag.textContent = `${chapter.startVerse + i - pageStarts[page]}절 · ${item ? '✅ ' + item.readerName + ' (눌러 재생 · 꾹 눌러 재녹음)' : i === selected ? '⏩ 지금 차례' : '대기'}`;
     const content = document.createElement('span'); content.className = 't'; content.textContent = text;
-    row.append(tag, content);
-    row.onclick = () => { if (suppressClick) { suppressClick = false; return; } if (locked() || !ready) return; selected = i; followSelected(); if (hasAudio(i)) play(i); };
-    wireCard(row, i);
+    if (recorder && i === selected) tag.textContent = `${chapter.startVerse + i - pageStarts[page]}절`;
+    trigger.setAttribute('aria-label', `${chapter.startVerse + i - pageStarts[page]}절 ${text}${recorder && i === selected ? ' · 녹음 중, 누르면 정지' : ''}`);
+    trigger.append(tag, content); row.append(trigger);
+    trigger.onclick = () => { if (suppressClick) { suppressClick = false; return; } if (recorder && i === selected) { stop(); return; } if (locked() || !ready) return; selected = i; followSelected(); if (hasAudio(i)) play(i); };
+    wireCard(trigger, i);
+    if (draft && draft.verse === i + 1) row.append(review);
     $('list').append(row);
   });
+  if (!draft) { review.hidden = true; $('list').after(review); }
   controls();
 }
 function pageFor(i) { return Math.max(0, pageStarts.findLastIndex(start => start <= i)); }
@@ -69,7 +74,7 @@ async function play(i, chain = false, sequence) {
   if (locked() || !ready) return;
   if (sequence === undefined) { stopPlayback(); sequence = playbackId; }
   try {
-    status(`⏳ ${i + 1}줄 불러오는 중`);
+    status('');
     let blob;
     if (RelayStorage.connected) {
       const data = await RelayStorage.request('getAudio', {revision, verse: i + 1});
@@ -82,9 +87,9 @@ async function play(i, chain = false, sequence) {
     player.onended = () => {
       if (sequence !== playbackId) return;
       const next = lines.findIndex((_, k) => k > i && hasAudio(k));
-      if (chain && next >= 0) play(next, true, sequence); else { stopPlayback(); status('재생 끝'); }
+      if (chain && next >= 0) play(next, true, sequence); else { stopPlayback(); status(''); }
     };
-    await player.play(); if (sequence === playbackId) status(`▶ ${i + 1}줄 재생`);
+    await player.play(); if (sequence === playbackId) status('');
   } catch (err) { if (sequence === playbackId) { stopPlayback(); await failure(err); } }
 }
 player.onerror = () => { stopPlayback(); status('음성 재생 실패. 절을 눌러 다시 시도'); };
@@ -108,7 +113,7 @@ async function failure(err) {
 async function loadShared() {
   if (locked()) return;
   stopPlayback(); busy = true; controls();
-  try { await refresh(); status('공유 본문·목록 갱신 완료'); }
+  try { await refresh(); status(''); }
   catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; }
   finally { busy = false; render(); }
 }
@@ -136,14 +141,13 @@ async function start(event) {
     current.ondataavailable = e => { if (e.data.size) { chunks.push(e.data); total += e.data.size; if (total > 5 * 1024 * 1024) { tooLarge = true; stop(); } } };
     current.onstop = () => {
       stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null;
-      render();
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음');
       else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(''); }
-      controls();
+      render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
-    current.start(250); render(); status(`● ${target.verse}줄 녹음 중`);
+    current.start(250); render(); status('');
   } catch (err) { stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null; status('녹음 실패: ' + err.message); }
   finally { acquiring = false; controls(); }
 }
@@ -160,11 +164,11 @@ $('ok').onclick = async () => {
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName});
     discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
-    status(`✅ ${pending.verse}줄 저장 완료`); saved = true;
+    status(''); saved = true;
   } catch (err) { await failure(err); if (ready) status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침'); }
   finally { busy = false; render(); if (saved) revealSelected(); }
 };
-$('no').onclick = () => { if (!busy) { discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status('취소됨'); } };
+$('no').onclick = () => { if (!busy) { discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status(''); } };
 $('save-text').onclick = async () => {
   if (locked() || !ready) return;
   if (!$('erase-confirm').checked) { status('기존 녹음 삭제 동의에 체크 필요'); return; }
@@ -186,6 +190,7 @@ function cancelGesture() { clearTimeout(holdTimer); holdTimer = null; gesture = 
 function wireCard(row, i) {
   row.addEventListener('contextmenu', e => e.preventDefault());
   row.addEventListener('pointerdown', e => {
+    if (recorder && i === selected) { suppressClick = false; return; }
     if (locked() || !ready || e.isPrimary === false || e.button > 0) return;
     suppressClick = false; cancelGesture();
     gesture = {x: e.clientX, y: e.clientY};
@@ -202,7 +207,6 @@ function wireCard(row, i) {
 function changePage(next) { if (locked() || next < 0 || next >= pageStarts.length) return; cancelGesture(); stopPlayback(); page = next; selected = pageStarts[page]; render(); revealSelected(); }
 $('prev-page').onclick = () => changePage(page - 1);
 $('next-page').onclick = () => changePage(page + 1);
-$('stop-record').onclick = stop;
 window.addEventListener('blur', () => { cancelGesture(); stop(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelGesture(); stop(); stopPlayback(); } });
 function parseChapterPages(value) {
@@ -266,7 +270,7 @@ function editorText() {
     return (book ? `# ${book.title}\n` : '') + `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n');
   }).join('\n\n---\n\n').replace(/\n\n---\n\n(?=# )/g, '\n\n');
 }
-$('all').onclick = () => { if (playbackUrl) { stopPlayback(); status('재생 멈춤'); return; } const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
+$('all').onclick = () => { if (playbackUrl) { stopPlayback(); status(''); return; } const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;
 $('reader').value = RelayStorage.readerName;
 $('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status('이름 기억 완료'); } catch (err) { status(err.message); } };
@@ -277,7 +281,7 @@ $('text-input').value = editorText();
 if (RelayStorage.connected) { $('refresh').hidden = false; $('disconnect').hidden = false; loadShared(); }
 render();
 
-$('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play(); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
+$('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
 $('page-label').setAttribute('role','button'); $('page-label').onclick = () => $('book-open').onclick();

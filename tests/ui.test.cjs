@@ -1,7 +1,7 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
 function setup(){
  const elements=new Map();
- class Element{constructor(){this.value='';this.disabled=false;this.hidden=false;this.listeners={};this.children=[];this.classList={add(){},remove(){}};this.style={};}append(...c){this.children.push(...c)}replaceChildren(){this.children=[]}addEventListener(t,f){this.listeners[t]=f}querySelector(){return this.button||(this.button=new Element())}setAttribute(){}showModal(){this.open=true}close(){this.open=false}scrollIntoView(){}removeAttribute(){}load(){}pause(){}focus(){}async play(){}}
+ class Element{constructor(){this.value='';this.disabled=false;this.hidden=false;this.listeners={};this.children=[];this.classList={add(){},remove(){}};this.style={};}append(...c){this.children.push(...c)}replaceChildren(){this.children=[]}addEventListener(t,f){this.listeners[t]=f}querySelector(){return this.button||(this.button=new Element())}after(){}remove(){}setAttribute(){}showModal(){this.open=true}close(){this.open=false}scrollIntoView(){}removeAttribute(){}load(){}pause(){}focus(){}async play(){}}
  const $=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id)};
  $('review').hidden=true;
  let failUpload=false, conflict=false, reads=[], uploads=[], records=[], released=false;
@@ -18,21 +18,22 @@ function setup(){
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 test('공유 녹음 저장·교체·실패 보존·재생 및 본문 삭제 동의',async()=>{
- const s=setup();await tick();s.$('reader').value='민수';assert.equal(s.$('stop-record').hidden,true);
- await s.ctx.start({preventDefault(){}});assert.equal(s.$('review').hidden,true);s.$('stop-record').onclick();
+ const s=setup();await tick();s.$('reader').value='민수';assert.equal(s.$('review').hidden,true);
+ await s.ctx.start({preventDefault(){}});assert.equal(s.$('review').hidden,true);s.ctx.stop();
  assert.equal(s.released(),true);assert.equal(s.$('review').hidden,false);
  s.setFailure(true);await s.$('ok').onclick();assert.equal(s.$('review').hidden,false);
  s.setFailure(false);await s.$('ok').onclick();assert.equal(s.$('review').hidden,true);
  assert.equal(s.uploads[0].revision,'r1');assert.equal(s.uploads[0].verse,1);assert.equal(s.uploads[0].audioBase64,'dm9pY2U=');
- await s.$('list').children[0].onclick();await tick();assert.equal(s.reads[0].verse,1);
- await s.ctx.start({preventDefault(){}});assert.equal(s.$('review').hidden,true);s.$('stop-record').onclick();await s.$('ok').onclick();assert.equal(s.uploads.at(-1).verse,1);
+ await s.$('list').children[0].children[0].onclick();await tick();assert.equal(s.reads[0].verse,1);
+ await s.ctx.start({preventDefault(){}});assert.equal(s.$('review').hidden,true);s.ctx.stop();await s.$('ok').onclick();assert.equal(s.uploads.at(-1).verse,1);
  s.$('text-input').value='새 제목\n첫 문단\n이어지는 줄\n\n둘째 문단';await s.$('save-text').onclick();assert.match(s.$('st').textContent,/동의/);
  s.$('erase-confirm').checked=true;await s.$('save-text').onclick();assert.equal(s.$('heading').textContent,'새 제목');assert.equal(s.$('list').children.length,2);
 });
 test('카드 길게 누름 후 손 떼도 녹음 유지; 페이지 편집·충돌 처리',async()=>{
  const s=setup();await tick();s.$('reader').value='민수';
- const card=s.$('list').children[0];card.listeners.pointerdown({clientX:0,clientY:0,button:0});await new Promise(r=>setTimeout(r,480));card.listeners.pointerup();
- assert.equal(s.$('stop-record').hidden,false);assert.equal(s.$('review').hidden,true);s.$('stop-record').onclick();assert.equal(s.$('review').hidden,false);s.$('no').onclick();
+ const card=s.$('list').children[0].children[0];card.listeners.pointerdown({clientX:0,clientY:0,button:0});await new Promise(r=>setTimeout(r,480));card.listeners.pointerup();
+ const recordingCard=s.$('list').children[0].children[0];
+ assert.equal(vm.runInContext('recorder.state',s.ctx),'recording');assert.equal(s.$('review').hidden,true);recordingCard.listeners.pointerdown({});recordingCard.onclick();assert.equal(s.$('review').hidden,false);assert.equal(s.$('list').children[0].children[1],s.$('review'));s.$('no').onclick();
  const parsed=s.ctx.parsePages('첫 줄\n\n둘째 줄\n\n---\n\n셋째 줄');assert.equal(parsed.verses.length,3);assert.equal(parsed.pageStarts.join(','),'0,2');
  s.setConflict(true);s.$('text-input').value='새 제목\n새 절';s.$('erase-confirm').checked=true;await s.$('save-text').onclick();assert.match(s.$('st').textContent,/본문이 변경됨/);assert.equal(s.$('save-text').disabled,true);assert.equal(s.$('refresh').disabled,false);
 });
