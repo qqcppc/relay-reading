@@ -75,7 +75,7 @@ function render() {
   if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent='⚠';$('f7-warning').title=warning;$('f7-warning').setAttribute('aria-label',warning);$('f7-warning').onclick=()=>status(warning);$('f7-warning').hidden=!warning;}
   if($('f10-compare')){$('f10-compare').hidden=!draft || !globalThis.RelayF10?.enabled();$('f10-status').textContent=draft?.trimChecking?'무음 확인 중':draft?.trimMessage||'';for(const id of ['f10-original','f10-trimmed'])$(id).disabled=busy||!!draft?.trimChecking; $('f10-trimmed').hidden=!draft?.trimChanged;}
   globalThis.RelayF5?.paint();globalThis.RelayF9?.paint();
-  drawProgress();
+  drawProgress();globalThis.RelayF12?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
   controls();
@@ -574,3 +574,9 @@ applyHeadFont();
 
 // F11 never advances F4 on a local-only queued take.
 globalThis.RelayF11?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},base64,refresh:async()=>{await refresh();render();},render:()=>render(),report:status});
+
+// F12 takes a stable chapter snapshot; no demo or queued blobs become exported audio.
+globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},report:status,
+  snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
+  audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
+});

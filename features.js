@@ -1,7 +1,7 @@
 /* F1/F2/F3 are opt-in experiments. Default OFF, independent of appearance settings. */
 (function(root) {
   'use strict';
-  const key='relay.features.v1', flags={F1:false,F2:false,F3:false,F4:false,F5:false,F7:false,F8:false,F9:false,F10:false,F11:false};
+  const key='relay.features.v1', flags={F1:false,F2:false,F3:false,F4:false,F5:false,F7:false,F8:false,F9:false,F10:false,F11:false,F12:false};
   try {const saved=JSON.parse(localStorage.getItem(key)||'null'); for(const name of Object.keys(flags)) flags[name]=saved?.[name]===true;} catch (_) {}
   root.RelayFeatures={enabled:name=>flags[name]===true};
   document.addEventListener('DOMContentLoaded',()=>{
