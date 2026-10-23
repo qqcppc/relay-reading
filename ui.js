@@ -1,14 +1,12 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const review = $('review');
-let lines = [
-'동해 물과 백두산이 마르고 닳도록','하느님이 보우하사 우리나라 만세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
-'남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
-'가을 하늘 공활한데 높고 구름 없이','밝은 달은 우리 가슴 일편단심일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
-'이 기상과 이 맘으로 충성을 다하여','괴로우나 즐거우나 나라 사랑하세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세'];
+const ANTHEM = ['동해 물과 백두산이 마르고 닳도록','하느님이 보우하사 우리나라 만세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세','남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','가을 하늘 공활한데 높고 구름 없이','밝은 달은 우리 가슴 일편단심일세','이 기상과 이 맘으로 충성을 다하여','괴로우나 즐거우나 나라 사랑하세'];
+const SAMPLE_VERSES = 24, SAMPLE_CHAPTERS = 4;
+let lines = Array.from({length: SAMPLE_VERSES * SAMPLE_CHAPTERS}, (_, i) => ANTHEM[i % 10] + ' ' + ANTHEM[(i + 3) % 10] + (i % 3 ? '' : ' ' + ANTHEM[(i + 6) % 10]));
 let books = [{title:'창세기',startChapter:0},{title:'출애굽기',startChapter:2}];
-let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:5},{title:'1장',startVerse:9},{title:'2장',startVerse:13}];
-let pageStarts = [0, 4, 8, 12], page = 0, holdTimer = null, gesture = null, suppressClick = false;
+let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:1},{title:'1장',startVerse:1},{title:'2장',startVerse:1}];
+let pageStarts = Array.from({length: SAMPLE_CHAPTERS}, (_, c) => c * SAMPLE_VERSES), page = 0, holdTimer = null, gesture = null, suppressClick = false;
 let title = '애국가', revision = null, recordings = [], selected = 0;
 let busy = false, ready = !RelayStorage.connected, acquiring = false;
 let recorder = null, stream = null, draft = null, recordTarget = null;
@@ -33,7 +31,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${bookAt(page).title} ${chapter.title}\n${chapter.startVerse}~${endVerse}절 ▾`; $('page-label').style.whiteSpace = 'pre-line';
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #19`; $('page-label').style.whiteSpace = 'pre-line';
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -311,3 +309,10 @@ $('reader').addEventListener('change', () => $('identity').onsubmit({preventDefa
 let swipeX = null;
 $('list').addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; }, {passive: true});
 $('list').addEventListener('touchend', e => { if (swipeX === null || recorder || draft) return; const dx = e.changedTouches[0].clientX - swipeX; swipeX = null; if (Math.abs(dx) > 70) changePage(page + (dx < 0 ? 1 : -1)); });
+
+let fontScale = 1.15;
+try { fontScale = Number(localStorage.getItem('relay.font')) || 1.15; } catch {}
+function applyFont() { document.documentElement?.style?.setProperty('--fs', fontScale + 'rem'); try { localStorage.setItem('relay.font', fontScale); } catch {} }
+$('font-down').onclick = () => { fontScale = Math.max(.9, +(fontScale - .1).toFixed(2)); applyFont(); };
+$('font-up').onclick = () => { fontScale = Math.min(2, +(fontScale + .1).toFixed(2)); applyFont(); };
+applyFont();

@@ -5,7 +5,7 @@
 body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
 .line{box-sizing:border-box;background:#fff;border:2px solid #e2ddd2;border-radius:12px;padding:14px;display:grid;gap:10px}
 .line.sel{border-color:#b4432f}.line.done .t{color:#2f5d50}
-.t{font-size:1.15rem;line-height:1.6;cursor:pointer}
+.t{font-size:var(--fs,1.15rem);line-height:1.6;cursor:pointer}
 .tag{font-size:.8rem;color:#7a7366}
 .line{scroll-margin:16px 0}
 .card-trigger{border:0;background:transparent;padding:0;text-align:left;color:inherit;font:inherit;display:grid;gap:10px;width:100%;touch-action:pan-y;user-select:none;-webkit-user-select:none}
@@ -22,6 +22,7 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 #picker-items button,#picker-head button{padding:12px 8px;border:1px solid #d2cbbc;border-radius:9px;background:white;font:inherit;overflow-wrap:anywhere}#picker-items button[aria-current=true]{border-color:#b4432f;color:#b4432f}
 .line{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .line.recording{border-color:#b4432f;background:#fff0e9}.pager{display:grid!important;grid-template-columns:1fr 3fr 1fr;align-items:stretch}.pager #page-label{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.9rem;border:1px solid #2f5d50;border-radius:10px;background:#fff;cursor:pointer;line-height:1.3}
+#top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}#top h1{margin:0;text-align:center;font-size:1.6rem}#top button{border:1px solid #d2cbbc;background:#fff;border-radius:9px;padding:6px 10px;font:inherit;color:#7a7366}
 [hidden]{display:none!important}
 #st:empty{display:none}#st{text-align:center;color:#7a7366;font-size:.9rem}
 .row{display:flex;gap:8px}.row button{flex:1;padding:12px;font-size:.95rem;border-radius:10px;border:1px solid #ccc;background:#fff}
@@ -30,7 +31,7 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 #editor summary{list-style:none;cursor:pointer;color:#7a7366;width:max-content}#editor summary::-webkit-details-marker{display:none}
 #picker-items.testaments{grid-template-columns:1fr 1fr;align-items:start}.col{display:grid;gap:6px}.col h3{margin:0 0 2px;font-size:.85rem;color:#7a7366;text-align:center}#picker-items .col button{padding:8px 4px}#picker-items button:disabled,#picker-items button.empty{opacity:.45}
 </style></head><body>
-<h1 id="version" aria-label="화면 버전" style="text-align:center;margin:0;font-size:2rem">#18</h1>
+<header id="top"><button id="font-down" type="button" aria-label="글자 작게">가−</button><h1 id="version" aria-label="책 제목">#19</h1><button id="font-up" type="button" aria-label="글자 크게">가+</button></header>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
 <form id="identity"><button id="all" type="button">▶ 이어듣기</button><input id="reader" required maxlength="80" autocomplete="nickname" placeholder="✎ 이름" aria-label="내 이름"><button id="book-open" type="button" hidden>책</button></form>
 <dialog id="book-picker" aria-labelledby="picker-title"><div id="picker-head"><button id="picker-back" type="button" hidden aria-label="책 목록">◀</button><h2 id="picker-title">책</h2><button id="picker-close" type="button" aria-label="닫기">✕</button></div><div id="picker-items"></div></dialog>
@@ -50,6 +51,6 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
   <div class="row"><button id="ok">✅ 확인</button><button id="listen">▶ 듣기</button><button id="no">✖ 취소</button></div>
 </div>
 
-<script src="storage.js?v=18"></script>
-<script src="ui.js?v=18"></script>
+<script src="storage.js?v=19"></script>
+<script src="ui.js?v=19"></script>
 </body></html>

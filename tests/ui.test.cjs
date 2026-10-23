@@ -43,7 +43,7 @@ test('장 제목·시작 절 편집과 출력 형식 왕복',async()=>{
  const parsed=s.ctx.parsePages('@첫 장 | 10\n첫 줄\n\n둘째 줄\n\n---\n\n@다음 장 | 20\n셋째 줄');
  assert.equal(parsed.chapters[0].title,'첫 장');assert.equal(parsed.chapters[0].startVerse,10);assert.equal(parsed.chapters[1].startVerse,20);
  s.$('text-input').value='본문\n@첫 장 | 10\n첫 줄\n\n둘째 줄\n\n---\n\n@다음 장 | 20\n셋째 줄';s.$('erase-confirm').checked=true;await s.$('save-text').onclick();
- assert.equal(s.$('page-label').textContent,'본문 첫 장\n10~11절 ▾');s.$('next-page').onclick();assert.equal(s.$('page-label').textContent,'본문 다음 장\n20~20절 ▾');
+ assert.equal(s.$('page-label').textContent,'첫 장 · 10~11절 ▾');s.$('next-page').onclick();assert.equal(s.$('page-label').textContent,'다음 장 · 20~20절 ▾');
  assert.match(s.ctx.editorText(),/@다음 장 \| 20/);
 });
 
