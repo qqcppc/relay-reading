@@ -1,0 +1,37 @@
+:root {
+  color-scheme: light;
+  --bg:#f6f4ef; --surface:#fff; --text:#24211c; --ink:#000; --muted:#7a7366;
+  --border:#e2ddd2; --border-strong:#d2cbbc; --input-border:#bdb5a5; --number:#9a9283;
+  --green:#4f7a64; --blue:#4a6283; --terra:#a85a4f; --record:#d0392b;
+  --done-bg:#eef5f0; --done-border:#cfe2d6; --record-bg:#fff0e9; --subtle:#e8e3d8;
+  --backdrop:#0006; --on-accent:#fff; --badge-bg:#24211c; --badge-text:#fff;
+}
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme:dark;
+    --bg:#181d1b; --surface:#242c28; --text:#eeeae1; --ink:#fff; --muted:#b4b6ac;
+    --border:#3e4942; --border-strong:#526057; --input-border:#738076; --number:#b6b1a2;
+    --green:#547f68; --blue:#506c8d; --terra:#a56155; --record:#db6459;
+    --done-bg:#27392d; --done-border:#405c49; --record-bg:#402c28; --subtle:#343e37;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme:dark;
+  --bg:#181d1b; --surface:#242c28; --text:#eeeae1; --ink:#fff; --muted:#b4b6ac;
+  --border:#3e4942; --border-strong:#526057; --input-border:#738076; --number:#b6b1a2;
+  --green:#547f68; --blue:#506c8d; --terra:#a56155; --record:#db6459;
+  --done-bg:#27392d; --done-border:#405c49; --record-bg:#402c28; --subtle:#343e37;
+}
+/* Keep text on filled buttons and element-number badges legible in both modes. */
+#ok,#listen,#no,#center,#identity #all,#identity button,.me-tag {color:var(--on-accent)!important}
+.line.recording .vn {color:var(--on-accent)!important}
+[data-n]::after {background:var(--badge-bg)!important;color:var(--badge-text)!important}
+button,input,textarea,dialog {color:var(--text)}
+textarea {background:var(--surface);border:1px solid var(--input-border)}
+#settings {max-height:80dvh;overflow:auto;box-sizing:border-box}
+.setting-group {border:0;margin:0 0 18px;padding:0;min-width:0}
+.setting-group legend {font-weight:600;margin-bottom:8px;padding:0}
+.segments {display:flex;gap:4px;padding:4px;background:var(--subtle);border-radius:12px}
+.segments button {flex:1;min-width:0;border:1px solid transparent;border-radius:9px;padding:10px 3px;font:inherit;font-size:.9rem;background:transparent;color:var(--muted)}
+.segments button[aria-pressed="true"] {background:var(--surface);border-color:var(--green);color:var(--text);font-weight:700}
+:focus-visible {outline:2px solid var(--terra);outline-offset:3px}
