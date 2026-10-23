@@ -368,6 +368,7 @@ function showChapters(index) {
   pagedNumbers(end - book.startChapter, k => { const chapter = book.startChapter + k;
     const button = document.createElement('button'); button.type = 'button'; button.textContent = globalThis.RelayF8?.enabled() ? (chapterAt(chapter).title.match(/^(\d+)장$/)?.[1] || String(chapter-book.startChapter+1)) : String(chapter-book.startChapter+1);
     button.setAttribute('aria-label', chapterAt(chapter).title); button.setAttribute('aria-current', String(chapter === page));
+    { const f = pageStarts[chapter], t = pageStarts[chapter + 1] ?? lines.length; let n = 0; for (let i = f; i < t; i++) if (hasAudio(i)) n++; if (n === t - f) button.className = 'ch-full'; else if (n) { button.className = 'ch-part'; button.style.setProperty?.('--pct', Math.round(n / (t - f) * 100) + '%'); } }
     button.onclick = () => { if (locked() || !ready) return; $('book-picker').close(); changePage(chapter); };
     return button; });
 }
@@ -444,20 +445,27 @@ if (!RelayStorage.connected) {
   local.delete(11); DEMO_LOCKS.set(11, '도윤');
   selected = lines.findIndex((_, i) => !local.has(i) && !DEMO_LOCKS.has(i)); page = pageFor(selected); render();
 }
+const DEMO_GOALS = {민지: 120, 도윤: 100, 하늘: 40};
+let myGoal = 100;
+try { myGoal = Number(localStorage.getItem('relay.goal')) || 100; } catch {}
 function showPeople() {
   const list = $('people-list'); list.replaceChildren();
   const counts = new Map(); const me = $('reader').value.trim();
   if (!RelayStorage.connected) DEMO_PEOPLE.forEach(n => counts.set(n, 0));
   const all = RelayStorage.connected ? recordings : [...local.values()];
   all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
-  $('me-count').textContent = `${counts.get(me) || 0}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
+  const mine = counts.get(me) || 0;
+  $('me-count').textContent = `${mine}절 / ${myGoal}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
+  $('me-chip').style.setProperty?.('--pct', Math.min(100, Math.round(mine / myGoal * 100)) + '%');
   counts.forEach((n, name) => {
     if (name === me) return;
-    const li = document.createElement('li'); li.style.setProperty?.('--pc', personColor(name));
-    const b = document.createElement('b'); b.textContent = name; const c = document.createElement('small'); c.textContent = `${n}절`;
-    li.append(b, c); list.append(li);
+    const goal = DEMO_GOALS[name] || 100, pct = Math.min(100, Math.round(n / goal * 100));
+    const li = document.createElement('li'); li.style.setProperty?.('--pc', personColor(name)); li.style.setProperty?.('--pct', pct + '%');
+    li.setAttribute('aria-label', `${name} 목표 ${pct}%`);
+    const b = document.createElement('b'); b.textContent = name; li.append(b); list.append(li);
   });
 }
+$('me-count').onclick = () => { const v = prompt('내 목표 절 수', String(myGoal)); const n = Math.round(Number(v)); if (n > 0) { myGoal = n; try { localStorage.setItem('relay.goal', n); } catch {} showPeople(); } };
 $('reader').addEventListener('input', showPeople);
 function nameView() { $('me-name').textContent = $('reader').value.trim(); $('me-name').hidden = false; $('reader').hidden = true; $('me-ok').hidden = true; }
 $('me-name').onclick = () => { $('me-name').hidden = true; $('reader').hidden = false; $('me-ok').hidden = false; $('reader').focus?.(); };
@@ -509,7 +517,7 @@ globalThis.RelayF9?.init({text:()=>({title,verses:lines,pageStarts,chapters,book
 let toastTimer = null;
 function toast(msg) { const t = $('toast'); if (!t) return; t.textContent = msg; t.classList?.add?.('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList?.remove?.('show'), 1200); }
 // 시트 위치: 틀 고정 줄 바로 아래
-function sheetTop() { const r = document.getElementById('sticky')?.getBoundingClientRect?.(); if (r) document.documentElement?.style?.setProperty?.('--sheet-top', Math.round(r.bottom + 4) + 'px'); }
+function sheetTop() { const r = document.getElementById('sticky')?.getBoundingClientRect?.(); if (r) document.documentElement?.style?.setProperty?.('--sheet-top', Math.round(r.bottom) + 'px'); }
 ['book-picker','people','settings'].forEach(id => { const d = $(id); const o = d.showModal?.bind(d); if (o) d.showModal = () => { sheetTop(); o(); }; });
 // 책 창 좌우 쓸기: 구약 ↔ 신약 (넘어가지 않음)
 { let x0 = null; const it = $('picker-items');
