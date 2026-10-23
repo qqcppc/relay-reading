@@ -101,6 +101,7 @@ function drawProgress() {
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i >= unitAt(selected).start && i <= unitAt(selected).end ? ' cur' : '') + (otherRecording(i) ? ' other-rec' : '');
     const who = recordingAt(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
     if(unitAt(i).end>unitAt(i).start)seg.className+=' f9-group';
+    if(globalThis.RelayF11?.pending(i+1)){seg.className+=' f11-pending';seg.setAttribute('title','이 폰 업로드 대기');}
     const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty?.('--assignment-color',personColor(assigned));}
     seg.setAttribute('aria-label', `${k + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
     seg.onclick = () => { if (gridSwiped) return; if (locked() || !ready) return; if(globalThis.RelayF5?.manual()){RelayF5.choose(i+1);return;} selected = unitAt(i).start; revealSelected(); };
@@ -185,12 +186,13 @@ async function start(event) {
   selected=unitAt(selected).start;
   const canonical=globalThis.RelayF9?.canonical(selected);
   if(canonical && canonical.end>canonical.start && !RelayF9.enabled()){status('묶음 녹음은 F9 켜기');return;}
+  if(globalThis.RelayF11?.pending(selected+1)){status('이 절은 업로드 대기 중 · 설정에서 확인');return;}
   const item = recordingAt(selected);
   if (globalThis.RelayF2?.blocked(selected + 1)) { status('다른 폰에서 읽는 중'); return; }
   if (globalThis.RelayF2?.ownerBlocked(item, $('reader').value)) { status('녹음한 이름만 다시 녹음 가능'); return; }
   const epoch = ++captureEpoch;
   acquiring = true; stopPlayback(); controls();
-  const target = {verse: selected + 1, endVerse:unitAt(selected).end+1, revision, readerName: $('reader').value.trim()};
+  const target = {verse: selected + 1, endVerse:unitAt(selected).end+1, revision, readerName: $('reader').value.trim(),expectedPrevious:item?.playbackUrl||null};
   try {
     RelayStorage.setReaderName(target.readerName);
     stream = await navigator.mediaDevices.getUserMedia({audio: true});
@@ -242,13 +244,19 @@ $('ok').onclick = async () => {
   busy = true; controls(); const pending = draft; let saved = false, autoNext = -1; const f4Ticket = globalThis.RelayF4?.ticket();
   try {
     if (RelayStorage.connected) {
-      const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), revision: pending.revision, verse: pending.verse, endVerse:pending.endVerse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
+      if(globalThis.RelayF11?.enabled()&&!pending.uploadId)pending.uploadId=crypto.randomUUID();
+      const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), ...(pending.uploadId?{uploadId:pending.uploadId,expectedPrevious:pending.expectedPrevious}:{}), revision: pending.revision, verse: pending.verse, endVerse:pending.endVerse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName, endVerse:pending.endVerse});
     discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
     if (globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,hasAudio,pending.readerName);if(autoNext>=0) selected=autoNext;}
     status(''); saved = true;
-  } catch (err) { await failure(err); if (ready) status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침'); }
+  } catch (err) {
+    if(globalThis.RelayF11?.enabled() && pending.uploadId && RelayF11.retryable(err)){
+      try{await RelayF11.enqueue(pending);discard();status('이 폰에 보관 · 연결되면 재전송');}
+      catch(queueError){status(queueError.message+' · 임시 녹음 유지');}
+    }else {await failure(err);if(ready)status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침');}
+  }
   finally { busy = false; render(); if (saved) {revealSelected();if(autoNext>=0 && RelayF4.current(f4Ticket) && !document.hidden) await start({preventDefault(){}});} }
 };
 $('no').onclick = () => { if (!busy) { globalThis.RelayF4?.cancel(); discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status(''); } };
@@ -563,3 +571,6 @@ function applyHeadFont() { document.documentElement?.style?.setProperty?.('--hfs
 $('hfont-down').onclick = () => { headFont = Math.max(.8, +(headFont - .05).toFixed(2)); applyHeadFont(); };
 $('hfont-up').onclick = () => { headFont = Math.min(1.6, +(headFont + .05).toFixed(2)); applyHeadFont(); };
 applyHeadFont();
+
+// F11 never advances F4 on a local-only queued take.
+globalThis.RelayF11?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},base64,refresh:async()=>{await refresh();render();},render:()=>render(),report:status});

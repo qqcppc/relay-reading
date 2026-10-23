@@ -76,3 +76,7 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f10-compare{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.75rem}
 #f10-compare output{flex-basis:100%;text-align:center}#f10-compare button{border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;padding:4px!important}
 .line:has(#f10-compare:not([hidden])){min-height:150px}
+
+/* Pending is distinct from a saved recording. */
+.seg.f11-pending{position:relative}.seg.f11-pending::after{content:'';position:absolute;width:4px;height:4px;border-radius:50%;background:var(--terra);bottom:1px;right:1px}
+#f11-list{padding-left:18px;font-size:.8rem}#f11-list li{display:flex;gap:8px;align-items:center;margin:6px 0}#f11-list span{flex:1}

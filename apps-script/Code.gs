@@ -139,6 +139,11 @@ function dispatch_(request) {
     var old = state.recordings[verse];
     // F2: server policy is deployment-wide, never trusted from a caller's toggle.
     if (['acquireLock','renewLock','releaseLock'].indexOf(request.action) >= 0) return f2Lease_(request, state, properties, folder, stateFile);
+    if(request.action==='uploadRecording' && request.uploadId!==undefined){
+      if(typeof request.uploadId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(request.uploadId))fail_('INVALID_REQUEST','uploadId 형식 오류');
+      if(old && old.uploadId===request.uploadId)return recording_(old);
+    }
+    if(request.action==='uploadRecording' && request.expectedPrevious!==undefined && request.expectedPrevious!==(old?old.playbackUrl:null))fail_('CONFLICT','다른 녹음으로 변경됨');
     if (request.action === 'uploadRecording' && f2Enabled_(properties)) f2AuthorizeUpload_(request, state);
     if (request.action === 'getAudio') {
       if (!old) fail_('NOT_FOUND', '아직 녹음하지 않은 절');
@@ -167,7 +172,7 @@ function dispatch_(request) {
       // Dedicated folder must be private; never enable public link sharing here.
       file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
       state.recordings[verse] = { verse: verse, endVerse:unit.end, readerName: readerName,
-        fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
+        uploadId:request.uploadId || null, fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
         recordedAt: new Date().toISOString() };
       if (f2Enabled_(properties) && state.locks) delete state.locks[verse];
       persist_(folder, properties, stateFile, state);
@@ -200,7 +205,7 @@ function text_(state) {
 
 function recording_(value) {
   return { verse: value.verse, endVerse:value.endVerse || value.verse, readerName: value.readerName,
-    playbackUrl: value.playbackUrl, recordedAt: value.recordedAt };
+    uploadId:value.uploadId || null, playbackUrl: value.playbackUrl, recordedAt: value.recordedAt };
 }
 
 function string_(value, limit, label) {
