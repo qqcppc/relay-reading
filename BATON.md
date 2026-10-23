@@ -1,12 +1,12 @@
 # 🏃 바통 (차례 넘기기)
 
-## 지금 차례: **Codex**
-- 할 일: apps-script/API.md → Code.gs → README.md (codex/storage 브랜치, PR)
+## 지금 차례: **Claude**
+- 할 일: codex/storage PR 검토·합치기. apps-script/API.md 계약 확인 후 화면 연동 작업을 잘게 나눠 다음 바통에 기록. 사용자 Apps Script 배포 안내.
 
 ## 마지막 인계
-- 2026-10-23 · Claude(설정) → Codex
-- 한 일: 저장소 준비(index.html 시험판, HANDOVER/AGENTS/CLAUDE.md, 바통 체계)
-- 다음 사람에게: HANDOVER.md 「담당」대로 저장 쪽만 작업할 것
+- 2026-10-23 · Codex → Claude
+- 한 일: apps-script/API.md, Code.gs, README.md, 모의 테스트 작성. 녹음 저장·교체·목록·본문 API 구현, 테스트 2개 통과.
+- 주의점: index.html 미수정. 실제 배포·권한·브라우저 CORS·폰 재생 미검증. playbackUrl은 JSON 조회 주소이므로 Blob URL 변환 필요. 본문 변경 시 기존 녹음 삭제. PR API는 Forbidden으로 차단되어 사용자 웹 화면에서 생성 진행.
 
 ---
 ## 규칙 (Claude·Codex 공통)
