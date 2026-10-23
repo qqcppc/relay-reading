@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
-<link rel="stylesheet" href="settings.css?v=settings25">
+<link rel="stylesheet" href="settings.css?v=features27">
+<script src="features.js?v=features27"></script>
 <script src="settings.js?v=settings25"></script>
 <style>
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
@@ -90,7 +91,12 @@ body{gap:10px}
 <dialog id="settings" class="sheet" aria-label="설정"><div class="dlg-head"><b>설정</b><button type="button" class="dlg-close" aria-label="닫기">✕</button></div><fieldset class="setting-group"><legend>화면</legend><div class="segments" role="group" aria-label="화면 모드"><button type="button" data-theme-choice="system">폰 설정</button><button type="button" data-theme-choice="light">밝게</button><button type="button" data-theme-choice="dark">어둡게</button></div></fieldset>
 <fieldset class="setting-group"><legend>글꼴</legend><div class="segments" role="group" aria-label="본문 글꼴"><button type="button" data-font-choice="system">기본</button><button type="button" data-font-choice="serif">명조</button><button type="button" data-font-choice="sans">고딕</button></div></fieldset>
 <fieldset class="setting-group"><legend>본문 버전</legend><div class="segments" role="group" aria-label="본문 버전"><button type="button" data-version-choice="1">버전 1</button><button type="button" data-version-choice="2">버전 2</button><button type="button" data-version-choice="3">버전 3</button></div></fieldset>
-<div class="fld">글자 크기<div class="row"><button id="font-down" type="button">가−</button><button id="font-up" type="button">가+</button></div></div></dialog>
+<div class="fld">글자 크기<div class="row"><button id="font-down" type="button">가−</button><button id="font-up" type="button">가+</button></div></div><fieldset class="setting-group" id="experiments"><legend>실험 기능</legend>
+<label class="feature-toggle"><span>F1 실제 저장 연결</span><input id="feature-f1" type="checkbox" role="switch"></label>
+<div id="f1-connection" hidden><label class="fld">연결 주소<input id="f1-url" type="url" placeholder="https://script.google.com/…/exec" autocomplete="off"></label><label class="fld">공유키<input id="f1-key" type="password" autocomplete="off"></label><div class="row"><button id="f1-connect" type="button">연결</button><button id="f1-disconnect" type="button">해제</button></div><button id="f1-text" type="button">본문 편집</button><output id="f1-status" role="status"></output></div>
+<label class="feature-toggle"><span>F2 잠금·본인 재녹음</span><input id="feature-f2" type="checkbox" role="switch"></label>
+<label class="feature-toggle"><span>F3 앱·초대</span><input id="feature-f3" type="checkbox" role="switch"></label>
+<output id="feature-status" role="status"></output></fieldset></dialog>
 <dialog id="book-picker" aria-labelledby="picker-title"><div id="picker-head"><button id="picker-back" type="button" hidden aria-label="책 목록">◀</button><h2 id="picker-title">책</h2><button id="picker-close" type="button" aria-label="닫기">✕</button></div><div id="picker-items"></div></dialog>
 <p id="connection" role="status" hidden>폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
 <div class="row"><button id="refresh" hidden>공유 본문·목록 새로고침</button><button id="disconnect" hidden>연결 지우고 시험 모드</button></div>
@@ -109,6 +115,6 @@ body{gap:10px}
   <div class="row"><button id="ok" aria-label="확인" data-n="10">✓</button><button id="listen" aria-label="듣기" data-n="11">▶</button><button id="no" aria-label="취소" data-n="12">✕</button></div>
 </div>
 
-<script src="storage.js?v=25"></script>
-<script src="ui.js?v=25"></script>
+<script src="storage.js?v=features27"></script>
+<script src="ui.js?v=features27"></script>
 </body></html>
