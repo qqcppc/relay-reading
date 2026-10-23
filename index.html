@@ -2,7 +2,7 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
 <style>
-body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 auto;padding:20px 16px 320px;display:grid;gap:12px;max-width:520px}
+body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 auto;padding:20px 16px 170px;display:grid;gap:12px;max-width:520px}
 .line{background:#fff;border:2px solid #e2ddd2;border-radius:12px;padding:14px;display:grid;gap:10px}
 .line.sel{border-color:#b4432f}.line.done .t{color:#2f5d50}
 .t{font-size:1.15rem;line-height:1.6;cursor:pointer}
@@ -16,11 +16,11 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 .line{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .line.recording{border-color:#b4432f;background:#fff0e9}.pager{align-items:center;justify-content:center}.pager span{white-space:nowrap}
 [hidden]{display:none!important}
-#st{text-align:center;color:#7a7366;font-size:.9rem}
+#st:empty{display:none}#st{text-align:center;color:#7a7366;font-size:.9rem}
 .row{display:flex;gap:8px}.row button{flex:1;padding:12px;font-size:.95rem;border-radius:10px;border:1px solid #ccc;background:#fff}
 #all{padding:12px;border-radius:10px;border:0;background:#2f5d50;color:#fff;font-size:1rem}
 </style></head><body>
-<h1 id="version" aria-label="화면 버전" style="text-align:center;margin:0;font-size:2rem">#14</h1>
+<h1 id="version" aria-label="화면 버전" style="text-align:center;margin:0;font-size:2rem">#15</h1>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
 <form id="identity"><input id="reader" required maxlength="80" autocomplete="nickname" placeholder="내 이름" aria-label="내 이름"><button>저장</button></form>
 <p id="connection" role="status" hidden>폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
@@ -37,11 +37,11 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 <section id="record-panel" aria-label="녹음과 미리듣기">
 <div id="st" role="status">읽을 줄 카드를 꾹 누르면 녹음 시작 · 정지로 완료</div>
 <div id="review" hidden>
-  <audio id="au" controls style="width:100%"></audio>
-  <div class="row"><button id="ok">✅ 확인</button><button id="no">✖ 취소</button></div>
+  <audio id="au" hidden></audio>
+  <div class="row"><button id="ok">✅ 확인</button><button id="listen">▶ 듣기</button><button id="no">✖ 취소</button></div>
 </div>
 <button id="stop-record" hidden>⏹ 정지</button>
 </section>
-<script src="storage.js?v=14"></script>
-<script src="ui.js?v=14"></script>
+<script src="storage.js?v=15"></script>
+<script src="ui.js?v=15"></script>
 </body></html>

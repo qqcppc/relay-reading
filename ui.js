@@ -22,7 +22,7 @@ function controls() {
   $('prev-page').disabled = locked() || page === 0;
   $('next-page').disabled = locked() || page >= pageStarts.length - 1;
   ['all','refresh','save-text','disconnect'].forEach(id => { $(id).disabled = locked() || !ready && id !== 'refresh' && id !== 'disconnect'; });
-  ['ok','no'].forEach(id => { $(id).disabled = busy; });
+  ['ok','listen','no'].forEach(id => { $(id).disabled = busy; });
   $('text-input').disabled = locked();
   $('identity').querySelector('button').disabled = busy || acquiring || !!recorder;
 }
@@ -111,7 +111,7 @@ async function loadShared() {
 }
 function discard() {
   $('au').pause(); $('au').removeAttribute('src'); $('au').load();
-  if (draft) URL.revokeObjectURL(draft.url); draft = null; $('review').hidden = true; controls();
+  $('au').pause(); if (draft) URL.revokeObjectURL(draft.url); draft = null; $('review').hidden = true; controls();
 }
 async function start(event) {
   event.preventDefault();
@@ -136,7 +136,7 @@ async function start(event) {
       render();
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음');
-      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(`${target.verse}줄 녹음 완료 · 확인하면 저장`); }
+      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(''); }
       controls();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
@@ -229,3 +229,6 @@ ready = !RelayStorage.connected;
 $('text-input').value = editorText();
 if (RelayStorage.connected) { $('refresh').hidden = false; $('disconnect').hidden = false; loadShared(); }
 render();
+
+$('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play(); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
+$('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
