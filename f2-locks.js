@@ -40,12 +40,14 @@
         } catch (_) {if(lease===current) {clearInterval(renewal);lease.expiresAt=0;onLost();}}
       },30000);
     },
+    leaseValid:()=>!shared() || !!live(),
     uploadFields() {
       if(!shared()) return {};
       if(!live()) throw new Error('잠금 만료. 취소 후 다시 녹음');
       return {leaseToken:lease.leaseToken};
     },
     release,
+    refresh,
     init(revision,onUpdate,onLeaseLost) {
       root.RelayF2.revision=revision;onChange=onUpdate;onLost=onLeaseLost;
       if(shared()) {

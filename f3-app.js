@@ -24,11 +24,10 @@
     const manifest=document.createElement('link');manifest.rel='manifest';manifest.href='manifest.webmanifest?v=features27';manifest.dataset.f3Manifest='true';document.head.append(manifest);
     const icon=document.createElement('link');icon.rel='apple-touch-icon';icon.href='icons/icon-192.png';document.head.append(icon);
     if('serviceWorker' in navigator) {
-      try {await navigator.serviceWorker.register('sw.js?v=features27',{scope:'./',updateViaCache:'none'});}
-      catch(_) {$('f3-install-status').textContent='앱 준비 실패. 새로고침 후 재시도';}
+      navigator.serviceWorker.register('sw.js?v=features27',{scope:'./',updateViaCache:'none'}).catch(()=>{$('f3-install-status').textContent='앱 준비 실패. 새로고침 후 재시도';});
     }
     $('f3-install').onclick=async()=>{
-      if(installPrompt) {const prompt=installPrompt;installPrompt=null;await prompt.prompt();await prompt.userChoice;}
+      if(installPrompt) {const prompt=installPrompt;installPrompt=null;try {await prompt.prompt();await prompt.userChoice;}catch(_) {$('f3-install-status').textContent='브라우저 메뉴 → 홈 화면에 추가';}}
       else $('f3-install-status').textContent=/iPhone|iPad/.test(navigator.userAgent)?'Safari 공유 → 홈 화면에 추가':'브라우저 메뉴 → 홈 화면에 추가';
     };
     $('f3-invite').onclick=async()=>{

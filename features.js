@@ -13,7 +13,7 @@
         const next={...flags,[name]:toggle.checked};
         try {localStorage.setItem(key,JSON.stringify(next));}
         catch (_) {toggle.checked=flags[name];$('feature-status').textContent='브라우저 저장 설정 확인 필요';return;}
-        if(name==='F3' && !next.F3) await root.RelayPWA?.disable();
+        if(name==='F3' && !next.F3) {try {await root.RelayPWA?.disable();} catch (_) { /* OFF is still persisted; retry cleanup after reload. */ }}
         location.reload();
       };
     }

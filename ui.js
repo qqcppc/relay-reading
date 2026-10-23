@@ -118,6 +118,7 @@ async function refresh() {
   ready = true; $('connection').textContent = '공유 모드 · 녹음·본문을 그룹과 공유';
   page = pageFor(selected);
   $('text-input').value = editorText();
+  await globalThis.RelayF2?.refresh();
 }
 async function failure(err) {
   status('실패: ' + err.message);
@@ -131,7 +132,7 @@ async function loadShared() {
   if (locked()) return;
   stopPlayback(); busy = true; controls();
   try { await refresh(); status(''); }
-  catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; }
+  catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; status('공유 연결 실패. 새로고침 또는 F1 해제'); }
   finally { busy = false; render(); }
 }
 function discard() {
@@ -165,7 +166,7 @@ async function start(event) {
       stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null;
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
-      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(''); }
+      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
       render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
@@ -365,7 +366,7 @@ if (!RelayStorage.connected) {
 function showPeople() {
   const list = $('people-list'); list.replaceChildren();
   const counts = new Map(); const me = $('reader').value.trim();
-  DEMO_PEOPLE.forEach(n => counts.set(n, 0));
+  if (!RelayStorage.connected) DEMO_PEOPLE.forEach(n => counts.set(n, 0));
   const all = RelayStorage.connected ? recordings : [...local.values()];
   all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
   $('me-count').textContent = `${counts.get(me) || 0}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
