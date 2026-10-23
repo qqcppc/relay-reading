@@ -34,7 +34,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #27`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} · #28`; $('tb-ch').textContent = chapter.title; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -67,6 +67,8 @@ function render() {
 function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
+  let full = true; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
+  $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
   for (let i = from; i < to; i++) {
     const seg = document.createElement('button'); seg.type = 'button';
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i === selected ? ' cur' : '');
@@ -274,30 +276,31 @@ function bookButton(label, index) {
 }
 function showSampleChapters(name) {
   const count = (BIBLE.find(b => b[0] === name) || [name, 1])[1];
-  $('picker-title').textContent = name + ' (준비 중)'; $('picker-back').hidden = false;
+  $('picker-title').textContent = name + ' (준비 중)'; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
   const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
   for (let c = 1; c <= count; c++) { const button = document.createElement('button'); button.type = 'button'; button.textContent = String(c); button.disabled = true; items.append(button); }
   items.scrollTop = 0;
 }
+let bookTab = 0;
+try { bookTab = Number(localStorage.getItem('relay.bookTab')) || 0; } catch {}
 function showBooks() {
   $('picker-title').textContent = '책'; $('picker-back').hidden = true;
-  const items = $('picker-items'); items.replaceChildren(); items.className = 'testaments';
   const known = new Set(BIBLE.map(b => b[0]));
-  [['구약', BIBLE.slice(0, 39)], ['신약', BIBLE.slice(39)]].forEach(([name, list]) => {
-    const col = document.createElement('div'); col.className = 'col';
-    const head = document.createElement('h3'); head.textContent = name; col.append(head);
-    list.forEach(([t]) => col.append(bookButton(t, books.findIndex(b => b.title === t))));
-    items.append(col);
-  });
   const extra = books.map((b, i) => [b, i]).filter(([b]) => !known.has(b.title));
-  if (extra.length) {
-    const col = document.createElement('div'); col.className = 'col';
-    extra.forEach(([b, i]) => col.append(bookButton(b.title, i))); items.append(col);
-  }
+  const tabs = [['구약', BIBLE.slice(0, 39).map(([t]) => [t, books.findIndex(b => b.title === t)])], ['신약', BIBLE.slice(39).map(([t]) => [t, books.findIndex(b => b.title === t)])]];
+  if (extra.length) tabs.push(['기타', extra.map(([b, i]) => [b.title, i])]);
+  if (bookTab >= tabs.length) bookTab = 0;
+  const bar = $('picker-tabs'); bar.replaceChildren(); bar.hidden = false; bar.style?.setProperty?.('--tabs', tabs.length);
+  tabs.forEach(([name], k) => {
+    const t = document.createElement('button'); t.type = 'button'; t.textContent = name; t.setAttribute('aria-pressed', String(k === bookTab));
+    t.onclick = () => { bookTab = k; try { localStorage.setItem('relay.bookTab', k); } catch {} showBooks(); }; bar.append(t);
+  });
+  const items = $('picker-items'); items.replaceChildren(); items.className = 'books';
+  tabs[bookTab][1].forEach(([t, i]) => items.append(bookButton(t, i)));
   items.scrollTop = 0;
 }
 function showChapters(index) {
-  const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false;
+  const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
   const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
   const end = books[index + 1]?.startChapter ?? pageStarts.length;
   for (let chapter = book.startChapter; chapter < end; chapter++) {
@@ -332,8 +335,22 @@ render();
 $('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
-$('title-btn').onclick = () => $('book-open').onclick();
-$('center').onclick = () => $('all').onclick();
+$('tb-book').onclick = () => $('book-open').onclick();
+$('tb-ch').onclick = () => { if (locked() || !ready) return; showChapters(bookIndex(page)); $('book-picker').showModal(); };
+$('tb-vs').onclick = () => { if (locked() || !ready) return; showVerses(); $('book-picker').showModal(); };
+function showVerses() {
+  const chapter = chapterAt(page); $('picker-title').textContent = `${bookAt(page).title} ${chapter.title}`; $('picker-back').hidden = true; $('picker-tabs').hidden = true;
+  const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
+  const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
+  for (let i = from; i < to; i++) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = String(chapter.startVerse + i - from);
+    b.setAttribute('aria-current', String(i === selected)); if (hasAudio(i)) b.style.setProperty?.('box-shadow', 'inset 0 -4px 0 ' + personColor((RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i))?.readerName));
+    b.onclick = () => { $('book-picker').close(); selected = i; revealSelected(); }; items.append(b);
+  }
+}
+$('book-picker').addEventListener?.('close', () => document.body?.classList?.remove?.('modal-open'));
+['book-picker','people','settings'].forEach(id => { const d = $(id); const open = d.showModal?.bind(d); if (open) d.showModal = () => { document.body?.classList?.add?.('modal-open'); open(); }; d.addEventListener?.('close', () => document.body?.classList?.remove?.('modal-open')); });
+$('center-play').onclick = () => $('all').onclick();
 $('reader').addEventListener('change', () => $('identity').onsubmit({preventDefault(){}}));
 let swipeX = null;
 $('list').addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; }, {passive: true});
