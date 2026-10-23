@@ -69,14 +69,18 @@ function render() {
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
   controls();
 }
+let gridBand = 0, gridManual = false;
 function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
   let full = true; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
   $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
-  const total = Math.max(30, Math.ceil((to - from) / 30) * 30);
-  for (let k = 0; k < total; k++) {
-    const band = Math.floor(k / 30), m = k % 30, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
+  const bands = Math.max(1, Math.ceil((to - from) / 30));
+  if (selected >= from && selected < to && gridBand !== Math.floor((selected - from) / 30) && !gridManual) gridBand = Math.floor((selected - from) / 30);
+  gridBand = Math.min(gridBand, bands - 1); gridManual = false;
+  const pager = $('grid-page'); if (pager) { pager.hidden = bands < 2; pager.textContent = `${gridBand + 1}/${bands}`; }
+  for (let k = gridBand * 30; k < gridBand * 30 + 30; k++) {
+    const band = 0, m = k % 30, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
     const seg = document.createElement('button'); seg.type = 'button';
     seg.style.gridColumn = String(block * 6 + c + 1); seg.style.gridRow = String(band * 2 + r + 1);
     const i = from + k;
@@ -439,3 +443,5 @@ globalThis.RelayF5?.init({
   color:personColor,number:index=>chapterAt(pageFor(index)).startVerse+index-pageStarts[pageFor(index)],label:index=>`${chapterAt(pageFor(index)).title} ${chapterAt(pageFor(index)).startVerse+index-pageStarts[pageFor(index)]}절`,
   names:()=>[...new Set([$('reader').value.trim(),...(RelayStorage.connected?recordings.map(r=>r.readerName):DEMO_PEOPLE)].filter(Boolean))]
 });
+
+$('grid-page')?.addEventListener?.('click', e => { e.stopPropagation(); const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length; const bands = Math.max(1, Math.ceil((to - from) / 30)); gridBand = (gridBand + 1) % bands; gridManual = true; drawProgress(); });
