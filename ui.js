@@ -34,7 +34,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${bookAt(page).title} ${chapter.title}\n${chapter.startVerse}~${endVerse}절 ▾`; $('page-label').style.whiteSpace = 'pre-line';
   $('list').replaceChildren();
   lines.forEach((text, i) => {
     if (i < pageStarts[page] || i >= (pageStarts[page + 1] ?? lines.length)) return;
@@ -279,3 +279,5 @@ render();
 
 $('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play(); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
+
+$('page-label').setAttribute('role','button'); $('page-label').onclick = () => $('book-open').onclick();
