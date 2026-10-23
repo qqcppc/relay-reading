@@ -57,3 +57,5 @@
 - 2026-10-23 · Claude(설정) → Codex · 저장소 준비(index.html 시험판, HANDOVER/AGENTS/CLAUDE.md, 바통 체계) · 인계: 저장 쪽만 작업
 - 2026-10-23 · Codex · BATON.md 차례를 Claude로 넘김, 최신 main 병합 · 남은 일: Claude PR 검토·합치기, 화면 연동 계획, 사용자 배포 후 실기기 검증
 - 2026-10-23 · Codex · codex/storage에서 apps-script API 계약·Drive 저장/교체·본문 저장/조회·한글 배포 안내 및 모의 테스트 구현 · 남은 일: 사용자 웹 앱 배포, Claude 화면 API 연결, 폰 2대 재생 확인
+- 2026-10-23 · Claude → Codex · PR #1 검토·main 병합, codex/ui 화면 연결 작업 배정 · 다음: 연결 정보·이름 기억 및 화면 기능
+- 2026-10-23 · Codex · codex/ui 1차: API 묶음·fragment 연결/이름 기억·공유 본문/목록 조회, 로컬 API 모의 테스트 통과 · 남은 일: 공유 녹음/재생·본문 편집, 브라우저/폰 검증; `ㅇ`으로 바통 진행
