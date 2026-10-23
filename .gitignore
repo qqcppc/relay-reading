@@ -6,3 +6,9 @@
 *.m4a
 node_modules/
 tests/results/
+
+# User-provided background music is distinct from private voice recordings.
+!assets/music/*.mp3
+!assets/music/*.ogg
+!assets/music/*.wav
+!assets/music/*.m4a

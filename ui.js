@@ -78,8 +78,8 @@ function render() {
   globalThis.RelayF5?.paint();globalThis.RelayF9?.paint();
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
-  if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();
+  if (!playbackUrl && !globalThis.RelayF15?.active() && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
+  controls();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
 function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1); }
@@ -87,7 +87,7 @@ function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
   let full = to>from; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
-  $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
+  $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl && !globalThis.RelayF15?.active();
   const bands = Math.max(1, Math.ceil((to - from) / 20));
   if (selected >= from && selected < to && !gridManual) gridBand = Math.floor((selected - from) / 20);
   gridBand = Math.max(0, Math.min(gridBand, bands - 1)); gridManual = false;
@@ -117,10 +117,11 @@ function revealSelected() {
   });
 }
 function stopPlayback() {
+  globalThis.RelayF15?.stop();
   playingIndex = -1;
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
-  $('all').textContent = '▶'; $('play-ic').textContent = '▶';
+  $('all').textContent = '▶'; $('play-ic').textContent = '▶';drawProgress();
 }
 async function play(i, chain = false, sequence) {
   if (locked() || !ready) return;
@@ -421,7 +422,7 @@ function editorText() {
     return (book ? `# ${book.title}\n` : '') + `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n');
   }).join('\n\n---\n\n').replace(/\n\n---\n\n(?=# )/g, '\n\n');
 }
-$('all').onclick = () => { if (playbackUrl) { stopPlayback(); status(''); return; } const from = Math.max(0, selected); const first = lines.findIndex((_, i) => i >= from && hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
+$('all').onclick = () => { if (playbackUrl||globalThis.RelayF15?.active()) { stopPlayback(); status(''); return; }if(locked()||!ready)return;if(globalThis.RelayF15?.enabled()){stopPlayback();RelayF15.play(musicSnapshot());return;} const from = Math.max(0, selected); const first = lines.findIndex((_, i) => i >= from && hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;
 $('reader').value = RelayStorage.readerName;
 $('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status(''); } catch (err) { status(err.message); } };
@@ -600,3 +601,14 @@ globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],t
 globalThis.RelayF14?.init({state:()=>({book:bookAt(page).title,chapter:chapterAt(page).title,from:pageStarts[page],startVerse:chapterAt(page).startVerse,count:(pageStarts[page+1]??lines.length)-pageStarts[page]})});
 
 globalThis.RelayDrafts?.init({revision:()=>revision,ready:()=>ready&&!busy,locked});
+
+function musicSnapshot(){
+  const from=pageStarts[page],to=pageStarts[page+1]??lines.length;
+  const tracks=(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&(RelayStorage.connected||item.blob)&&(item.endVerse??item.verse)>selected).sort((a,b)=>a.verse-b.verse).map(item=>{const chapter=pageFor(item.verse-1);return {...item,book:bookAt(chapter).title,chapter:chapterAt(chapter).title,startVerse:chapterAt(chapter).startVerse};});
+  return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,tracks};
+}
+globalThis.RelayF15?.init({locked,ready:()=>ready,snapshot:musicSnapshot,play:()=>$('all').onclick(),stop:stopPlayback,end:stopPlayback,
+  changed:()=>{$('all').textContent='■';$('play-ic').textContent='■';$('center-txt').textContent='음악과 듣기';drawProgress();},
+  voice:item=>{playingIndex=item.verse-1;selected=playingIndex;followSelected();},report:error=>failure(error),
+  audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
+});
