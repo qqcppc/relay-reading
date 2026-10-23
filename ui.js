@@ -319,7 +319,7 @@ function shortBook(label) {
   return [m[1] === '요한' ? '요한서' : m[1], rn];
 }
 function bookButton(label, index) {
-  const button = document.createElement('button'); button.type = 'button'; const [short, rn] = shortBook(label); button.textContent = short;
+  const button = document.createElement('button'); button.type = 'button'; const short = label === '예레미야애가' ? '애가' : label; const rn = ''; button.textContent = short;
   button.setAttribute('aria-label', label); if (rn) { const r = document.createElement('span'); r.className = 'rn'; r.textContent = rn; button.append?.(r); }
   if (index < 0) { button.className = 'empty'; button.onclick = () => showSampleChapters(label); }
   else { button.setAttribute('aria-current', String(index === bookIndex(page))); button.onclick = () => showChapters(index); }
@@ -509,3 +509,12 @@ function sheetTop() { const r = document.getElementById('sticky')?.getBoundingCl
   c.addEventListener?.('touchstart', e => { x0 = e.touches[0].clientX; gridSwiped = false; e.stopPropagation(); }, {passive: true});
   c.addEventListener?.('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; e.stopPropagation();
     if (Math.abs(dx) > 30) { gridSwiped = true; setTimeout(() => { gridSwiped = false; }, 300); const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length; const bands = Math.max(1, Math.ceil((to - from) / 20)); const nb = gridBand + (dx < 0 ? 1 : -1); if (nb >= 0 && nb < bands) { gridBand = nb; gridManual = true; drawProgress(); } } }); }
+
+let bookFont = .95;
+try { bookFont = Number(localStorage.getItem('relay.bfont')) || .95; } catch {}
+function applyBookFont() { document.documentElement?.style?.setProperty?.('--bfs', bookFont + 'rem'); try { localStorage.setItem('relay.bfont', bookFont); } catch {} }
+$('bfont-down').onclick = () => { bookFont = Math.max(.7, +(bookFont - .05).toFixed(2)); applyBookFont(); };
+$('bfont-up').onclick = () => { bookFont = Math.min(1.3, +(bookFont + .05).toFixed(2)); applyBookFont(); };
+applyBookFont();
+$('settings-open').addEventListener?.('click', e => e.stopPropagation());
+$('center').addEventListener?.('touchmove', e => { e.preventDefault?.(); e.stopPropagation(); }, {passive: false});
