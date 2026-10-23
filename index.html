@@ -69,11 +69,12 @@ body{gap:10px}
 .line.recording .side::before{content:'';position:absolute;top:-.1em;left:50%;width:1.6em;height:1.6em;margin-left:-.8em;border-radius:50%;background:#d0392b;animation:rec 1s ease-in-out infinite}
 @keyframes rec{50%{opacity:.35;transform:scale(.85)}}
 .line.recording{background:#fff;border-color:#d0392b;border-left-color:#d0392b}
-#review{position:absolute;inset:0;background:color-mix(in srgb,#f6f4ef 80%,transparent);backdrop-filter:blur(2px);display:flex;align-items:center;padding:0 12px;border-radius:inherit;z-index:3}
+#review{position:absolute;inset:0;background:color-mix(in srgb,#f6f4ef 55%,transparent);backdrop-filter:blur(1px);display:flex;align-items:center;padding:0 12px;border-radius:inherit;z-index:3}
 #review .row{width:100%}#review button{padding:14px 0!important}
 .seg.done{background:var(--pc)}.seg{opacity:.9}
 .me{display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid var(--pc,#5f8f74);border-radius:12px;background:#fff;margin-bottom:12px}
 .me-tag{background:var(--pc,#5f8f74);color:#fff;border-radius:8px;padding:2px 8px;font-weight:700;font-size:.85rem}
+.me #reader{border:0!important;text-align:left!important;width:auto!important}
 .me input{flex:1;min-width:0;border:0;font:inherit;font-size:1.05rem;background:transparent;padding:6px 0}.me small{color:#7a7366}
 #people-list{display:flex!important;flex-wrap:wrap;gap:8px}#people-list li{display:flex;gap:6px;align-items:baseline;padding:8px 12px;border:0;border-radius:999px;background:color-mix(in srgb,var(--pc) 14%,#fff);border-left:0}
 #people-list li b{color:color-mix(in srgb,var(--pc) 75%,#000);font-size:1.05rem}#people-list li small{color:#7a7366}
