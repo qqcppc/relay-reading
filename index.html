@@ -2,15 +2,16 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
 <style>
-body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 auto;padding:20px 16px 170px;display:grid;gap:12px;max-width:520px}
-.line{background:#fff;border:2px solid #e2ddd2;border-radius:12px;padding:14px;display:grid;gap:10px}
+body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
+.line{box-sizing:border-box;background:#fff;border:2px solid #e2ddd2;border-radius:12px;padding:14px;display:grid;gap:10px}
 .line.sel{border-color:#b4432f}.line.done .t{color:#2f5d50}
 .t{font-size:1.15rem;line-height:1.6;cursor:pointer}
 .tag{font-size:.8rem;color:#7a7366}
-#record-panel{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:552px;box-sizing:border-box;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#f6f4ef;box-shadow:0 -4px 18px #0002;z-index:10;max-height:50dvh;overflow:auto;display:grid;gap:10px}
-.line{scroll-margin-top:16px;scroll-margin-bottom:140px}
-#stop-record{width:100%;padding:24px;font-size:1.2rem;border:0;border-radius:16px;background:#b4432f;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
-body>*{min-width:0}
+.line{scroll-margin:16px 0}
+.card-trigger{border:0;background:transparent;padding:0;text-align:left;color:inherit;font:inherit;display:grid;gap:10px;width:100%;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.line.recording .tag::before{content:'● ';color:#b4432f;animation:record-pulse 1s infinite}
+@keyframes record-pulse{50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){.line.recording .tag::before{animation:none}}
 #identity{width:100%;box-sizing:border-box;display:flex;gap:6px;align-items:center}
 #identity label{display:grid;gap:8px;font-weight:600}#reader{width:0;flex:1;min-width:0;padding:12px;border:1px solid #bdb5a5;border-radius:10px;font:inherit}
 #identity button{white-space:nowrap;padding:10px 16px;border:0;border-radius:10px;background:#2f5d50;color:#fff;font:inherit}
@@ -41,14 +42,12 @@ body>*{min-width:0}
 <button id="all">▶ 처음부터 이어듣기</button>
 <nav class="row pager" aria-label="본문 장"><button id="prev-page">◀ 이전 장</button><span id="page-label"></span><button id="next-page">다음 장 ▶</button></nav>
 <div id="list"></div>
-<section id="record-panel" aria-label="녹음과 미리듣기">
-<div id="st" role="status">읽을 줄 카드를 꾹 누르면 녹음 시작 · 정지로 완료</div>
+<div id="st" role="status"></div>
 <div id="review" hidden>
   <audio id="au" hidden></audio>
   <div class="row"><button id="ok">✅ 확인</button><button id="listen">▶ 듣기</button><button id="no">✖ 취소</button></div>
 </div>
-<button id="stop-record" hidden>⏹ 정지</button>
-</section>
-<script src="storage.js?v=16"></script>
-<script src="ui.js?v=16"></script>
+
+<script src="storage.js?v=card18"></script>
+<script src="ui.js?v=card18"></script>
 </body></html>
