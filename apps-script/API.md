@@ -84,3 +84,9 @@ audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호�
 본문 응답과 saveText 요청에 `chapters` 배열 추가. pageStarts와 같은 길이이며 각 항목은 `{title: "1장", startVerse: 1}`. 제목 1~80자, 시작 번호는 1~1,000,000 정수. 생략한 구형 요청/기존 데이터는 장 제목을 `1장`, `2장` 순서로, 시작 절은 해당 pageStarts+1로 처리한다.
 
 예: `pageStarts:[0,4]`, `chapters:[{title:"첫 장",startVerse:1},{title:"둘째 장",startVerse:5}]`. 화면 절 번호는 표시용이며 녹음 API verse는 그대로 전체 배열 기준 1부터 시작하는 번호다. 장 제목·시작 절 변경도 본문 저장이므로 기존 녹음이 초기화된다. 최신 Code.gs 배포 필요.
+
+### 책 구조
+
+`saveText`에 선택 필드 `books: [{title:"첫 책",startChapter:0},{title:"둘째 책",startChapter:2}]`를 보내고 본문 응답에서도 반환한다. startChapter는 pageStarts/chapters 배열의 **0부터 시작하는 장 위치**다. 첫 책은 0, 이후 값은 엄격한 오름차순 정수이며 pageStarts.length 미만이어야 한다. 제목 1~80자, 책 수는 전체 장 수 이하. 66권 지원(기존 전체 줄 500개 제한 적용).
+
+생략된 구형 요청·기존 저장 데이터는 `[{title:본문제목의_앞80자,startChapter:0}]` 한 책으로 처리하며 빈 본문의 책 제목은 `본문`. books 변경도 revision 변경과 녹음 초기화를 수반한다. 녹음 verse는 책/장에 상관없이 전체 verses 배열의 1부터 시작하는 위치를 유지한다. 최신 Code.gs 배포 필요.

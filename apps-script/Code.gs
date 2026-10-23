@@ -86,8 +86,15 @@ function dispatch_(request) {
         if (!chapter || !Number.isInteger(chapter.startVerse) || chapter.startVerse < 1 || chapter.startVerse > 1000000) fail_('INVALID_REQUEST', '시작 절 번호 오류');
         return {title: string_(chapter.title, 80, '장 제목'), startVerse: chapter.startVerse};
       });
+      var books = request.books === undefined ? [{title:title.slice(0, 80), startChapter:0}] : request.books;
+      if (!Array.isArray(books) || !books.length || books.length > pageStarts.length) fail_('INVALID_REQUEST', '책 정보 개수 오류');
+      books = books.map(function (book, index) {
+        if (!book || !Number.isInteger(book.startChapter) || book.startChapter < 0 || book.startChapter >= pageStarts.length ||
+            (index === 0 && book.startChapter !== 0) || (index > 0 && book.startChapter <= books[index - 1].startChapter)) fail_('INVALID_REQUEST', '책 시작 장 오류');
+        return {title:string_(book.title, 80, '책 제목'), startChapter:book.startChapter};
+      });
       var previous = state.recordings;
-      state = { title: title, verses: verses, pageStarts: pageStarts, chapters: chapters, revision: Utilities.getUuid(), recordings: {} };
+      state = { title: title, verses: verses, pageStarts: pageStarts, chapters: chapters, books: books, revision: Utilities.getUuid(), recordings: {} };
       persist_(folder, properties, stateFile, state);
       Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });
       return text_(state);
@@ -151,7 +158,7 @@ function trash_(fileId) {
 }
 
 function text_(state) {
-  return { title: state.title, verses: state.verses, pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
+  return { books: state.books || [{title:state.title.slice(0, 80) || '본문', startChapter:0}], title: state.title, verses: state.verses, pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
 }
 
 function recording_(value) {

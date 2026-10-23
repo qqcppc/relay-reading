@@ -26,3 +26,5 @@ Drive 정리 실패는 Apps Script 실행 로그에 남음. 폴더나 상태 파
 [ContentService 리디렉션](https://developers.google.com/apps-script/guides/content).
 
 여러 페이지 본문 기능: 최신 Code.gs로 새 버전을 배포해야 페이지 경계(pageStarts)도 저장됨. 기존 데이터는 한 페이지로 조회되며 녹음 번호는 유지됨.
+
+책 목록 기능도 최신 Code.gs 새 버전 배포 필요. 기존 본문/녹음은 한 책으로 호환되며 책을 나누려고 본문을 재저장하면 기존 녹음이 초기화됨.

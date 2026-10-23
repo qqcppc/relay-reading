@@ -5,6 +5,7 @@ let lines = [
 '남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '가을 하늘 공활한데 높고 구름 없이','밝은 달은 우리 가슴 일편단심일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '이 기상과 이 맘으로 충성을 다하여','괴로우나 즐거우나 나라 사랑하세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세'];
+let books = [{title:'1권',startChapter:0},{title:'2권',startChapter:2}];
 let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:5},{title:'3장',startVerse:9},{title:'4장',startVerse:13}];
 let pageStarts = [0, 4, 8, 12], page = 0, holdTimer = null, gesture = null, suppressClick = false;
 let title = '애국가', revision = null, recordings = [], selected = 0;
@@ -17,6 +18,7 @@ function status(message) { $('st').textContent = message; }
 function hasAudio(i) { return RelayStorage.connected ? recordings.some(r => r.verse === i + 1) : local.has(i); }
 function locked() { return busy || acquiring || !!recorder || !!draft; }
 function controls() {
+  $('book-open').disabled = locked() || !ready || !lines.length;
   $('stop-record').hidden = !recorder;
   $('stop-record').disabled = !recorder || recorder.state !== 'recording';
   $('prev-page').disabled = locked() || page === 0;
@@ -29,6 +31,7 @@ function controls() {
 function render() {
   $('heading').textContent = title || '공유 본문 없음';
   page = Math.max(0, Math.min(page, pageStarts.length - 1));
+  $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
   $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절`;
@@ -87,7 +90,7 @@ async function play(i, chain = false, sequence) {
 player.onerror = () => { stopPlayback(); status('음성 재생 실패. 절을 눌러 다시 시도'); };
 async function refresh() {
   const snapshot = await RelayStorage.load();
-  revision = snapshot.text.revision; title = snapshot.text.title; lines = snapshot.text.verses; pageStarts = snapshot.text.pageStarts || [0]; chapters = snapshot.text.chapters || [];
+  revision = snapshot.text.revision; title = snapshot.text.title; lines = snapshot.text.verses; pageStarts = snapshot.text.pageStarts || [0]; chapters = snapshot.text.chapters || []; books = snapshot.text.books || [{title: title.slice(0,80) || '본문',startChapter:0}];
   recordings = snapshot.recordings;
   selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = 0;
   ready = true; $('connection').textContent = '공유 모드 · 녹음·본문을 그룹과 공유';
@@ -168,13 +171,13 @@ $('save-text').onclick = async () => {
   const input = $('text-input').value.replace(/\r\n?/g, '\n').trim();
   const newline = input.indexOf('\n');
   const nextTitle = (newline < 0 ? input : input.slice(0, newline)).trim();
-  const parsed = parsePages(newline < 0 ? '' : input.slice(newline + 1));
+  const parsed = parsePages(newline < 0 ? '' : input.slice(newline + 1), nextTitle);
   const verses = parsed.verses;
-  if (parsed.chapters.some(c => !c.title || c.title.length > 80 || !Number.isSafeInteger(c.startVerse) || c.startVerse > 1000000) || !nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
+  if (parsed.books.some(b => !b.title || b.title.length > 80) || parsed.chapters.some(c => !c.title || c.title.length > 80 || !Number.isSafeInteger(c.startVerse) || c.startVerse > 1000000) || !nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
   busy = true; stopPlayback(); controls();
   try {
-    const text = RelayStorage.connected ? await RelayStorage.request('saveText', {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, revision}) : {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters};
-    title = text.title; lines = text.verses; pageStarts = text.pageStarts || [0]; chapters = text.chapters || []; page = 0; revision = text.revision; recordings = []; local.clear(); selected = 0;
+    const text = RelayStorage.connected ? await RelayStorage.request('saveText', {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, books: parsed.books, revision}) : {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, books: parsed.books};
+    title = text.title; lines = text.verses; pageStarts = text.pageStarts || [0]; chapters = text.chapters || []; books = text.books || [{title:title.slice(0,80),startChapter:0}]; page = 0; revision = text.revision; recordings = []; local.clear(); selected = 0;
     $('erase-confirm').checked = false; $('editor').open = false; status('본문 저장 완료 · 기존 녹음 초기화');
   } catch (err) { await failure(err); }
   finally { busy = false; render(); }
@@ -202,7 +205,7 @@ $('next-page').onclick = () => changePage(page + 1);
 $('stop-record').onclick = stop;
 window.addEventListener('blur', () => { cancelGesture(); stop(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelGesture(); stop(); stopPlayback(); } });
-function parsePages(value) {
+function parseChapterPages(value) {
   const pages = value.trim().split(/\n[ \t]*---[ \t]*\n|\n[ \t]*\n[ \t]*\n+/);
   const verses = [], starts = [], meta = [];
   pages.forEach((part, index) => {
@@ -215,9 +218,53 @@ function parsePages(value) {
   });
   return {verses, pageStarts: starts, chapters: meta};
 }
+function parsePages(value, defaultTitle = title) {
+  const sections = value.trim().split(/(?:^|\n)[ \t]*#[ \t]+([^\n]+)[ \t]*(?:\n|$)/);
+  if (sections.length === 1) return {...parseChapterPages(value), books:[{title:defaultTitle.slice(0,80) || '본문',startChapter:0}]};
+  const result = {verses:[], pageStarts:[], chapters:[], books:[]};
+  function addSection(name, content) {
+    const parsed = parseChapterPages(content);
+    result.books.push({title:name.trim(), startChapter:result.chapters.length});
+    result.pageStarts.push(...parsed.pageStarts.map(start => start + result.verses.length));
+    result.chapters.push(...parsed.chapters); result.verses.push(...parsed.verses);
+  }
+  if (sections[0].trim()) addSection(defaultTitle.slice(0,80) || '본문', sections[0]);
+  for (let index = 1; index < sections.length; index += 2) addSection(sections[index], sections[index + 1]);
+  return result;
+}
+function bookIndex(chapter) { return Math.max(0, books.findLastIndex(book => book.startChapter <= chapter)); }
+function bookAt(chapter) { return books[bookIndex(chapter)] || {title:title.slice(0,80) || '본문',startChapter:0}; }
+function showBooks() {
+  $('picker-title').textContent = '책'; $('picker-back').hidden = true;
+  const items = $('picker-items'); items.replaceChildren(); items.className = '';
+  books.forEach((book, index) => {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = book.title;
+    button.setAttribute('aria-current', String(index === bookIndex(page)));
+    button.onclick = () => showChapters(index); items.append(button);
+  });
+  items.scrollTop = 0;
+}
+function showChapters(index) {
+  const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false;
+  const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
+  const end = books[index + 1]?.startChapter ?? pageStarts.length;
+  for (let chapter = book.startChapter; chapter < end; chapter++) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = String(chapter - book.startChapter + 1);
+    button.setAttribute('aria-label', chapterAt(chapter).title); button.setAttribute('aria-current', String(chapter === page));
+    button.onclick = () => { if (locked() || !ready) return; $('book-picker').close(); changePage(chapter); };
+    items.append(button);
+  }
+  items.scrollTop = 0;
+}
+$('book-open').onclick = () => { if (locked() || !ready) return; showBooks(); $('book-picker').showModal(); };
+$('picker-back').onclick = showBooks;
+$('picker-close').onclick = () => $('book-picker').close();
 function chapterAt(index) { return chapters[index] || {title:`${index + 1}장`, startVerse:pageStarts[index] + 1}; }
 function editorText() {
-  return title + '\n' + pageStarts.map((start, index) => `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n')).join('\n\n---\n\n');
+  return title + '\n' + pageStarts.map((start, index) => {
+    const book = books.find(item => item.startChapter === index);
+    return (book ? `# ${book.title}\n` : '') + `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n');
+  }).join('\n\n---\n\n').replace(/\n\n---\n\n(?=# )/g, '\n\n');
 }
 $('all').onclick = () => { if (playbackUrl) { stopPlayback(); status('재생 멈춤'); return; } const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;

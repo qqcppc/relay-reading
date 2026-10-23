@@ -91,3 +91,12 @@ test('장 제목·시작 절 번호 보존과 잘못된 메타데이터 거부',
   assert.deepEqual(s.call({...request,chapters}).data.chapters,chapters);
   assert.deepEqual(s.call({action:'getText'}).data.chapters,chapters);
 });
+
+test('66권 책 구조 저장·조회, 구형 요청 호환과 경계 검사',()=>{
+ const s=server();const verses=Array.from({length:66},(_,i)=>'줄'+i),pageStarts=verses.map((_,i)=>i),books=verses.map((_,i)=>({title:'책'+i,startChapter:i}));
+ for(const invalid of [[],[{title:'a',startChapter:1}],[{title:'a',startChapter:0},{title:'b',startChapter:0}],[{title:'a',startChapter:0},{title:'b',startChapter:66}]]){
+ assert.equal(s.call({action:'saveText',revision:'0',title:'본문',verses,pageStarts,books:invalid}).error.code,'INVALID_REQUEST');}
+ const text=s.call({action:'saveText',revision:'0',title:'본문',verses,pageStarts,books}).data;
+ assert.deepEqual(text.books,books);assert.deepEqual(s.call({action:'getText'}).data.books,books);
+ assert.deepEqual(s.call({action:'saveText',revision:text.revision,title:'구형',verses:['a']}).data.books,[{title:'구형',startChapter:0}]);
+});
