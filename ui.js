@@ -5,6 +5,7 @@ let lines = [
 '남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '가을 하늘 공활한데 높고 구름 없이','밝은 달은 우리 가슴 일편단심일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '이 기상과 이 맘으로 충성을 다하여','괴로우나 즐거우나 나라 사랑하세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세'];
+let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:5},{title:'3장',startVerse:9},{title:'4장',startVerse:13}];
 let pageStarts = [0, 4, 8, 12], page = 0, holdTimer = null, gesture = null, suppressClick = false;
 let title = '애국가', revision = null, recordings = [], selected = 0;
 let busy = false, ready = !RelayStorage.connected, acquiring = false;
@@ -28,7 +29,9 @@ function controls() {
 function render() {
   $('heading').textContent = title || '공유 본문 없음';
   page = Math.max(0, Math.min(page, pageStarts.length - 1));
-  $('page-label').textContent = `${page + 1}절 / ${pageStarts.length}절`;
+  const chapter = chapterAt(page);
+  const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절`;
   $('list').replaceChildren();
   lines.forEach((text, i) => {
     if (i < pageStarts[page] || i >= (pageStarts[page + 1] ?? lines.length)) return;
@@ -37,7 +40,7 @@ function render() {
     row.style.textAlign = 'left'; row.style.width = '100%';
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i);
-    tag.textContent = `${i - pageStarts[page] + 1}줄 · ${item ? '✅ ' + item.readerName + ' (눌러 재생 · 꾹 눌러 재녹음)' : i === selected ? '⏩ 지금 차례' : '대기'}`;
+    tag.textContent = `${chapter.startVerse + i - pageStarts[page]}절 · ${item ? '✅ ' + item.readerName + ' (눌러 재생 · 꾹 눌러 재녹음)' : i === selected ? '⏩ 지금 차례' : '대기'}`;
     const content = document.createElement('span'); content.className = 't'; content.textContent = text;
     row.append(tag, content);
     row.onclick = () => { if (suppressClick) { suppressClick = false; return; } if (locked() || !ready) return; selected = i; followSelected(); if (hasAudio(i)) play(i); };
@@ -83,7 +86,7 @@ async function play(i, chain = false, sequence) {
 player.onerror = () => { stopPlayback(); status('음성 재생 실패. 절을 눌러 다시 시도'); };
 async function refresh() {
   const snapshot = await RelayStorage.load();
-  revision = snapshot.text.revision; title = snapshot.text.title; lines = snapshot.text.verses; pageStarts = snapshot.text.pageStarts || [0];
+  revision = snapshot.text.revision; title = snapshot.text.title; lines = snapshot.text.verses; pageStarts = snapshot.text.pageStarts || [0]; chapters = snapshot.text.chapters || [];
   recordings = snapshot.recordings;
   selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = 0;
   ready = true; $('connection').textContent = '공유 모드 · 녹음·본문을 그룹과 공유';
@@ -167,11 +170,11 @@ $('save-text').onclick = async () => {
   const nextTitle = (newline < 0 ? input : input.slice(0, newline)).trim();
   const parsed = parsePages(newline < 0 ? '' : input.slice(newline + 1));
   const verses = parsed.verses;
-  if (!nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
+  if (parsed.chapters.some(c => !c.title || c.title.length > 80 || !Number.isSafeInteger(c.startVerse) || c.startVerse > 1000000) || !nextTitle || nextTitle.length > 200 || !verses.length || verses.length > 500 || verses.some(v => !v || v.length > 10000) || JSON.stringify({title:nextTitle,verses}).length > 500000) { status('제목·절 형식/길이 확인 필요'); return; }
   busy = true; stopPlayback(); controls();
   try {
-    const text = RelayStorage.connected ? await RelayStorage.request('saveText', {title: nextTitle, verses, pageStarts: parsed.pageStarts, revision}) : {title: nextTitle, verses, pageStarts: parsed.pageStarts};
-    title = text.title; lines = text.verses; pageStarts = text.pageStarts || [0]; page = 0; revision = text.revision; recordings = []; local.clear(); selected = 0;
+    const text = RelayStorage.connected ? await RelayStorage.request('saveText', {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters, revision}) : {title: nextTitle, verses, pageStarts: parsed.pageStarts, chapters: parsed.chapters};
+    title = text.title; lines = text.verses; pageStarts = text.pageStarts || [0]; chapters = text.chapters || []; page = 0; revision = text.revision; recordings = []; local.clear(); selected = 0;
     $('erase-confirm').checked = false; $('editor').open = false; status('본문 저장 완료 · 기존 녹음 초기화');
   } catch (err) { await failure(err); }
   finally { busy = false; render(); }
@@ -201,12 +204,20 @@ window.addEventListener('blur', () => { cancelGesture(); stop(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelGesture(); stop(); stopPlayback(); } });
 function parsePages(value) {
   const pages = value.trim().split(/\n[ \t]*---[ \t]*\n|\n[ \t]*\n[ \t]*\n+/);
-  const verses = [], starts = [];
-  pages.forEach(part => { starts.push(verses.length); verses.push(...part.trim().split(/\n[ \t]*\n/).map(v => v.trim())); });
-  return {verses, pageStarts: starts};
+  const verses = [], starts = [], meta = [];
+  pages.forEach((part, index) => {
+    part = part.trim();
+    const header = part.match(/^@([^\n|]+)\|\s*([1-9][0-9]*)[ \t]*(?:\n|$)/);
+    starts.push(verses.length);
+    meta.push(header ? {title:header[1].trim(),startVerse:Number(header[2])} : {title:`${index + 1}장`,startVerse:verses.length + 1});
+    if (header) part = part.slice(header[0].length).trim();
+    verses.push(...part.split(/\n[ \t]*\n/).map(v => v.trim()));
+  });
+  return {verses, pageStarts: starts, chapters: meta};
 }
+function chapterAt(index) { return chapters[index] || {title:`${index + 1}장`, startVerse:pageStarts[index] + 1}; }
 function editorText() {
-  return title + '\n' + pageStarts.map((start, index) => lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n')).join('\n\n---\n\n');
+  return title + '\n' + pageStarts.map((start, index) => `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n')).join('\n\n---\n\n');
 }
 $('all').onclick = () => { const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('stop-play').onclick = () => { stopPlayback(); status('재생 멈춤'); };

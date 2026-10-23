@@ -78,3 +78,9 @@ audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호�
 `saveText`에 `pageStarts`를 보내면 저장하고 `getText`와 저장 응답에서 반환한다. 첫 값 0, 엄격한 오름차순 정수, 모든 값은 `verses.length` 미만이어야 한다. 생략한 구형 요청/기존 저장 데이터는 `[0]`(전체 한 페이지)로 처리한다. 빈 초기 본문도 `[0]`이다. 페이지 경계 변경도 본문 저장이므로 revision 변경·기존 녹음 초기화가 적용된다.
 
 이번 페이지 기능을 공유 모드에서 사용하기 전에 최신 Code.gs로 웹 앱 새 버전 배포 필요. 구형 서버는 pageStarts를 보존하지 못한다.
+
+### 장 제목과 화면 절 번호
+
+본문 응답과 saveText 요청에 `chapters` 배열 추가. pageStarts와 같은 길이이며 각 항목은 `{title: "1장", startVerse: 1}`. 제목 1~80자, 시작 번호는 1~1,000,000 정수. 생략한 구형 요청/기존 데이터는 장 제목을 `1장`, `2장` 순서로, 시작 절은 해당 pageStarts+1로 처리한다.
+
+예: `pageStarts:[0,4]`, `chapters:[{title:"첫 장",startVerse:1},{title:"둘째 장",startVerse:5}]`. 화면 절 번호는 표시용이며 녹음 API verse는 그대로 전체 배열 기준 1부터 시작하는 번호다. 장 제목·시작 절 변경도 본문 저장이므로 기존 녹음이 초기화된다. 최신 Code.gs 배포 필요.

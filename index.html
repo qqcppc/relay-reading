@@ -20,19 +20,20 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 .row{display:flex;gap:8px}.row button{flex:1;padding:12px;font-size:.95rem;border-radius:10px;border:1px solid #ccc;background:#fff}
 #all{padding:12px;border-radius:10px;border:0;background:#2f5d50;color:#fff;font-size:1rem}
 </style></head><body>
+<small id="version" aria-label="화면 버전" style="position:fixed;top:8px;right:12px;color:#7a7366;z-index:20">#12</small>
 <h2 id="heading">🎤 릴레이 녹음 시험</h2>
 <form id="identity"><label>함께 읽을 이름 <input id="reader" required maxlength="80" autocomplete="nickname"></label> <button>이름 기억</button></form>
 <p id="connection" role="status">폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
 <div class="row"><button id="refresh" hidden>공유 본문·목록 새로고침</button><button id="disconnect" hidden>연결 지우고 시험 모드</button></div>
 <details id="editor"><summary>본문 편집</summary>
-<label for="text-input">첫 줄 제목 · 빈 줄로 줄 구분 · ---로 페이지 구분</label>
+<label for="text-input">첫 줄 제목 · 빈 줄로 줄 구분 · ---로 장 구분 · @장 제목 | 시작 절 번호</label>
 <textarea id="text-input" rows="10" style="width:100%;box-sizing:border-box"></textarea>
 <p><strong>본문을 저장하면 기존 녹음이 모두 지워짐.</strong></p>
 <label><input id="erase-confirm" type="checkbox">기존 녹음 삭제에 동의</label>
 <button id="save-text">본문 저장</button></details>
 <button id="stop-play">■ 재생 멈추기</button>
 <button id="all">▶ 처음부터 이어듣기</button>
-<nav class="row pager" aria-label="본문 페이지"><button id="prev-page">◀ 이전</button><span id="page-label"></span><button id="next-page">다음 ▶</button></nav>
+<nav class="row pager" aria-label="본문 장"><button id="prev-page">◀ 이전 장</button><span id="page-label"></span><button id="next-page">다음 장 ▶</button></nav>
 <div id="list"></div>
 <section id="record-panel" aria-label="녹음과 미리듣기">
 <div id="st" role="status">읽을 줄 카드를 꾹 누르면 녹음 시작 · 정지로 완료</div>

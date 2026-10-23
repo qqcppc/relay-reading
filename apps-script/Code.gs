@@ -78,8 +78,16 @@ function dispatch_(request) {
             return !Number.isInteger(start) || start < 0 || start >= verses.length ||
               (index > 0 && start <= pageStarts[index - 1]);
           })) fail_('INVALID_REQUEST', '페이지 시작 위치 오류');
+      var chapters = request.chapters === undefined ? pageStarts.map(function (start, index) {
+        return {title: (index + 1) + '장', startVerse: start + 1};
+      }) : request.chapters;
+      if (!Array.isArray(chapters) || chapters.length !== pageStarts.length) fail_('INVALID_REQUEST', '장 정보 개수 오류');
+      chapters = chapters.map(function (chapter) {
+        if (!chapter || !Number.isInteger(chapter.startVerse) || chapter.startVerse < 1 || chapter.startVerse > 1000000) fail_('INVALID_REQUEST', '시작 절 번호 오류');
+        return {title: string_(chapter.title, 80, '장 제목'), startVerse: chapter.startVerse};
+      });
       var previous = state.recordings;
-      state = { title: title, verses: verses, pageStarts: pageStarts, revision: Utilities.getUuid(), recordings: {} };
+      state = { title: title, verses: verses, pageStarts: pageStarts, chapters: chapters, revision: Utilities.getUuid(), recordings: {} };
       persist_(folder, properties, stateFile, state);
       Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });
       return text_(state);
@@ -143,7 +151,7 @@ function trash_(fileId) {
 }
 
 function text_(state) {
-  return { title: state.title, verses: state.verses, pageStarts: state.pageStarts || [0], revision: state.revision };
+  return { title: state.title, verses: state.verses, pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
 }
 
 function recording_(value) {

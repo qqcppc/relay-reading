@@ -80,3 +80,14 @@ test('페이지 경계 저장·조회와 잘못된 경계 거부, 구형 요청 
   assert.deepEqual(s.call({action:'getText'}).data.pageStarts,[0,2]);
   assert.deepEqual(s.call({action:'saveText',revision:text.revision,title:'구형',verses:['a']}).data.pageStarts,[0]);
 });
+
+test('장 제목·시작 절 번호 보존과 잘못된 메타데이터 거부', () => {
+  const s=server();
+  const request={action:'saveText',revision:'0',title:'본문',verses:['a','b'],pageStarts:[0,1]};
+  for(const chapters of [[],[{title:'장',startVerse:0},{title:'장',startVerse:2}],[{title:'',startVerse:1},{title:'장',startVerse:2}]]) {
+    assert.equal(s.call({...request,chapters}).error.code,'INVALID_REQUEST');
+  }
+  const chapters=[{title:'첫 장',startVerse:10},{title:'다음 장',startVerse:20}];
+  assert.deepEqual(s.call({...request,chapters}).data.chapters,chapters);
+  assert.deepEqual(s.call({action:'getText'}).data.chapters,chapters);
+});

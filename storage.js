@@ -67,6 +67,7 @@
         if (text.revision !== list.revision) continue;
         const starts = text.pageStarts || [0];
         if (!Array.isArray(starts) || !starts.length || starts[0] !== 0 || starts.some((v,i) => !Number.isInteger(v) || v < 0 || (text.verses?.length ? v >= text.verses.length : v !== 0) || (i > 0 && v <= starts[i-1]))) throw new Error('페이지 정보 오류');
+        if (text.chapters !== undefined && (!Array.isArray(text.chapters) || text.chapters.length !== starts.length || text.chapters.some(c => !c || typeof c.title !== 'string' || !c.title.trim() || c.title.length > 80 || !Number.isInteger(c.startVerse) || c.startVerse < 1 || c.startVerse > 1000000))) throw new Error('장 정보 오류');
         if (typeof text.title !== 'string' || !Array.isArray(text.verses) || !text.verses.every(v=>typeof v === 'string') || !Array.isArray(list.recordings)) throw new Error('서버 응답 형식 오류');
         return {text, recordings: list.recordings};
       }
