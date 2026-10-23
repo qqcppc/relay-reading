@@ -62,7 +62,7 @@ function render() {
     $('list').append(row);
   });
   if (!draft) { review.hidden = true; $('list').after(review); }
-  if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent=warning;$('f7-warning').hidden=!warning;}
+  if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent='⚠';$('f7-warning').title=warning;$('f7-warning').setAttribute('aria-label',warning);$('f7-warning').onclick=()=>status(warning);$('f7-warning').hidden=!warning;}
   globalThis.RelayF5?.paint();
   drawProgress();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
@@ -223,13 +223,13 @@ function replaceBody(text) {
 }
 async function saveBody(next) {
   if(locked() || !ready)throw Error('녹음 확인 또는 연결을 먼저 마쳐야 함');
-  globalThis.RelayF8?.validate(next);
+  if(globalThis.RelayF8?.enabled())RelayF8.validate(next);
   busy=true;stopPlayback();globalThis.RelayF4?.cancel();controls();
   try {
     const text=RelayStorage.connected?await RelayStorage.request('saveText',{...next,revision}):next;
     globalThis.RelayF8?.remember(text);replaceBody(text);globalThis.RelayF5?.reset();
     $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
-  } finally {busy=false;render();}
+  } catch(error) {await failure(error);throw error;} finally {busy=false;render();}
 }
 
 function cancelGesture() { clearTimeout(holdTimer); holdTimer = null; gesture = null; }
@@ -322,7 +322,7 @@ function showChapters(index) {
   const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
   const end = books[index + 1]?.startChapter ?? pageStarts.length;
   for (let chapter = book.startChapter; chapter < end; chapter++) {
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = String(chapter - book.startChapter + 1);
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = globalThis.RelayF8?.enabled() ? (chapterAt(chapter).title.match(/^(\d+)장$/)?.[1] || String(chapter-book.startChapter+1)) : String(chapter-book.startChapter+1);
     button.setAttribute('aria-label', chapterAt(chapter).title); button.setAttribute('aria-current', String(chapter === page));
     button.onclick = () => { if (locked() || !ready) return; $('book-picker').close(); changePage(chapter); };
     items.append(button);
@@ -439,6 +439,6 @@ globalThis.RelayF8?.init({locked:()=>locked(),save:saveBody});
 globalThis.RelayF5?.init({
   text:()=>({title,verses:lines,pageStarts,chapters,books}),revision:()=>revision,
   render:()=>render(),locked:()=>locked(),range:()=>({from:pageStarts[page],to:pageStarts[page+1]??lines.length}),
-  color:personColor,label:index=>`${chapterAt(pageFor(index)).title} ${chapterAt(pageFor(index)).startVerse+index-pageStarts[pageFor(index)]}절`,
+  color:personColor,number:index=>chapterAt(pageFor(index)).startVerse+index-pageStarts[pageFor(index)],label:index=>`${chapterAt(pageFor(index)).title} ${chapterAt(pageFor(index)).startVerse+index-pageStarts[pageFor(index)]}절`,
   names:()=>[...new Set([$('reader').value.trim(),...(RelayStorage.connected?recordings.map(r=>r.readerName):DEMO_PEOPLE)].filter(Boolean))]
 });

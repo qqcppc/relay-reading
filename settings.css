@@ -57,10 +57,11 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f5-status{font-size:.85rem;color:var(--terra)}
 
 /* F7 appears only for the current draft when a check finds a warning. */
-#review:has(#f7-warning:not([hidden])){flex-direction:column;justify-content:center;gap:5px}
-#f7-warning{font-size:.75rem;color:var(--terra);font-weight:700;background:var(--surface);border-radius:6px;padding:2px 5px}
+#review #f7-warning{position:absolute;top:2px;right:4px;z-index:6;font-size:.8rem;color:var(--terra);font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0 3px!important;line-height:1.2}
 
 /* F8 is an opt-in editor; keep the normal reading screen unchanged. */
 #f8-import{box-sizing:border-box;max-height:85dvh;overflow:auto}#f8-source{box-sizing:border-box;width:100%}
 #f8-preview{max-height:35dvh;overflow:auto;margin:12px 0;font-size:.9rem;white-space:pre-wrap}
 #f8-preview ol{padding-left:2em}#f8-preview li{margin-bottom:8px}#f8-status{display:block;color:var(--terra);font-size:.85rem}
+/* Keep the fixed location/settings row at its specified 48px including borders. */
+#title-btn{box-sizing:border-box}

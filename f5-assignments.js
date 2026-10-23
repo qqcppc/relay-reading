@@ -9,10 +9,10 @@
   function validRoster(names){if(!names.length || names.length>100 || names.some(name=>name.length>80)) throw Error('이름 1~80자 필요');}
   function paint(){
     if(!enabled() || !context)return;
-    const grid=$('f5-grid');grid.replaceChildren();
+    const grid=$('f5-grid');grid.replaceChildren();grid.hidden=!manual;if(!manual)return;
     const {from,to}=context.range();
     for(let index=from;index<to;index++){
-      const button=document.createElement('button');button.type='button';button.textContent=String(index-from+1);
+      const button=document.createElement('button');button.type='button';button.textContent=String(context.number(index));
       const name=assignments[index+1];button.setAttribute('aria-label',`${context.label(index)} ${name || '미배정'}`);
       if(name)button.style.setProperty('--assignment-color',context.color(name));
       button.onclick=()=>choose(index+1);grid.append(button);
@@ -43,7 +43,7 @@
       assignments={};
       try{const saved=JSON.parse(localStorage.getItem('relay.assignments.v1')||'null');if(saved?.signature===signature())assignments=saved.assignments || {};}catch(_){}
     }
-    if(!$('f5-names').value)$('f5-names').value=[...new Set([...context.names(),...Object.values(assignments)])].join(', ');
+    if(!$('f5-names').value)$('f5-names').value=[...new Set(Object.values(assignments).length?Object.values(assignments):context.names())].join(', ');
     context.render();paint();
   }
   function choose(verse){
@@ -63,9 +63,9 @@
     reset:()=>{assignments={};assignmentRevision='0';if(!root.RelayStorage.connected){try{localStorage.removeItem('relay.assignments.v1');}catch(_){}}paint();},
     init(ctx){
       context=ctx;$('f5-controls').hidden=!enabled();if(!enabled())return;
-      $('f5-manual').onchange=()=>{manual=$('f5-manual').checked;};
+      $('f5-manual').onchange=()=>{manual=$('f5-manual').checked;paint();};
       for(const size of [1,2])$('f5-round-'+size).onclick=()=>{
-        try{const names=roster();validRoster(names);const next={};for(let i=0;i<context.text().verses.length;i++)next[i+1]=names[Math.floor(i/size)%names.length];save(next);}catch(error){$('f5-status').textContent=error.message;}
+        try{const names=roster();validRoster(names);manual=false;$('f5-manual').checked=false;const next={};for(let i=0;i<context.text().verses.length;i++)next[i+1]=names[Math.floor(i/size)%names.length];save(next);}catch(error){$('f5-status').textContent=error.message;}
       };
       $('f5-refresh').onclick=()=>refresh().catch(error=>{$('f5-status').textContent=error.message;});
       refresh().catch(error=>{$('f5-status').textContent=error.message;});

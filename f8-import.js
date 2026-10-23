@@ -16,6 +16,7 @@
       if(!text.trim())throw Error('절 내용 필요');
       if(page===null){
         if(result.books.at(-1)?.title!==book){if(result.books.some(item=>item.title===book))throw Error('같은 책은 한 덩어리로 붙여넣기');result.books.push({title:book,startChapter:result.chapters.length});}
+        const currentBook=result.books.at(-1);if(result.chapters.slice(currentBook.startChapter).some(item=>item.title===chapter))throw Error('같은 장은 한 덩어리로 붙여넣기');
         const first=number??start;if(!Number.isSafeInteger(first)||first<1||first>1000000)throw Error('절 번호 확인');
         page=result.chapters.length;result.pageStarts.push(result.verses.length);result.chapters.push({title:chapter,startVerse:first});last=first-1;
       }
@@ -26,22 +27,25 @@
     for(const raw of rows){
       const line=raw.trim();if(!line){paragraph=true;continue;}
       let match;
+      if(pending!==null){if(/^(?:#|@|---$)/.test(line))throw Error('절 내용 필요');add(line,pending);pending=null;continue;}
       if((match=line.match(/^#\s+(.+)$/))){if(pending!==null)throw Error('절 내용 필요');setBook(match[1]);continue;}
       if(aliases[line]){if(pending!==null)throw Error('절 내용 필요');setBook(line);continue;}
       if((match=line.match(/^@([^|]+)\|\s*([1-9][0-9]*)$/))){setChapter(match[1].trim(),Number(match[2]),true);continue;}
-      if(line==='---'){setChapter(`${result.chapters.length+1}장`,1,true);continue;}
+      if(line==='---'){setChapter(`${Number(chapter.match(/^(\d+)장$/)?.[1] || 0)+1}장`,1,true);continue;}
       if((match=line.match(/^(.+?)\s+([1-9][0-9]*)장$/))){setBook(match[1]);setChapter(match[2]+'장');continue;}
       if((match=line.match(/^([1-9][0-9]*)장$/))){setChapter(match[1]+'장');continue;}
       if((match=line.match(/^(.+?)\s*([1-9][0-9]*):([1-9][0-9]*)\s+(.+)$/)) && /[가-힣A-Za-z]/.test(match[1])){
         setBook(match[1]);setChapter(match[2]+'장',Number(match[3]));add(match[4],Number(match[3]));continue;
       }
       if((match=line.match(/^([1-9][0-9]*):([1-9][0-9]*)\s+(.+)$/))){setChapter(match[1]+'장',Number(match[2]));add(match[3],Number(match[2]));continue;}
+      if((match=line.match(/^(.+?)\s*([1-9][0-9]*):([1-9][0-9]*)$/)) && /[가-힣A-Za-z]/.test(match[1])){setBook(match[1]);setChapter(match[2]+'장',Number(match[3]));pending=Number(match[3]);continue;}
+      if((match=line.match(/^([1-9][0-9]*):([1-9][0-9]*)$/))){setChapter(match[1]+'장',Number(match[2]));pending=Number(match[2]);continue;}
       if((match=line.match(/^([1-9][0-9]*)(?:[.)]\s*|\s+)(.+)$/))){add(match[2],Number(match[1]));continue;}
       if(/^[1-9][0-9]*$/.test(line)){if(pending!==null)throw Error('절 내용 필요');pending=Number(line);continue;}
       if(pending!==null){add(line,pending);pending=null;continue;}
       if(paragraph || page===null)add(line);else result.verses[result.verses.length-1]+='\n'+line;
     }
-    if(pending!==null)throw Error('절 내용 필요');validate(result);return result;
+    if(pending!==null)throw Error('절 내용 필요');if(page===null && result.verses.length)throw Error('빈 장 내용 확인');validate(result);return result;
   }
   function validate(text){
     if(!text || typeof text.title!=='string' || !text.title.trim() || text.title.length>200 || !Array.isArray(text.verses) || !text.verses.length || text.verses.length>500 || text.verses.some(v=>typeof v!=='string'||!v.trim()||v.length>10000) || JSON.stringify(text).length>500000)throw Error('제목·본문 길이 확인');

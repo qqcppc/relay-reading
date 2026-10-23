@@ -93,3 +93,15 @@ test('F2: phone contention, renewal, expiry, owner-only replacement, OFF compati
  s.call({action:'releaseLock',...base,leaseToken:c.leaseToken});assert.equal(s.call({action:'listLocks'}).data.locks.length,0);
  s.props.F2_ENABLED='false';assert.equal(s.call({...upload,readerName:'지수'}).ok,true);
 });
+
+test('F5: shared assignments, independent edit revision, validation and text reset',()=>{
+ const s=server();const text=s.call({action:'saveText',revision:'0',title:'본문',verses:['a','b','c']}).data;
+ const empty=s.call({action:'getAssignments'}).data;assert.deepEqual(empty.assignments,{});
+ s.call({action:'uploadRecording',revision:text.revision,verse:1,readerName:'민수',mimeType:'audio/webm',audioBase64:Buffer.from([26,69,223,163,1]).toString('base64')});
+ const request={action:'saveAssignments',revision:text.revision,assignmentRevision:empty.assignmentRevision,assignments:{1:'민수',2:'지수',3:'민수'}};
+ const saved=s.call(request);assert.equal(saved.ok,true);assert.equal(s.call({action:'getText'}).data.revision,text.revision);assert.equal(s.call({action:'listRecordings'}).data.recordings.length,1);assert.deepEqual(s.call({action:'getAssignments'}).data.assignments,request.assignments);
+ assert.equal(s.call(request).error.code,'CONFLICT');
+ for(const assignments of [{4:'이름'},{1:''},{'__bad':'이름'},[]])assert.equal(s.call({...request,assignmentRevision:saved.data.assignmentRevision,assignments}).error.code,'INVALID_REQUEST');
+ assert.equal(s.call({...request,revision:'wrong',assignmentRevision:saved.data.assignmentRevision}).error.code,'CONFLICT');
+ assert.equal(s.call({action:'saveText',revision:text.revision,title:'새 본문',verses:['a']}).ok,true);assert.deepEqual(s.call({action:'getAssignments'}).data.assignments,{});
+});
