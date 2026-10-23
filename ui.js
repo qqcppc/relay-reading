@@ -6,8 +6,8 @@ let lines = [
 '남산 위에 저 소나무 철갑을 두른 듯','바람 서리 불변함은 우리 기상일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '가을 하늘 공활한데 높고 구름 없이','밝은 달은 우리 가슴 일편단심일세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세',
 '이 기상과 이 맘으로 충성을 다하여','괴로우나 즐거우나 나라 사랑하세','무궁화 삼천리 화려 강산','대한 사람 대한으로 길이 보전하세'];
-let books = [{title:'1권',startChapter:0},{title:'2권',startChapter:2}];
-let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:5},{title:'3장',startVerse:9},{title:'4장',startVerse:13}];
+let books = [{title:'창세기',startChapter:0},{title:'출애굽기',startChapter:2}];
+let chapters = [{title:'1장',startVerse:1},{title:'2장',startVerse:5},{title:'1장',startVerse:9},{title:'2장',startVerse:13}];
 let pageStarts = [0, 4, 8, 12], page = 0, holdTimer = null, gesture = null, suppressClick = false;
 let title = '애국가', revision = null, recordings = [], selected = 0;
 let busy = false, ready = !RelayStorage.connected, acquiring = false;
@@ -25,7 +25,7 @@ function controls() {
   ['all','refresh','save-text','disconnect'].forEach(id => { $(id).disabled = locked() || !ready && id !== 'refresh' && id !== 'disconnect'; });
   ['ok','listen','no'].forEach(id => { $(id).disabled = busy; });
   $('text-input').disabled = locked();
-  $('identity').querySelector('button').disabled = busy || acquiring || !!recorder;
+  $('reader').disabled = busy || acquiring || !!recorder;
 }
 function render() {
   $('heading').textContent = title || '공유 본문 없음';
@@ -68,7 +68,7 @@ function revealSelected() {
 function stopPlayback() {
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
-  $('all').textContent = '▶ 처음부터 이어듣기';
+  $('all').textContent = '▶ 이어듣기';
 }
 async function play(i, chain = false, sequence) {
   if (locked() || !ready) return;
@@ -238,14 +238,36 @@ function parsePages(value, defaultTitle = title) {
 }
 function bookIndex(chapter) { return Math.max(0, books.findLastIndex(book => book.startChapter <= chapter)); }
 function bookAt(chapter) { return books[bookIndex(chapter)] || {title:title.slice(0,80) || '본문',startChapter:0}; }
+const BIBLE = [['창세기',50],['출애굽기',40],['레위기',27],['민수기',36],['신명기',34],['여호수아',24],['사사기',21],['룻기',4],['사무엘상',31],['사무엘하',24],['열왕기상',22],['열왕기하',25],['역대상',29],['역대하',36],['에스라',10],['느헤미야',13],['에스더',10],['욥기',42],['시편',150],['잠언',31],['전도서',12],['아가',8],['이사야',66],['예레미야',52],['예레미야애가',5],['에스겔',48],['다니엘',12],['호세아',14],['요엘',3],['아모스',9],['오바댜',1],['요나',4],['미가',7],['나훔',3],['하박국',3],['스바냐',3],['학개',2],['스가랴',14],['말라기',4],
+['마태복음',28],['마가복음',16],['누가복음',24],['요한복음',21],['사도행전',28],['로마서',16],['고린도전서',16],['고린도후서',13],['갈라디아서',6],['에베소서',6],['빌립보서',4],['골로새서',4],['데살로니가전서',5],['데살로니가후서',3],['디모데전서',6],['디모데후서',4],['디도서',3],['빌레몬서',1],['히브리서',13],['야고보서',5],['베드로전서',5],['베드로후서',3],['요한일서',5],['요한이서',1],['요한삼서',1],['유다서',1],['요한계시록',22]];
+function bookButton(label, index) {
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+  if (index < 0) { button.className = 'empty'; button.onclick = () => showSampleChapters(label); }
+  else { button.setAttribute('aria-current', String(index === bookIndex(page))); button.onclick = () => showChapters(index); }
+  return button;
+}
+function showSampleChapters(name) {
+  const count = (BIBLE.find(b => b[0] === name) || [name, 1])[1];
+  $('picker-title').textContent = name + ' (준비 중)'; $('picker-back').hidden = false;
+  const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
+  for (let c = 1; c <= count; c++) { const button = document.createElement('button'); button.type = 'button'; button.textContent = String(c); button.disabled = true; items.append(button); }
+  items.scrollTop = 0;
+}
 function showBooks() {
   $('picker-title').textContent = '책'; $('picker-back').hidden = true;
-  const items = $('picker-items'); items.replaceChildren(); items.className = '';
-  books.forEach((book, index) => {
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = book.title;
-    button.setAttribute('aria-current', String(index === bookIndex(page)));
-    button.onclick = () => showChapters(index); items.append(button);
+  const items = $('picker-items'); items.replaceChildren(); items.className = 'testaments';
+  const known = new Set(BIBLE.map(b => b[0]));
+  [['구약', BIBLE.slice(0, 39)], ['신약', BIBLE.slice(39)]].forEach(([name, list]) => {
+    const col = document.createElement('div'); col.className = 'col';
+    const head = document.createElement('h3'); head.textContent = name; col.append(head);
+    list.forEach(([t]) => col.append(bookButton(t, books.findIndex(b => b.title === t))));
+    items.append(col);
   });
+  const extra = books.map((b, i) => [b, i]).filter(([b]) => !known.has(b.title));
+  if (extra.length) {
+    const col = document.createElement('div'); col.className = 'col';
+    extra.forEach(([b, i]) => col.append(bookButton(b.title, i))); items.append(col);
+  }
   items.scrollTop = 0;
 }
 function showChapters(index) {
@@ -273,7 +295,7 @@ function editorText() {
 $('all').onclick = () => { if (playbackUrl) { stopPlayback(); status(''); return; } const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;
 $('reader').value = RelayStorage.readerName;
-$('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status('이름 기억 완료'); } catch (err) { status(err.message); } };
+$('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status(''); } catch (err) { status(err.message); } };
 $('disconnect').onclick = () => { if (locked()) return; try { RelayStorage.disconnect(); location.reload(); } catch (err) { status(err.message); } };
 try { RelayStorage.acceptLink(location, history); } catch (err) { $('connection').textContent = err.message; }
 ready = !RelayStorage.connected;
@@ -285,3 +307,7 @@ $('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime =
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
 $('page-label').setAttribute('role','button'); $('page-label').onclick = () => $('book-open').onclick();
+$('reader').addEventListener('change', () => $('identity').onsubmit({preventDefault(){}}));
+let swipeX = null;
+$('list').addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; }, {passive: true});
+$('list').addEventListener('touchend', e => { if (swipeX === null || recorder || draft) return; const dx = e.changedTouches[0].clientX - swipeX; swipeX = null; if (Math.abs(dx) > 70) changePage(page + (dx < 0 ? 1 : -1)); });

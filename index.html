@@ -13,7 +13,7 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 @keyframes record-pulse{50%{opacity:.25}}
 @media(prefers-reduced-motion:reduce){.line.recording .tag::before{animation:none}}
 #identity{width:100%;box-sizing:border-box;display:flex;gap:6px;align-items:center}
-#identity label{display:grid;gap:8px;font-weight:600}#reader{width:0;flex:1;min-width:0;padding:12px;border:1px solid #bdb5a5;border-radius:10px;font:inherit}
+#identity label{display:grid;gap:8px;font-weight:600}#reader{width:0;flex:1;min-width:0;padding:10px;border:0;border-bottom:1px dashed #bdb5a5;background:transparent;text-align:right;border-radius:10px;font:inherit}
 #identity button{white-space:nowrap;padding:10px 16px;border:0;border-radius:10px;background:#2f5d50;color:#fff;font:inherit}
 #identity #book-open{max-width:42%;overflow:hidden;text-overflow:ellipsis;background:#e8e3d8;color:#24211c;padding:10px}
 #book-picker{width:min(420px,calc(100% - 48px));max-height:75dvh;padding:18px;border:0;border-radius:16px;background:#f6f4ef}#book-picker::backdrop{background:#0006}
@@ -21,26 +21,28 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 #picker-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:55dvh;overflow:auto}#picker-items.chapters{grid-template-columns:repeat(5,minmax(0,1fr))}
 #picker-items button,#picker-head button{padding:12px 8px;border:1px solid #d2cbbc;border-radius:9px;background:white;font:inherit;overflow-wrap:anywhere}#picker-items button[aria-current=true]{border-color:#b4432f;color:#b4432f}
 .line{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.line.recording{border-color:#b4432f;background:#fff0e9}.pager{display:grid!important;grid-template-columns:1fr 1fr 1fr;align-items:stretch}.pager #page-label{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.9rem;border:1px solid #2f5d50;border-radius:10px;background:#fff;cursor:pointer;line-height:1.3}
+.line.recording{border-color:#b4432f;background:#fff0e9}.pager{display:grid!important;grid-template-columns:1fr 3fr 1fr;align-items:stretch}.pager #page-label{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.9rem;border:1px solid #2f5d50;border-radius:10px;background:#fff;cursor:pointer;line-height:1.3}
 [hidden]{display:none!important}
 #st:empty{display:none}#st{text-align:center;color:#7a7366;font-size:.9rem}
 .row{display:flex;gap:8px}.row button{flex:1;padding:12px;font-size:.95rem;border-radius:10px;border:1px solid #ccc;background:#fff}
-#all{padding:12px;border-radius:10px;border:0;background:#2f5d50;color:#fff;font-size:1rem}
+#identity #all{padding:10px 14px;background:#2f5d50;color:#fff;font-size:1rem}
+#prev-page,#next-page{font-size:1.8rem!important;line-height:1;padding:6px!important}
+#editor summary{list-style:none;cursor:pointer;color:#7a7366;width:max-content}#editor summary::-webkit-details-marker{display:none}
+#picker-items.testaments{grid-template-columns:1fr 1fr;align-items:start}.col{display:grid;gap:6px}.col h3{margin:0 0 2px;font-size:.85rem;color:#7a7366;text-align:center}#picker-items .col button{padding:8px 4px}#picker-items button:disabled,#picker-items button.empty{opacity:.45}
 </style></head><body>
-<h1 id="version" aria-label="화면 버전" style="text-align:center;margin:0;font-size:2rem">#16</h1>
+<h1 id="version" aria-label="화면 버전" style="text-align:center;margin:0;font-size:2rem">#18</h1>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
-<form id="identity"><input id="reader" required maxlength="80" autocomplete="nickname" placeholder="내 이름" aria-label="내 이름"><button>저장</button><button id="book-open" type="button" aria-haspopup="dialog">📖 책 ▾</button></form>
+<form id="identity"><button id="all" type="button">▶ 이어듣기</button><input id="reader" required maxlength="80" autocomplete="nickname" placeholder="✎ 이름" aria-label="내 이름"><button id="book-open" type="button" hidden>책</button></form>
 <dialog id="book-picker" aria-labelledby="picker-title"><div id="picker-head"><button id="picker-back" type="button" hidden aria-label="책 목록">◀</button><h2 id="picker-title">책</h2><button id="picker-close" type="button" aria-label="닫기">✕</button></div><div id="picker-items"></div></dialog>
 <p id="connection" role="status" hidden>폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
 <div class="row"><button id="refresh" hidden>공유 본문·목록 새로고침</button><button id="disconnect" hidden>연결 지우고 시험 모드</button></div>
-<details id="editor"><summary>본문 편집</summary>
+<details id="editor"><summary aria-label="본문 편집">✎</summary>
 <label for="text-input">첫 줄 제목 · # 책이름 · 빈 줄로 줄 구분 · ---로 장 구분 · @장 제목 | 시작 절 번호</label>
 <textarea id="text-input" rows="10" style="width:100%;box-sizing:border-box"></textarea>
 <p><strong>본문을 저장하면 기존 녹음이 모두 지워짐.</strong></p>
 <label><input id="erase-confirm" type="checkbox">기존 녹음 삭제에 동의</label>
 <button id="save-text">본문 저장</button></details>
-<button id="all">▶ 처음부터 이어듣기</button>
-<nav class="row pager" aria-label="본문 장"><button id="prev-page">◀ 이전 장</button><span id="page-label"></span><button id="next-page">다음 장 ▶</button></nav>
+<nav class="row pager" aria-label="본문 장"><button id="prev-page" aria-label="이전 장">‹</button><span id="page-label"></span><button id="next-page" aria-label="다음 장">›</button></nav>
 <div id="list"></div>
 <div id="st" role="status"></div>
 <div id="review" hidden>
@@ -48,6 +50,6 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
   <div class="row"><button id="ok">✅ 확인</button><button id="listen">▶ 듣기</button><button id="no">✖ 취소</button></div>
 </div>
 
-<script src="storage.js?v=card18"></script>
-<script src="ui.js?v=card18"></script>
+<script src="storage.js?v=18"></script>
+<script src="ui.js?v=18"></script>
 </body></html>
