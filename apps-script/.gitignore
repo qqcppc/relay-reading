@@ -1,0 +1,7 @@
+# 실제 음성은 Drive에만 저장
+*.webm
+*.ogg
+*.mp3
+*.wav
+*.m4a
+*.mp4
