@@ -34,7 +34,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} · #28`; $('tb-ch').textContent = chapter.title; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #29`; $('tb-ch').textContent = chapter.title; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -403,7 +403,11 @@ $('me-ok').onclick = () => { $('identity').onsubmit({preventDefault(){}}); nameV
 $('reader').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('me-ok').onclick(); } });
 document.querySelectorAll?.('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 $('people-open').onclick = () => { nameView(); showPeople(); $('people').showModal(); };
-$('settings-open').onclick = () => $('settings').showModal();
+let lastSheet = 'settings';
+try { lastSheet = localStorage.getItem('relay.sheet') || 'settings'; } catch {}
+function openSheet(id) { lastSheet = id; try { localStorage.setItem('relay.sheet', id); } catch {} if (id === 'people') { nameView(); showPeople(); } $(id).showModal(); }
+$('settings-open').onclick = () => openSheet(lastSheet);
+document.querySelectorAll?.('.dlg-tabs button').forEach(b => b.onclick = () => { const cur = b.closest('dialog'); if (b.dataset.go === cur.id) return; cur.close(); openSheet(b.dataset.go); });
 document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.closest('dialog').close());
 
 
