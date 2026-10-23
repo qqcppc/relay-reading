@@ -31,7 +31,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #20`; $('page-label').style.whiteSpace = 'pre-line';
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #21`; $('page-label').style.whiteSpace = 'pre-line';
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -43,6 +43,7 @@ function render() {
     const tag = document.createElement('span'); tag.className = 'tag';
     const item = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i);
     tag.textContent = item ? item.readerName : '';
+    if (item) row.style.setProperty?.('--pc', personColor(item.readerName));
     const vn = document.createElement('span'); vn.className = 'vn'; vn.textContent = String(chapter.startVerse + i - pageStarts[page]);
     const content = document.createElement('span'); content.className = 't'; content.append(vn, ' ' + text);
     trigger.setAttribute('aria-label', `${chapter.startVerse + i - pageStarts[page]}절 ${text}${recorder && i === selected ? ' · 녹음 중, 누르면 정지' : ''}`);
@@ -62,6 +63,7 @@ function drawProgress() {
   for (let i = from; i < to; i++) {
     const seg = document.createElement('button'); seg.type = 'button';
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i === selected ? ' cur' : '');
+    const who = RelayStorage.connected ? recordings.find(r => r.verse === i + 1) : local.get(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
     seg.setAttribute('aria-label', `${i - from + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
     seg.onclick = () => { if (locked() || !ready) return; selected = i; revealSelected(); };
     bar.append(seg);
@@ -78,7 +80,7 @@ function revealSelected() {
 function stopPlayback() {
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
-  $('all').textContent = '▶ 이어듣기';
+  $('all').textContent = '▶'; $('play-ic').textContent = '▶';
 }
 async function play(i, chain = false, sequence) {
   if (locked() || !ready) return;
@@ -92,7 +94,7 @@ async function play(i, chain = false, sequence) {
     } else blob = local.get(i)?.blob;
     if (sequence !== playbackId || !blob) return;
     if (playbackUrl) URL.revokeObjectURL(playbackUrl);
-    playbackUrl = URL.createObjectURL(blob); player.src = playbackUrl; if (chain) $('all').textContent = '■ 정지';
+    playbackUrl = URL.createObjectURL(blob); player.src = playbackUrl; if (chain) { $('all').textContent = '■'; $('play-ic').textContent = '■'; }
     selected = i; followSelected();
     player.onended = () => {
       if (sequence !== playbackId) return;
@@ -316,7 +318,8 @@ render();
 $('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
-$('page-label').setAttribute('role','button'); $('page-label').onclick = () => $('book-open').onclick();
+$('version').onclick = () => $('book-open').onclick();
+$('center').onclick = () => $('all').onclick();
 $('reader').addEventListener('change', () => $('identity').onsubmit({preventDefault(){}}));
 let swipeX = null;
 $('list').addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; }, {passive: true});
@@ -330,3 +333,17 @@ $('font-up').onclick = () => { fontScale = Math.min(2, +(fontScale + .1).toFixed
 applyFont();
 
 $('edit-toggle').onclick = () => { $('editor').open = !$('editor').open; };
+
+const PALETTE = ['#2f7d4f','#7a4fa3','#c2761f','#2a7f9e','#a3456b','#5d6b2f'];
+function personColor(name) {
+  const me = ($('reader').value || RelayStorage.readerName || '').trim();
+  if (name && name === me) return PALETTE[0];
+  let h = 0; for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETTE[1 + h % (PALETTE.length - 1)];
+}
+// 연출용 가상 녹음 (#21): 민지·도윤 녹음, 하늘 미참여. 실제 녹음본 표시로 바꿀 때 삭제
+if (!RelayStorage.connected) {
+  [3,4,5,6,7,8].forEach(i => local.set(i, {demo: true, readerName: '민지'}));
+  [11,12,13].forEach(i => local.set(i, {demo: true, readerName: '도윤'}));
+  selected = lines.findIndex((_, i) => !local.has(i)); render();
+}
