@@ -1,3 +1,4 @@
+const {switchFeature}=require('./helpers/switch.cjs');
 /* Browser integration: real local shell/SW + shared Apps Script service mocks. No voice files written. */
 const {chromium}=require('playwright');
 const {server}=require('./helpers/apps-script.cjs');
@@ -14,14 +15,14 @@ const http=require('node:http');const fs=require('node:fs');const path=require('
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{}),args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
  const errors=[];let calls=0;
  async function context(saved){const ctx=await browser.newContext({viewport:{width:390,height:700}});await ctx.route('https://script.google.com/**',route=>{if(ctx.offlineForTest)return route.abort();calls++;return route.fulfill({headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:JSON.stringify(backend.call(JSON.parse(route.request().postData())))});});if(saved)await ctx.addInitScript(data=>{if(!sessionStorage.getItem('seeded')){for(const [key,value]of Object.entries(data))localStorage.setItem(key,JSON.stringify(value));sessionStorage.setItem('seeded','1');}},saved);return ctx;}
- async function reloadSwitch(page,id,value){await page.evaluate(()=>openSheet('settings'));await Promise.all([page.waitForEvent('load'),page.locator(id).setChecked(value)]);}
+ async function reloadSwitch(page,id,value){await page.evaluate(()=>openSheet('settings'));await switchFeature(page,id,value);}
  async function record(page){await page.locator('.card-trigger').first().focus();await page.keyboard.press('r');await page.waitForSelector('.line.recording');}
  try{
   const c1=await context();const p1=await c1.newPage();p1.on('pageerror',e=>errors.push(e.message));await p1.goto(origin);
   const demo=await p1.locator('.t').allTextContents(),badges=await p1.locator('[data-n]').count();
   await p1.evaluate(()=>openSheet('settings'));for(const id of ['#feature-f1','#feature-f2','#feature-f3'])assert.equal(await p1.locator(id).isChecked(),false);
   assert.equal(await p1.locator('#f1-connection').isVisible(),false);assert.equal(await p1.locator('link[rel=manifest]').count(),0);assert.equal(calls,0);
-  await Promise.all([p1.waitForEvent('load'),p1.locator('#feature-f1').check()]);await p1.evaluate(()=>openSheet('settings'));
+  await switchFeature(p1,'#feature-f1',true);await p1.evaluate(()=>openSheet('settings'));
   await p1.locator('#f1-url').fill(apiUrl);await p1.locator('#f1-key').fill('test-key');await Promise.all([p1.waitForEvent('load'),p1.locator('#f1-connect').click()]);await p1.waitForFunction(()=>document.querySelector('.t')?.textContent==='공유 첫 줄');
   assert.deepEqual(await p1.locator('.t').allTextContents(),['공유 첫 줄','공유 둘째 줄']);assert.equal(await p1.locator('[data-n]').count(),badges);
   backend.props.F2_ENABLED='true';await reloadSwitch(p1,'#feature-f2',true);await p1.waitForFunction(()=>revision!==null);await p1.evaluate(()=>openSheet('people'));assert.equal(await p1.locator('#people-list li').count(),0);await p1.locator('#me-name').click();await p1.locator('#reader').fill('민수');await p1.locator('#me-ok').click();await p1.evaluate(()=>document.querySelector('#people').close());

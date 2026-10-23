@@ -1,3 +1,4 @@
+const {switchFeature}=require('./helpers/switch.cjs');
 const {chromium}=require('playwright');const {server}=require('./helpers/apps-script.cjs');const http=require('node:http');const fs=require('node:fs');const path=require('node:path');const assert=require('node:assert/strict');
 (async()=>{
  const backend=server(),api='https://script.google.com/macros/s/test/exec';backend.call({action:'saveText',revision:'0',title:'공유',verses:['a','b','c','d']});
@@ -6,7 +7,7 @@ const {chromium}=require('playwright');const {server}=require('./helpers/apps-sc
  async function page(flags={}){const ctx=await browser.newContext({viewport:{width:390,height:700}});await ctx.addInitScript(({flags,api})=>{if(!sessionStorage.getItem('seed')){localStorage.setItem('relay.features.v1',JSON.stringify(flags));if(flags.F1)localStorage.setItem('relay.connection.v1',JSON.stringify({url:api,key:'test-key'}));localStorage.setItem('relay.reader.v1','나');sessionStorage.setItem('seed','1');}},{flags,api});await ctx.route('https://script.google.com/**',r=>r.fulfill({headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:JSON.stringify(backend.call(JSON.parse(r.request().postData())))}));const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(origin);return p;}
  async function settings(p){await p.evaluate(()=>openSheet('settings'));}
  async function close(p){await p.keyboard.press('Escape');}
- async function toggle(p,id,value){await settings(p);await Promise.all([p.waitForEvent('load'),p.locator('#feature-'+id.toLowerCase()).setChecked(value)]);}
+ async function toggle(p,id,value){await settings(p);await switchFeature(p,'#feature-'+id.toLowerCase(),value);}
  async function record(p,index){await p.locator('.card-trigger').nth(index).focus();await p.keyboard.press('r');await p.waitForSelector('.line.recording');}
  try{
   const p=await page();const baseline=await p.locator('.t').allTextContents();assert.equal((await p.locator('#top').boundingBox()).height,48);await settings(p);for(const f of ['f4','f5','f7','f8'])assert.equal(await p.locator('#feature-'+f).isChecked(),false);assert.equal(await p.locator('#f5-controls').isVisible(),false);assert.equal(await p.locator('#f8-open').isVisible(),false);await close(p);
