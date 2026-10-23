@@ -44,10 +44,10 @@
 - Claude Code: `claude/…` 브랜치 / Codex: `codex/…` 브랜치
 - 같은 파일 동시 수정 금지. 시작 전 최신 `main` 받기
 
-## 담당 (제안 — 사용자 확정 전)
-- Claude Code: 화면 `index.html` (녹음·재생·본문 표시, Apps Script 주소 호출)
-- Codex: 저장 `apps-script/` 폴더 (Code.gs: 녹음 파일 드라이브 저장, 절별 목록·읽은 사람·본문 저장/조회)
-- 둘 사이 약속(주고받는 데이터 모양)은 `apps-script/API.md`에 먼저 적고 시작
+## 담당 (2026-10-23 사용자 결정: Claude = 메인, 작업량은 Codex에 많이)
+- **Claude Code (메인·조율)**: 방향 결정, 할 일 쪼개서 BATON.md에 적기, Codex PR 검토·합치기, 작은 수정만
+- **Codex (주 구현)**: 코드 작성 대부분 — 저장 `apps-script/` + 화면 `index.html` 큰 작업 포함
+- 둘 사이 데이터 약속은 `apps-script/API.md`
 - Apps Script 배포(웹 앱 주소 발급)는 사용자 구글 계정으로 1회 필요
 
 ## 작업 기록
