@@ -73,6 +73,11 @@
       if (this.connected) url.hash=new URLSearchParams({url:config.url,key:config.key}).toString();
       return url.href;
     },
+    async queueScope(){
+      if(!config)throw Error('공유 연결 정보 없음');
+      const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(config)));
+      return Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');
+    },
     request,
     async load() {
       // A changed text between reads must never attach old audio to new verses.

@@ -70,3 +70,17 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 .line.f9-selected{outline:2px dashed var(--blue);outline-offset:-4px}.line.f9-unit .t{white-space:pre-line}
 #f9-tools{position:sticky;top:64px;z-index:10;background:var(--bg);padding:6px 0}
 #f9-status{font-size:.85rem;color:var(--terra)}.seg.f9-group{box-shadow:inset 0 -2px color-mix(in srgb,var(--blue) 45%,transparent)}
+
+/* F10 comparison fits inside the existing review cover. */
+#review:has(#f10-compare:not([hidden])){flex-direction:column;justify-content:center;gap:8px}
+#f10-compare{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.75rem}
+#f10-compare output{flex-basis:100%;text-align:center}#f10-compare button{border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;padding:4px!important}
+.line:has(#f10-compare:not([hidden])){min-height:150px}
+
+/* Pending is distinct from a saved recording. */
+.seg.f11-pending{position:relative}.seg.f11-pending::after{content:'';position:absolute;width:4px;height:4px;border-radius:50%;background:var(--terra);bottom:1px;right:1px}
+#f11-list{padding-left:18px;font-size:.8rem}#f11-list li{display:flex;gap:8px;align-items:center;margin:6px 0}#f11-list span{flex:1}
+
+#f12-controls output{display:block;font-size:.8rem;margin:6px 0}#f12-download{padding:10px;color:var(--blue)}
+
+#f13-controls{margin-top:12px}#f13-text{width:100%;box-sizing:border-box;font:inherit;font-size:.85rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px}#f13-status{display:block;font-size:.8rem}

@@ -139,6 +139,11 @@ function dispatch_(request) {
     var old = state.recordings[verse];
     // F2: server policy is deployment-wide, never trusted from a caller's toggle.
     if (['acquireLock','renewLock','releaseLock'].indexOf(request.action) >= 0) return f2Lease_(request, state, properties, folder, stateFile);
+    if(request.action==='uploadRecording' && request.uploadId!==undefined){
+      if(typeof request.uploadId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(request.uploadId))fail_('INVALID_REQUEST','uploadId 형식 오류');
+      if(old && old.uploadId===request.uploadId)return recording_(old);
+    }
+    if(request.action==='uploadRecording' && request.expectedPrevious!==undefined && request.expectedPrevious!==(old?old.playbackUrl:null))fail_('CONFLICT','다른 녹음으로 변경됨');
     if (request.action === 'uploadRecording' && f2Enabled_(properties)) f2AuthorizeUpload_(request, state);
     if (request.action === 'getAudio') {
       if (!old) fail_('NOT_FOUND', '아직 녹음하지 않은 절');
@@ -147,7 +152,7 @@ function dispatch_(request) {
     }
     var readerName = string_(request.readerName, 80, '읽은 사람 이름');
     var mime = typeof request.mimeType === 'string' ? request.mimeType.split(';')[0].trim().toLowerCase() : '';
-    if (['audio/webm', 'audio/ogg'].indexOf(mime) < 0) fail_('INVALID_REQUEST', 'webm/ogg만 지원');
+    if (['audio/webm', 'audio/ogg', 'audio/wav'].indexOf(mime) < 0) fail_('INVALID_REQUEST', 'webm/ogg/wav만 지원');
     var encoded = request.audioBase64;
     if (typeof encoded !== 'string' || !encoded.length ||
         encoded.length > 4 * Math.ceil(MAX_AUDIO_BYTES / 3) ||
@@ -158,16 +163,16 @@ function dispatch_(request) {
     if (!bytes.length || bytes.length > MAX_AUDIO_BYTES) fail_('INVALID_REQUEST', '파일 크기 초과');
     // Verify the container signature, not just the client-supplied MIME type.
     var signature = bytes.slice(0, 4).map(function (b) { return b & 255; }).join(',');
-    if (signature !== (mime === 'audio/webm' ? '26,69,223,163' : '79,103,103,83')) {
+    if (mime === 'audio/wav' ? !wavValid_(bytes) : signature !== (mime === 'audio/webm' ? '26,69,223,163' : '79,103,103,83')) {
       fail_('INVALID_REQUEST', '음성 컨테이너 형식 불일치');
     }
     var file = folder.createFile(Utilities.newBlob(bytes, mime,
-      'verse-' + verse + '-' + Utilities.getUuid() + (mime === 'audio/webm' ? '.webm' : '.ogg')));
+      'verse-' + verse + '-' + Utilities.getUuid() + (mime === 'audio/webm' ? '.webm' : mime === 'audio/wav' ? '.wav' : '.ogg')));
     try {
       // Dedicated folder must be private; never enable public link sharing here.
       file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
       state.recordings[verse] = { verse: verse, endVerse:unit.end, readerName: readerName,
-        fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
+        uploadId:request.uploadId || null, fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
         recordedAt: new Date().toISOString() };
       if (f2Enabled_(properties) && state.locks) delete state.locks[verse];
       persist_(folder, properties, stateFile, state);
@@ -200,7 +205,7 @@ function text_(state) {
 
 function recording_(value) {
   return { verse: value.verse, endVerse:value.endVerse || value.verse, readerName: value.readerName,
-    playbackUrl: value.playbackUrl, recordedAt: value.recordedAt };
+    uploadId:value.uploadId || null, playbackUrl: value.playbackUrl, recordedAt: value.recordedAt };
 }
 
 function string_(value, limit, label) {
@@ -276,3 +281,10 @@ function f9Groups_(groups,verses,starts) {
 function f9Range_(groups,verse) {for(var i=0;i<groups.length;i++)if(groups[i].start<=verse&&groups[i].end>=verse)return groups[i];return {start:verse,end:verse};}
 function f9Changed_(recording,groups) {var unit=f9Range_(groups,recording.verse);return unit.start!==recording.verse||unit.end!==(recording.endVerse || recording.verse);}
 function f9Result_(state) {return {text:text_(state),recordings:Object.keys(state.recordings).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){return recording_(state.recordings[key]);})};}
+
+// F10 produces canonical 24kHz mono PCM16 WAV. Reject misleading RIFF headers.
+function wavValid_(bytes) {
+  function str(at,n){return bytes.slice(at,at+n).map(function(b){return String.fromCharCode(b&255);}).join('');}
+  function uint(at,n){var value=0;for(var i=0;i<n;i++)value+=(bytes[at+i]&255)*Math.pow(256,i);return value;}
+  return bytes.length>44 && bytes.length%2===0 && str(0,4)==='RIFF' && str(8,4)==='WAVE' && str(12,4)==='fmt ' && str(36,4)==='data' && uint(4,4)===bytes.length-8 && uint(16,4)===16 && uint(20,2)===1 && uint(22,2)===1 && uint(24,4)===24000 && uint(28,4)===48000 && uint(32,2)===2 && uint(34,2)===16 && uint(40,4)===bytes.length-44;
+}

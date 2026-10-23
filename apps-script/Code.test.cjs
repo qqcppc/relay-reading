@@ -130,3 +130,14 @@ test('F9: chapter/overlap validation, shared assignments and group-wide F2 lease
  const audio=Buffer.from([26,69,223,163,1]).toString('base64');assert.equal(s.call({action:'uploadRecording',revision:text.revision,verse:1,endVerse:3,readerName:'민수',leaseToken:lease.leaseToken,mimeType:'audio/webm',audioBase64:audio}).ok,true);
  assert.equal(s.call({action:'listLocks'}).data.locks.length,0);
 });
+
+test('F10 accepts canonical WAV, rejects forged sizes/headers',()=>{const s=server(),text=s.call({action:'saveText',revision:'0',title:'wav',verses:['one']}).data;
+ const b=Buffer.alloc(48);b.write('RIFF');b.writeUInt32LE(40,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(24000,24);b.writeUInt32LE(48000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(4,40);
+ const request={action:'uploadRecording',revision:text.revision,verse:1,readerName:'나',mimeType:'audio/wav',audioBase64:b.toString('base64')};assert.equal(s.call(request).ok,true);b.writeUInt32LE(123,40);assert.equal(s.call({...request,audioBase64:b.toString('base64')}).error.code,'INVALID_REQUEST');
+});
+
+test('F11 retry is idempotent after lost reply, never overwrites a changed recording',()=>{const s=server(),text=s.call({action:'saveText',revision:'0',title:'queue',verses:['one']}).data;
+ const upload={action:'uploadRecording',revision:text.revision,verse:1,readerName:'나',mimeType:'audio/webm',audioBase64:Buffer.from([26,69,223,163,1]).toString('base64'),uploadId:'queued-0001',expectedPrevious:null};
+ const first=s.call(upload).data;assert.equal(first.uploadId,'queued-0001');const size=s.files.size;s.props.F2_ENABLED='true';assert.equal(s.call(upload).data.playbackUrl,first.playbackUrl);assert.equal(s.files.size,size);s.props.F2_ENABLED='false';
+ const next=s.call({...upload,uploadId:'queued-0002',expectedPrevious:first.playbackUrl}).data;assert.notEqual(next.playbackUrl,first.playbackUrl);assert.equal(s.call(upload).error.code,'CONFLICT');assert.equal(s.call({...upload,revision:'old'}).error.code,'CONFLICT');
+});

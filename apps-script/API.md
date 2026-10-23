@@ -130,3 +130,18 @@ audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호�
 묶음 변경은 본문 revision과 assignmentRevision을 갱신하고 잠금을 해제한다. 이전 revision의 업로드는 CONFLICT. F2 잠금 응답/목록에도 endVerse가 있으며 범위 전체에 적용한다. F5는 첫 절의 배정으로 묶음 전체를 통일한다(첫 절 미배정이면 전체 미배정). saveAssignments에서 묶음 안의 배정이 다르면 INVALID_REQUEST.
 
 F9는 화면 스위치이며 서버는 항상 저장된 범위를 검증한다. OFF/구형 화면이 묶음을 단독 절로 덮어쓸 수 없다. 별도 서버 속성·관리자 인증은 없고 F8과 같은 공유키 권한이다. saveText는 기존처럼 전체 음성·배정을 초기화한다.
+
+## F10/F11 음성 변환·재전송 (#39)
+
+최신 Code.gs로 재배포 필요. 기존 webm/ogg는 유지하며 F10 출력에 한해 `audio/wav`도 허용한다. WAV는 RIFF/WAVE, fmt 16바이트 PCM1, mono, 24000Hz, 16bit, data가 44바이트 뒤에 오는 표준 헤더이며 길이 필드를 실제 파일과 비교한다. 0초 초과/기존 5MiB 상한은 같다. 파일 확장자는 `.wav`, Drive 비공개와 재녹음 휴지통 정책도 같다.
+
+uploadRecording 선택 필드:
+
+| 필드 | 의미 |
+| --- | --- |
+| `uploadId` | 클라이언트가 한 녹음에 만든 UUID 등 영문·숫자·하이픈 8~80자. 재시도 때 동일 값 유지 |
+| `expectedPrevious` | 녹음 시작 당시 해당 첫 절의 playbackUrl, 없었다면 `null`. 현재 값과 달라지면 CONFLICT |
+
+녹음 응답/listRecordings에는 `uploadId`(구형 녹음은 null)를 추가한다. 현재 저장된 녹음과 같은 uploadId 재요청은 같은 객체를 반환하며 파일을 다시 만들지 않는다. 이 성공 확인은 소비된 F2 잠금을 다시 요구하지 않지만 공유키·현재 revision·묶음 범위 검증은 적용한다. 다른 녹음으로 교체된 뒤의 오래된 재시도는 expectedPrevious 검사로 막는다. 두 필드를 생략한 기존 클라이언트 동작은 그대로다.
+
+F11 대기열은 폰 IndexedDB에만 저장한다. 주소+공유키의 SHA-256 범위 키를 사용하며 공유키 자체/잠금 토큰을 대기열에 저장하지 않는다. 재전송 전 listRecordings의 revision·uploadId·playbackUrl을 확인하고, listLocks.enabled이면 acquireLock으로 새 잠금을 얻어 업로드 후 해제한다. 서버의 expectedPrevious 검사가 조회/업로드 사이 경쟁도 막는다. CONFLICT/권한·형식 오류는 자동 덮어쓰기 없이 보관, 통신/BUSY/LOCKED는 나중에 재시도한다. F12/F13은 기존 조회 API만 사용하고 새 서버 속성은 없다.

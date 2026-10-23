@@ -30,7 +30,7 @@ function controls() {
   $('next-page').disabled = locked() || page >= pageStarts.length - 1;
   ['all','refresh','save-text','disconnect'].forEach(id => { $(id).disabled = locked() || !ready && id !== 'refresh' && id !== 'disconnect'; });
   ['ok','listen','no'].forEach(id => { $(id).disabled = busy; });
-  $('ok').disabled = busy || !!draft?.qualityChecking;
+  $('ok').disabled = busy || !!draft?.qualityChecking || !!draft?.trimChecking;
   $('text-input').disabled = locked();
   $('reader').disabled = busy || acquiring || !!recorder;
 }
@@ -73,8 +73,9 @@ function render() {
   });
   if (!draft) { review.hidden = true; $('list').after(review); }
   if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent='⚠';$('f7-warning').title=warning;$('f7-warning').setAttribute('aria-label',warning);$('f7-warning').onclick=()=>status(warning);$('f7-warning').hidden=!warning;}
+  if($('f10-compare')){$('f10-compare').hidden=!draft || !globalThis.RelayF10?.enabled();$('f10-status').textContent=draft?.trimChecking?'무음 확인 중':draft?.trimMessage||'';for(const id of ['f10-original','f10-trimmed'])$(id).disabled=busy||!!draft?.trimChecking; $('f10-trimmed').hidden=!draft?.trimChanged;}
   globalThis.RelayF5?.paint();globalThis.RelayF9?.paint();
-  drawProgress();
+  drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
   controls();
@@ -100,6 +101,7 @@ function drawProgress() {
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i >= unitAt(selected).start && i <= unitAt(selected).end ? ' cur' : '') + (otherRecording(i) ? ' other-rec' : '');
     const who = recordingAt(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
     if(unitAt(i).end>unitAt(i).start)seg.className+=' f9-group';
+    if(globalThis.RelayF11?.pending(i+1)){seg.className+=' f11-pending';seg.setAttribute('title','이 폰 업로드 대기');}
     const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty?.('--assignment-color',personColor(assigned));}
     seg.setAttribute('aria-label', `${k + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
     seg.onclick = () => { if (gridSwiped) return; if (locked() || !ready) return; if(globalThis.RelayF5?.manual()){RelayF5.choose(i+1);return;} selected = unitAt(i).start; revealSelected(); };
@@ -172,6 +174,7 @@ async function loadShared() {
   finally { busy = false; render(); }
 }
 function discard() {
+  clearComparison();
   $('au').pause(); $('au').removeAttribute('src'); $('au').load();
   $('au').pause(); if (draft) URL.revokeObjectURL(draft.url); globalThis.RelayF2?.release(); draft = null; $('review').hidden = true; controls();
 }
@@ -183,12 +186,13 @@ async function start(event) {
   selected=unitAt(selected).start;
   const canonical=globalThis.RelayF9?.canonical(selected);
   if(canonical && canonical.end>canonical.start && !RelayF9.enabled()){status('묶음 녹음은 F9 켜기');return;}
+  if(globalThis.RelayF11?.pending(selected+1)){status('이 절은 업로드 대기 중 · 설정에서 확인');return;}
   const item = recordingAt(selected);
   if (globalThis.RelayF2?.blocked(selected + 1)) { status('다른 폰에서 읽는 중'); return; }
   if (globalThis.RelayF2?.ownerBlocked(item, $('reader').value)) { status('녹음한 이름만 다시 녹음 가능'); return; }
   const epoch = ++captureEpoch;
   acquiring = true; stopPlayback(); controls();
-  const target = {verse: selected + 1, endVerse:unitAt(selected).end+1, revision, readerName: $('reader').value.trim()};
+  const target = {verse: selected + 1, endVerse:unitAt(selected).end+1, revision, readerName: $('reader').value.trim(),expectedPrevious:item?.playbackUrl||null};
   try {
     RelayStorage.setReaderName(target.readerName);
     stream = await navigator.mediaDevices.getUserMedia({audio: true});
@@ -206,7 +210,7 @@ async function start(event) {
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
       else { toast('녹음 완료'); draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
-      if(draft && globalThis.RelayF7?.enabled()){const targetDraft=draft;targetDraft.qualityChecking=true;RelayF7.analyze(blob,(Date.now()-startedAt)/1000).then(warnings=>{if(draft===targetDraft){draft.quality=warnings;draft.qualityChecking=false;render();}});}
+      if(draft)prepareDraft(draft,(Date.now()-startedAt)/1000);
       render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
@@ -214,22 +218,45 @@ async function start(event) {
   } catch (err) { stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null; globalThis.RelayF2?.release(); status('녹음 실패: ' + err.message); }
   finally { acquiring = false; controls(); }
 }
+async function prepareDraft(target,duration){
+  if(globalThis.RelayF10?.enabled()){
+    target.trimChecking=true;target.originalBlob=target.blob;
+    try{const result=await RelayF10.trim(target.blob);if(draft!==target)return;
+      target.trimChanged=result.changed;target.trimMessage=`${result.before.toFixed(1)}초 → ${result.after.toFixed(1)}초`+(result.changed?'':' · 원본 유지');
+      if(result.changed){URL.revokeObjectURL(target.url);target.blob=result.blob;target.url=URL.createObjectURL(result.blob);$('au').src=target.url;duration=result.after;}
+    }catch(error){if(draft===target)target.trimMessage=error.message+' · 원본 유지';}
+    finally{target.trimChecking=false;}
+  }
+  if(draft!==target)return;
+  if(globalThis.RelayF7?.enabled()){target.qualityChecking=true;render();try{target.quality=await RelayF7.analyze(target.blob,duration);}finally{target.qualityChecking=false;}}
+  if(draft===target)render();
+}
+let comparisonUrl=null;
+function clearComparison(){if(comparisonUrl)URL.revokeObjectURL(comparisonUrl);comparisonUrl=null;}
+if($('f10-original'))$('f10-original').onclick=()=>{if(!draft||busy||draft.trimChecking)return;clearComparison();comparisonUrl=URL.createObjectURL(draft.originalBlob||draft.blob);$('au').src=comparisonUrl;$('au').play().catch(()=>status('음성 재생 실패'));};
+if($('f10-trimmed'))$('f10-trimmed').onclick=()=>{if(!draft||busy||draft.trimChecking)return;clearComparison();$('au').src=draft.url;$('au').play().catch(()=>status('음성 재생 실패'));};
 function stop() { globalThis.RelayF4?.cancel(); if (acquiring) captureEpoch++; if (recorder?.state === 'recording') recorder.stop(); }
 function base64(blob) {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('녹음 읽기 실패')); reader.readAsDataURL(blob); });
 }
 $('ok').onclick = async () => {
-  if (!draft || busy || !ready || draft.qualityChecking) return;
+  if (!draft || busy || !ready || draft.qualityChecking || draft.trimChecking) return;
   busy = true; controls(); const pending = draft; let saved = false, autoNext = -1; const f4Ticket = globalThis.RelayF4?.ticket();
   try {
     if (RelayStorage.connected) {
-      const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), revision: pending.revision, verse: pending.verse, endVerse:pending.endVerse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
+      if(globalThis.RelayF11?.enabled()&&!pending.uploadId)pending.uploadId=crypto.randomUUID();
+      const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), ...(pending.uploadId?{uploadId:pending.uploadId,expectedPrevious:pending.expectedPrevious}:{}), revision: pending.revision, verse: pending.verse, endVerse:pending.endVerse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName, endVerse:pending.endVerse});
     discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
-    if (globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,hasAudio,pending.readerName);if(autoNext>=0) selected=autoNext;}
+    if (globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,index=>hasAudio(index)||!!globalThis.RelayF11?.pending(index+1),pending.readerName);if(autoNext>=0) selected=autoNext;}
     status(''); saved = true;
-  } catch (err) { await failure(err); if (ready) status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침'); }
+  } catch (err) {
+    if(globalThis.RelayF11?.enabled() && pending.uploadId && RelayF11.retryable(err)){
+      try{await RelayF11.enqueue(pending);discard();status('이 폰에 보관 · 연결되면 재전송');}
+      catch(queueError){status(queueError.message+' · 임시 녹음 유지');}
+    }else {await failure(err);if(ready)status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침');}
+  }
   finally { busy = false; render(); if (saved) {revealSelected();if(autoNext>=0 && RelayF4.current(f4Ticket) && !document.hidden) await start({preventDefault(){}});} }
 };
 $('no').onclick = () => { if (!busy) { globalThis.RelayF4?.cancel(); discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status(''); } };
@@ -393,7 +420,7 @@ $('text-input').value = editorText();
 if (RelayStorage.connected) { $('refresh').hidden = false; $('disconnect').hidden = false; loadShared(); }
 render();
 
-$('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
+$('listen').onclick = () => { const a = $('au'); if (a.paused) { if(draft)a.src=draft.url; a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
 $('tb-book').onclick = () => $('book-open').onclick();
@@ -449,11 +476,12 @@ const DEMO_GOALS = {민지: 120, 도윤: 100, 하늘: 40};
 let myGoal = 100;
 try { myGoal = Number(localStorage.getItem('relay.goal')) || 100; } catch {}
 function showPeople() {
+  globalThis.RelayF13?.paint();
   const list = $('people-list'); list.replaceChildren();
   const counts = new Map(); const me = $('reader').value.trim();
   if (!RelayStorage.connected) DEMO_PEOPLE.forEach(n => counts.set(n, 0));
-  const all = RelayStorage.connected ? recordings : [...local.values()];
-  all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
+  const all = RelayStorage.connected ? recordings : [...local].map(([index,item])=>({...item,verse:index+1}));
+  all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + (r.endVerse??r.verse)-r.verse+1));
   const mine = counts.get(me) || 0;
   $('me-count').textContent = `${mine}절 / ${myGoal}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
   $('me-chip').style.setProperty?.('--pct', Math.min(100, Math.round(mine / myGoal * 100)) + '%');
@@ -465,7 +493,7 @@ function showPeople() {
     const b = document.createElement('b'); b.textContent = name; li.append(b); list.append(li);
   });
 }
-$('me-count').onclick = () => { const v = prompt('내 목표 절 수', String(myGoal)); const n = Math.round(Number(v)); if (n > 0) { myGoal = n; try { localStorage.setItem('relay.goal', n); } catch {} showPeople(); } };
+$('me-count').onclick = () => { const v = prompt('내 목표 절 수', String(myGoal)); const n = Math.round(Number(v)); if (n > 0) { myGoal = n; try { localStorage.setItem('relay.goal', n); } catch {} showPeople();globalThis.RelayF13?.paint(); } };
 $('reader').addEventListener('input', showPeople);
 function nameView() { $('me-name').textContent = $('reader').value.trim(); $('me-name').hidden = false; $('reader').hidden = true; $('me-ok').hidden = true; }
 $('me-name').onclick = () => { $('me-name').hidden = true; $('reader').hidden = false; $('me-ok').hidden = false; $('reader').focus?.(); };
@@ -544,3 +572,14 @@ function applyHeadFont() { document.documentElement?.style?.setProperty?.('--hfs
 $('hfont-down').onclick = () => { headFont = Math.max(.8, +(headFont - .05).toFixed(2)); applyHeadFont(); };
 $('hfont-up').onclick = () => { headFont = Math.min(1.6, +(headFont + .05).toFixed(2)); applyHeadFont(); };
 applyHeadFont();
+
+// F11 never advances F4 on a local-only queued take.
+globalThis.RelayF11?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},base64,refresh:async()=>{await refresh();render();},render:()=>render(),report:status});
+
+// F12 takes a stable chapter snapshot; no demo or queued blobs become exported audio.
+globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},report:status,
+  snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
+  audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
+});
+
+globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});

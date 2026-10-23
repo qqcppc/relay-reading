@@ -1,0 +1,8 @@
+# Voice data belongs on the phone or private Drive, never in the public repo.
+*.webm
+*.ogg
+*.wav
+*.mp3
+*.m4a
+node_modules/
+tests/results/
