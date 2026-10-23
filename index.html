@@ -52,11 +52,38 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 #prev-page,#next-page{font-size:1.8rem!important;line-height:1;padding:6px!important}
 #editor summary{list-style:none;cursor:pointer;color:#7a7366;width:max-content}#editor summary::-webkit-details-marker{display:none}
 #picker-items.testaments{grid-template-columns:1fr 1fr;align-items:start}.col{display:grid;gap:6px}.col h3{margin:0 0 2px;font-size:.85rem;color:#7a7366;text-align:center}#picker-items .col button{padding:8px 4px}#picker-items button:disabled,#picker-items button.empty{opacity:.45}
+
+/* #23 톤 정리·카드 압축·덮개 버튼 */
+body{gap:10px}
+#center,#listen{background:#4a6283!important}#ok{background:#4f7a64!important}#no{background:#a85a4f!important}
+#title-btn{border-color:#4a6283!important}
+.line{padding:10px 12px;border-width:1px;border-left-width:3px;gap:0}
+.line.done{background:color-mix(in srgb,var(--pc) 7%,#fff);border-color:#e6e1d6;border-left-color:var(--pc)}
+.line.sel{border-color:#a85a4f;border-left-color:#a85a4f}
+.card-trigger{display:block!important}
+.side{float:left;display:grid;justify-items:center;margin:.15em 8px 0 0;min-width:1.7em;padding:0;position:relative}
+.vn{position:relative;z-index:1;font-size:.8rem!important;font-weight:700;color:#9a9283;line-height:1.5}
+.tag{font-size:.6rem!important;color:var(--pc)!important;line-height:1.1}
+.t{display:block;line-height:1.5}
+.line.recording .vn{color:#fff!important;animation:none}
+.line.recording .side::before{content:'';position:absolute;top:-.1em;left:50%;width:1.6em;height:1.6em;margin-left:-.8em;border-radius:50%;background:#d0392b;animation:rec 1s ease-in-out infinite}
+@keyframes rec{50%{opacity:.35;transform:scale(.85)}}
+.line.recording{background:#fff;border-color:#d0392b;border-left-color:#d0392b}
+#review{position:absolute;inset:0;background:color-mix(in srgb,#f6f4ef 80%,transparent);backdrop-filter:blur(2px);display:flex;align-items:center;padding:0 12px;border-radius:inherit;z-index:3}
+#review .row{width:100%}#review button{padding:14px 0!important}
+.seg.done{background:var(--pc)}.seg{opacity:.9}
+.me{display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid var(--pc,#5f8f74);border-radius:12px;background:#fff;margin-bottom:12px}
+.me-tag{background:var(--pc,#5f8f74);color:#fff;border-radius:8px;padding:2px 8px;font-weight:700;font-size:.85rem}
+.me input{flex:1;min-width:0;border:0;font:inherit;font-size:1.05rem;background:transparent;padding:6px 0}.me small{color:#7a7366}
+#people-list{display:flex!important;flex-wrap:wrap;gap:8px}#people-list li{display:flex;gap:6px;align-items:baseline;padding:8px 12px;border:0;border-radius:999px;background:color-mix(in srgb,var(--pc) 14%,#fff);border-left:0}
+#people-list li b{color:color-mix(in srgb,var(--pc) 75%,#000);font-size:1.05rem}#people-list li small{color:#7a7366}
+.line.done{padding-top:10px!important}
+[data-n]{position:relative}[data-n]::after{content:attr(data-n);position:absolute;top:-7px;left:-5px;font:700 10px/14px system-ui;min-width:14px;text-align:center;background:#24211c;color:#fff;border-radius:7px;pointer-events:none;z-index:5}
 </style></head><body>
-<header id="top"><button id="prev-page" aria-label="이전 장">‹</button><button id="next-page" aria-label="다음 장">›</button><button id="title-btn" type="button" aria-label="책 찾기"><span id="version">#22</span><small id="ver-sub"></small></button><button id="people-open" type="button" aria-label="사람">👤</button><button id="settings-open" type="button" aria-label="설정">⚙</button></header>
+<header id="top"><button id="prev-page" aria-label="이전 장" data-n="1">‹</button><button id="next-page" aria-label="다음 장" data-n="2">›</button><button id="title-btn" type="button" aria-label="책 찾기" data-n="3"><span id="version">#22</span><small id="ver-sub"></small></button><button id="people-open" type="button" aria-label="사람" data-n="4">👤</button><button id="settings-open" type="button" aria-label="설정" data-n="5">⚙</button></header>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
 <form id="identity" hidden><button id="all" type="button" hidden>▶</button><button id="edit-toggle" type="button" hidden>✎</button><button id="book-open" type="button" hidden>책</button></form>
-<dialog id="people" class="sheet"><div class="dlg-head"><b>함께 읽는 사람</b><button type="button" class="dlg-close" aria-label="닫기">✕</button></div><label class="fld">내 이름<input id="reader" maxlength="80" autocomplete="nickname" placeholder="이름 입력"></label><ul id="people-list"></ul></dialog>
+<dialog id="people" class="sheet"><div class="dlg-head"><b>함께 읽는 사람</b><button type="button" class="dlg-close" aria-label="닫기">✕</button></div><label id="me-chip" class="me"><span class="me-tag">나</span><input id="reader" maxlength="80" autocomplete="nickname" placeholder="내 이름 입력"><small id="me-count"></small></label><ul id="people-list"></ul></dialog>
 <dialog id="settings" class="sheet"><div class="dlg-head"><b>설정</b><button type="button" class="dlg-close" aria-label="닫기">✕</button></div><div class="fld">글자 크기<div class="row"><button id="font-down" type="button">가−</button><button id="font-up" type="button">가+</button></div></div></dialog>
 <dialog id="book-picker" aria-labelledby="picker-title"><div id="picker-head"><button id="picker-back" type="button" hidden aria-label="책 목록">◀</button><h2 id="picker-title">책</h2><button id="picker-close" type="button" aria-label="닫기">✕</button></div><div id="picker-items"></div></dialog>
 <p id="connection" role="status" hidden>폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
@@ -67,15 +94,15 @@ body{font-family:system-ui,sans-serif;background:#f6f4ef;color:#24211c;margin:0 
 <p><strong>본문을 저장하면 기존 녹음이 모두 지워짐.</strong></p>
 <label><input id="erase-confirm" type="checkbox">기존 녹음 삭제에 동의</label>
 <button id="save-text">본문 저장</button></details>
-<button id="center" type="button"><span id="play-ic">▶</span> 이어듣기<span id="page-label" hidden></span></button>
-<div id="progress" aria-label="녹음 진행"></div>
-<div id="list"></div>
+<button id="center" type="button" data-n="6"><span id="play-ic">▶</span> 이어듣기<span id="page-label" hidden></span></button>
+<div id="progress" aria-label="녹음 진행" data-n="7"></div>
+<div id="list" data-n="8"></div>
 <div id="st" role="status"></div>
 <div id="review" hidden>
   <audio id="au" hidden></audio>
-  <div class="row"><button id="ok" aria-label="확인">✓</button><button id="listen" aria-label="듣기">▶</button><button id="no" aria-label="취소">✕</button></div>
+  <div class="row"><button id="ok" aria-label="확인" data-n="10">✓</button><button id="listen" aria-label="듣기" data-n="11">▶</button><button id="no" aria-label="취소" data-n="12">✕</button></div>
 </div>
 
-<script src="storage.js?v=22"></script>
-<script src="ui.js?v=22"></script>
+<script src="storage.js?v=23"></script>
+<script src="ui.js?v=23"></script>
 </body></html>

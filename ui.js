@@ -33,7 +33,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #22`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #23`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -338,7 +338,7 @@ applyFont();
 
 $('edit-toggle').onclick = () => { $('editor').open = !$('editor').open; };
 
-const PALETTE = ['#2f7d4f','#7a4fa3','#c2761f','#2a7f9e','#a3456b','#5d6b2f'];
+const PALETTE = ['#5f8f74','#8a7aa6','#b8925a','#5d8c9c','#b07a86','#7f8a5a'];
 function personColor(name) {
   const me = ($('reader').value || RelayStorage.readerName || '').trim();
   if (name && name === me) return PALETTE[0];
@@ -359,14 +359,18 @@ if (!RelayStorage.connected) {
 function showPeople() {
   const list = $('people-list'); list.replaceChildren();
   const counts = new Map(); const me = $('reader').value.trim();
-  if (me) counts.set(me, 0); DEMO_PEOPLE.forEach(n => counts.set(n, 0));
+  DEMO_PEOPLE.forEach(n => counts.set(n, 0));
   const all = RelayStorage.connected ? recordings : [...local.values()];
   all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
+  $('me-count').textContent = `${counts.get(me) || 0}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
   counts.forEach((n, name) => {
+    if (name === me) return;
     const li = document.createElement('li'); li.style.setProperty?.('--pc', personColor(name));
-    li.textContent = `${name}${name === me ? ' (나)' : ''} · ${n}절`; list.append(li);
+    const b = document.createElement('b'); b.textContent = name; const c = document.createElement('small'); c.textContent = `${n}절`;
+    li.append(b, c); list.append(li);
   });
 }
+$('reader').addEventListener('input', showPeople);
 $('people-open').onclick = () => { showPeople(); $('people').showModal(); };
 $('settings-open').onclick = () => $('settings').showModal();
 document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.closest('dialog').close());
