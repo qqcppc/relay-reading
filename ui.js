@@ -420,7 +420,7 @@ $('text-input').value = editorText();
 if (RelayStorage.connected) { $('refresh').hidden = false; $('disconnect').hidden = false; loadShared(); }
 render();
 
-$('listen').onclick = () => { const a = $('au'); if (a.paused) { a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
+$('listen').onclick = () => { const a = $('au'); if (a.paused) { if(draft)a.src=draft.url; a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
 $('au').onended = $('au').onpause = () => { $('listen').textContent = '▶ 듣기'; };
 
 $('tb-book').onclick = () => $('book-open').onclick();

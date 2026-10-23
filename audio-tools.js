@@ -23,7 +23,7 @@
   }
   function bounds(samples,rate=RATE){
     const frame=Math.max(1,Math.round(rate*.02));let first=-1,last=0;
-    for(let i=0;i<samples.length;i+=frame){let sum=0,peak=0;const end=Math.min(i+frame,samples.length);for(let k=i;k<end;k++){sum+=samples[k]*samples[k];peak=Math.max(peak,Math.abs(samples[k]));}if(Math.sqrt(sum/(end-i))>=.008||peak>=.035){if(first<0)first=i;last=end;}}
+    for(let i=0;i<samples.length;i+=frame){let sum=0,peak=0;const end=Math.min(i+frame,samples.length);for(let k=i;k<end;k++){sum+=samples[k]*samples[k];peak=Math.max(peak,Math.abs(samples[k]));}if(Math.sqrt(sum/(end-i))>=.002||peak>=.01){if(first<0)first=i;last=end;}}
     if(first<0)return {start:0,end:samples.length};
     return {start:Math.max(0,first-Math.round(rate*.08)),end:Math.min(samples.length,last+Math.round(rate*.08))};
   }
