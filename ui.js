@@ -19,6 +19,7 @@ function status(message) { $('st').textContent = message; }
 function hasAudio(i) { return RelayStorage.connected ? recordings.some(r => r.verse === i + 1) : local.has(i); }
 function locked() { return busy || acquiring || !!recorder || !!draft; }
 function controls() {
+  document.body?.classList?.toggle('is-recording', !!recorder);
   $('book-open').disabled = locked() || !ready || !lines.length;
   $('prev-page').disabled = locked() || page === 0;
   $('next-page').disabled = locked() || page >= pageStarts.length - 1;
@@ -33,7 +34,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #25`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #27`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -59,6 +60,8 @@ function render() {
   });
   if (!draft) { review.hidden = true; $('list').after(review); }
   drawProgress();
+  const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
+  if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
   controls();
 }
 function drawProgress() {
@@ -315,7 +318,7 @@ function editorText() {
     return (book ? `# ${book.title}\n` : '') + `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n');
   }).join('\n\n---\n\n').replace(/\n\n---\n\n(?=# )/g, '\n\n');
 }
-$('all').onclick = () => { if (playbackUrl) { stopPlayback(); status(''); return; } const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
+$('all').onclick = () => { if (playbackUrl) { stopPlayback(); status(''); return; } const from = Math.max(0, selected); const first = lines.findIndex((_, i) => i >= from && hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;
 $('reader').value = RelayStorage.readerName;
 $('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status(''); } catch (err) { status(err.message); } };
@@ -345,7 +348,7 @@ applyFont();
 
 $('edit-toggle').onclick = () => { $('editor').open = !$('editor').open; };
 
-const PALETTE = ['#5f8f74','#8a7aa6','#b8925a','#5d8c9c','#b07a86','#7f8a5a'];
+const PALETTE = ['#5f8f74','#8a7aa6','#b8925a','#5d8c9c','#b07a86','#7f8a5a','#9c7f6a','#6f7fa8','#a0884a'];
 function personColor(name) {
   const me = ($('reader').value || RelayStorage.readerName || '').trim();
   if (name && name === me) return PALETTE[0];
@@ -355,11 +358,10 @@ function personColor(name) {
 // 연출용 가상 녹음 (#22): 창세기 1~10장에 민지(많이)·도윤(조금) 녹음, 하늘 미참여. 실제 녹음본만 표시할 때 이 블록 삭제
 const DEMO_PEOPLE = ['민지', '도윤', '하늘'];
 if (!RelayStorage.connected) {
-  let seed = 7; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
-  for (let i = 0; i < pageStarts[10]; ) {
-    const r = rnd(), run = 2 + Math.floor(rnd() * 6);
-    const who = r < .45 ? '민지' : r < .65 ? '도윤' : null;
-    for (let k = 0; k < run && i < pageStarts[10]; k++, i++) if (who) local.set(i, {demo: true, readerName: who});
+  const order = ['민지', '도윤', null, '민지', null, '도윤', '민지', null];
+  for (let i = 0, k = 0; i < pageStarts[10]; k++) {
+    const run = 1 + (k % 3 === 0 ? 1 : 0); const who = order[k % order.length];
+    for (let r = 0; r < run && i < pageStarts[10]; r++, i++) if (who) local.set(i, {demo: true, readerName: who});
   }
   selected = lines.findIndex((_, i) => !local.has(i)); page = pageFor(selected); render();
 }
@@ -378,7 +380,12 @@ function showPeople() {
   });
 }
 $('reader').addEventListener('input', showPeople);
-$('people-open').onclick = () => { showPeople(); $('people').showModal(); };
+function nameView() { $('me-name').textContent = $('reader').value.trim(); $('me-name').hidden = false; $('reader').hidden = true; $('me-ok').hidden = true; }
+$('me-name').onclick = () => { $('me-name').hidden = true; $('reader').hidden = false; $('me-ok').hidden = false; $('reader').focus?.(); };
+$('me-ok').onclick = () => { $('identity').onsubmit({preventDefault(){}}); nameView(); showPeople(); render(); };
+$('reader').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('me-ok').onclick(); } });
+document.querySelectorAll?.('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+$('people-open').onclick = () => { nameView(); showPeople(); $('people').showModal(); };
 $('settings-open').onclick = () => $('settings').showModal();
 document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.closest('dialog').close());
 
