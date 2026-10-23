@@ -60,6 +60,7 @@ function revealSelected() {
 function stopPlayback() {
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
+  $('all').textContent = '▶ 처음부터 이어듣기';
 }
 async function play(i, chain = false, sequence) {
   if (locked() || !ready) return;
@@ -73,7 +74,7 @@ async function play(i, chain = false, sequence) {
     } else blob = local.get(i)?.blob;
     if (sequence !== playbackId || !blob) return;
     if (playbackUrl) URL.revokeObjectURL(playbackUrl);
-    playbackUrl = URL.createObjectURL(blob); player.src = playbackUrl;
+    playbackUrl = URL.createObjectURL(blob); player.src = playbackUrl; if (chain) $('all').textContent = '■ 정지';
     selected = i; followSelected();
     player.onended = () => {
       if (sequence !== playbackId) return;
@@ -218,8 +219,7 @@ function chapterAt(index) { return chapters[index] || {title:`${index + 1}장`, 
 function editorText() {
   return title + '\n' + pageStarts.map((start, index) => `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n')).join('\n\n---\n\n');
 }
-$('all').onclick = () => { const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
-$('stop-play').onclick = () => { stopPlayback(); status('재생 멈춤'); };
+$('all').onclick = () => { if (playbackUrl) { stopPlayback(); status('재생 멈춤'); return; } const first = lines.findIndex((_, i) => hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;
 $('reader').value = RelayStorage.readerName;
 $('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status('이름 기억 완료'); } catch (err) { status(err.message); } };
