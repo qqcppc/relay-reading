@@ -8,11 +8,12 @@
     const $=id=>document.getElementById(id);
     for(const name of Object.keys(flags)) {
       const toggle=$('feature-'+name.toLowerCase()); toggle.checked=flags[name];
-      toggle.onchange=()=>{
+      toggle.onchange=async()=>{
         if(typeof root.locked==='function' && root.locked()) {toggle.checked=flags[name];$('feature-status').textContent='녹음 확인을 먼저 마쳐야 함';return;}
         const next={...flags,[name]:toggle.checked};
         try {localStorage.setItem(key,JSON.stringify(next));}
         catch (_) {toggle.checked=flags[name];$('feature-status').textContent='브라우저 저장 설정 확인 필요';return;}
+        if(name==='F3' && !next.F3) await root.RelayPWA?.disable();
         location.reload();
       };
     }

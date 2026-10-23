@@ -43,3 +43,6 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 
 /* F2: locked by a different phone; playback remains available. */
 .line.f2-locked{opacity:.45}.line.f2-locked .card-trigger{cursor:not-allowed}
+
+/* F3: actions only appear when explicitly enabled. */
+#f3-copy{box-sizing:border-box;width:100%;margin-top:8px}#f3-invite{margin-top:12px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font:inherit}

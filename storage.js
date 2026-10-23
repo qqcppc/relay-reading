@@ -67,6 +67,12 @@
       catch (_) {throw new Error('연결 정보 삭제 실패. 브라우저 저장 설정 확인');}
       config = null;
     },
+    // F3: invitation credentials stay in the fragment, never the server query.
+    invitation(base) {
+      const url=new URL(base); url.hash='';url.search='';
+      if (this.connected) url.hash=new URLSearchParams({url:config.url,key:config.key}).toString();
+      return url.href;
+    },
     request,
     async load() {
       // A changed text between reads must never attach old audio to new verses.
