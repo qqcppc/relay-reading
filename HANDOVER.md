@@ -1,5 +1,15 @@
 # 인수인계 — 「릴레이 낭독」
 
+## 🆕 새 Claude 세션 시작 안내 (2026-10-23 18시 기준)
+- 사이트: https://qqcppc.github.io/relay-reading/ (GitHub Pages, main 배포 · 배포 실패 시 Actions에서 「실패한 작업 다시 실행」)
+- 현재 화면 #30 · 바통 #31(Codex 차례: F4 이어 말하기·F5 배정표·F7 품질 검사·F8 본문 넣기)
+- **진행 방식**: 사용자 폰 피드백 → Claude가 작은 화면 수정 직접(claude/… 브랜치 → main push) / 큰 기능은 BATON.md에 적어 Codex 배정 → Codex는 codex/… 브랜치 push까지만 → Claude가 검토·테스트·main 병합·#번호 갱신
+- **병합 시 체크**: 테스트 5개(tests/features-smoke·settings-smoke·storage.test·ui.test, apps-script/Code.test) 통과, 버전 문자열 3곳(index ?v · sw.js VERSION · f3-app.js) 같이 올리기, ⑤ 버튼 #번호 = 화면 버전
+- **원칙**: 일단 만들어 보고 시험 → 고정/스위치/삭제 결정. 새 기능은 ⑤ 실험 기능 스위치(F번호, 기본 꺼짐)
+- **연출 데이터**(민지·도윤·하늘 가짜 녹음, 창세기 1~10장, 2장 전부 녹음): ui.js 끝 연출 블록. 사용자가 「실제 녹음본만」이라 하면 삭제
+- **답변 규칙**: 첫 줄 ⭕(지금 Codex에 넘김) / ❌(없음), 끝 줄 `#번호 · 다음: …`. 짧게, '-요' 금지, 굵게·이모지, 화면 요소는 번호(③⑤⑥⑧…)로 지칭
+- 사용자 성향: 폰 화면 공간 낭비·안내문 싫어함, 색 톤 조화 중시, 한 줄 차지하는 요소 줄이기
+
 ## 저장소
 - https://github.com/qqcppc/relay-reading (Public, GitHub Pages 사용 예정)
 
