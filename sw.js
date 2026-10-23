@@ -1,5 +1,5 @@
 /* F3 only: app shell cache. Never cache shared API responses, keys or recordings. */
-const VERSION='37';
+const VERSION='38';
 const ROOT=new URL('./',self.location.href);
 const PREFIX='relay-reading:'+ROOT.pathname+':';
 const CACHE=PREFIX+VERSION;

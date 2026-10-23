@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
-<link rel="stylesheet" href="settings.css?v=37">
-<script src="features.js?v=37"></script>
-<script src="settings.js?v=37"></script>
+<link rel="stylesheet" href="settings.css?v=38">
+<script src="features.js?v=38"></script>
+<script src="settings.js?v=38"></script>
 <style>
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
 .line{box-sizing:border-box;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:10px}
@@ -222,8 +222,12 @@ body.modal-open{overflow:hidden}
 #people-list li small{display:none}
 #picker-items .ch-full{background:color-mix(in srgb,#5f8f74 45%,var(--surface,#fff))!important;border-color:#5f8f74!important;font-weight:800}
 #picker-items .ch-part{background:linear-gradient(0deg,color-mix(in srgb,#5f8f74 30%,var(--surface,#fff)) var(--pct),var(--surface,#fff) var(--pct))!important}
+/* #38 */
+#center #progress{grid-template-columns:repeat(10,1fr)!important;gap:2px!important}
+#title-btn{border:0!important;background:none!important;grid-template-columns:3fr 2fr!important}
+#title-btn button{border:0!important}#tb-book{border-right:0!important}#tb-ch{border-right:0!important;text-align:left}
 </style></head><body>
-<div id="sticky"><header id="top"><button id="prev-page" aria-label="이전 장" hidden>‹</button><button id="next-page" aria-label="다음 장" hidden>›</button><div id="title-btn" role="group" aria-label="위치" data-n="3"><span id="settings-open" aria-label="화면 번호">#37</span><button id="tb-book" type="button" aria-label="책 고르기"><span id="version">책</span></button><button id="tb-ch" type="button" aria-label="장 고르기"></button><button id="tb-vs" type="button" aria-label="절 범위" hidden></button><small id="ver-sub" hidden></small></div><div id="center" data-n="6"><div id="progress" aria-label="녹음 진행"></div><button id="grid-page" type="button" hidden aria-label="다음 30절">1/2</button><button id="center-play" type="button" hidden><span id="play-ic">▶</span> <span id="center-txt">처음부터 듣기</span></button><span id="page-label" hidden></span></div><button id="people-open" type="button" aria-label="사람" hidden>👤</button></header></div>
+<div id="sticky"><header id="top"><button id="prev-page" aria-label="이전 장" hidden>‹</button><button id="next-page" aria-label="다음 장" hidden>›</button><div id="title-btn" role="group" aria-label="위치" data-n="3"><span id="settings-open" aria-label="화면 번호">#38</span><button id="tb-book" type="button" aria-label="책 고르기"><span id="version">책</span></button><button id="tb-ch" type="button" aria-label="장 고르기"></button><button id="tb-vs" type="button" aria-label="절 범위" hidden></button><small id="ver-sub" hidden></small></div><div id="center" data-n="6"><div id="progress" aria-label="녹음 진행"></div><button id="grid-page" type="button" hidden aria-label="다음 30절">1/2</button><button id="center-play" type="button" hidden><span id="play-ic">▶</span> <span id="center-txt">처음부터 듣기</span></button><span id="page-label" hidden></span></div><button id="people-open" type="button" aria-label="사람" hidden>👤</button></header></div>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
 <form id="identity" hidden><button id="all" type="button" hidden>▶</button><button id="edit-toggle" type="button" hidden>✎</button><button id="book-open" type="button" hidden>책</button></form>
 <dialog id="people" class="sheet"><div class="dlg-tabs" data-n="20"><button type="button" data-go="people" aria-pressed="true">👤 사람</button><button type="button" data-go="settings">⚙ 설정</button></div><div id="me-chip" class="me" data-n="13"><button id="me-name" type="button" aria-label="내 이름 바꾸기"></button><input id="reader" maxlength="80" autocomplete="nickname" placeholder="내 이름" hidden><button id="me-ok" type="button" hidden aria-label="이름 확인" data-n="14">확인</button><button id="me-count" type="button" aria-label="내 목표 바꾸기"></button></div><ul id="people-list" data-n="15"></ul><button id="f3-invite" type="button" hidden data-n="16">초대 링크 보내기</button><textarea id="f3-copy" readonly aria-label="초대 링크" hidden></textarea><output id="f3-share-status" role="status"></output></dialog>
@@ -258,14 +262,14 @@ body.modal-open{overflow:hidden}
   <div class="row"><button id="ok" aria-label="확인" data-n="10"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><button id="listen" aria-label="듣기" data-n="11"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg></button><button id="no" aria-label="취소" data-n="12"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
 </div>
 
-<script src="storage.js?v=37"></script>
-<script src="f2-locks.js?v=37"></script>
-<script src="f3-app.js?v=37"></script>
-<script src="f4-continuation.js?v=37"></script>
-<script src="f5-assignments.js?v=37"></script>
-<script src="f7-quality.js?v=37"></script>
-<script src="f9-groups.js?v=37"></script>
-<script src="f8-import.js?v=37"></script>
-<script src="ui.js?v=37"></script>
+<script src="storage.js?v=38"></script>
+<script src="f2-locks.js?v=38"></script>
+<script src="f3-app.js?v=38"></script>
+<script src="f4-continuation.js?v=38"></script>
+<script src="f5-assignments.js?v=38"></script>
+<script src="f7-quality.js?v=38"></script>
+<script src="f9-groups.js?v=38"></script>
+<script src="f8-import.js?v=38"></script>
+<script src="ui.js?v=38"></script>
 <div id="toast" role="status" aria-live="polite"></div>
 </body></html>

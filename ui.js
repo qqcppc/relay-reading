@@ -40,7 +40,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = chapter.title; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = chapter.title.replace(/장$/, ''); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -92,10 +92,10 @@ function drawProgress() {
   gridBand = Math.max(0, Math.min(gridBand, bands - 1)); gridManual = false;
   [['prev', gridBand > 0, '‹'], ['next', gridBand < bands - 1, '›']].forEach(([c, on, t]) => { if (!on) return; const a = document.createElement('span'); a.className = 'grid-arrow ' + c; a.textContent = t; bar.append(a); });
   for (let k = gridBand * 20; k < gridBand * 20 + 20; k++) {
-    const m = k % 20, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
+    const m = k % 20, block = 0, r = Math.floor(m / 10), c = m % 10;
     const seg = document.createElement('button'); seg.type = 'button';
-    seg.style.gridColumn = String(block * 6 + c + 1); seg.style.gridRow = String(r + 1);
-    const i = from + k; seg.textContent = String(k + 1);
+    seg.style.gridColumn = String(c + 1); seg.style.gridRow = String(r + 1);
+    const i = from + k; seg.textContent = hasAudio(i) ? '' : String(k + 1);
     if (i >= to) { seg.className = 'seg off'; seg.disabled = true; seg.tabIndex = -1; bar.append(seg); continue; }
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i >= unitAt(selected).start && i <= unitAt(selected).end ? ' cur' : '') + (otherRecording(i) ? ' other-rec' : '');
     const who = recordingAt(i); if (who) seg.style.setProperty?.('--pc', personColor(who.readerName));
