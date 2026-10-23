@@ -78,20 +78,20 @@ function render() {
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
   controls();
 }
-let gridBand = 0, gridManual = false;
+let gridBand = 0, gridManual = false, gridSwiped = false;
 function drawProgress() {
   const bar = $('progress'); if (!bar) return; bar.replaceChildren();
   const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length;
   let full = true; for (let i = from; i < to; i++) if (!hasAudio(i)) full = false;
   $('center').classList?.toggle?.('full', full); $('center-play').hidden = !full && !playbackUrl;
-  const bands = Math.max(1, Math.ceil((to - from) / 30));
-  if (selected >= from && selected < to && gridBand !== Math.floor((selected - from) / 30) && !gridManual) gridBand = Math.floor((selected - from) / 30);
-  gridBand = Math.min(gridBand, bands - 1); gridManual = false;
-  const pager = $('grid-page'); if (pager) { pager.hidden = bands < 2; pager.textContent = `${gridBand + 1}/${bands}`; }
-  for (let k = gridBand * 30; k < gridBand * 30 + 30; k++) {
-    const band = 0, m = k % 30, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
+  const bands = Math.max(1, Math.ceil((to - from) / 20));
+  if (selected >= from && selected < to && !gridManual) gridBand = Math.floor((selected - from) / 20);
+  gridBand = Math.max(0, Math.min(gridBand, bands - 1)); gridManual = false;
+  [0, 1].forEach(blk => { const n = document.createElement('span'); n.className = 'blk-no'; n.textContent = String(gridBand * 20 + blk * 10 + 1); n.style.left = blk ? 'calc(50% + 4px)' : '0'; bar.append(n); });
+  for (let k = gridBand * 20; k < gridBand * 20 + 20; k++) {
+    const m = k % 20, block = Math.floor(m / 10), r = Math.floor((m % 10) / 5), c = m % 5;
     const seg = document.createElement('button'); seg.type = 'button';
-    seg.style.gridColumn = String(block * 6 + c + 1); seg.style.gridRow = String(band * 2 + r + 1);
+    seg.style.gridColumn = String(block * 6 + c + 1); seg.style.gridRow = String(r + 1);
     const i = from + k;
     if (i >= to) { seg.className = 'seg off'; seg.disabled = true; seg.tabIndex = -1; bar.append(seg); continue; }
     seg.className = 'seg' + (hasAudio(i) ? ' done' : '') + (i >= unitAt(selected).start && i <= unitAt(selected).end ? ' cur' : '');
@@ -99,7 +99,7 @@ function drawProgress() {
     if(unitAt(i).end>unitAt(i).start)seg.className+=' f9-group';
     const assigned=globalThis.RelayF5?.owner(i+1);if(assigned){seg.className+=' f5-assigned';seg.style.setProperty?.('--assignment-color',personColor(assigned));}
     seg.setAttribute('aria-label', `${k + 1}절${hasAudio(i) ? ' 녹음됨' : ''}`);
-    seg.onclick = () => { if (locked() || !ready) return; if(globalThis.RelayF5?.manual()){RelayF5.choose(i+1);return;} selected = unitAt(i).start; revealSelected(); };
+    seg.onclick = () => { if (gridSwiped) return; if (locked() || !ready) return; if(globalThis.RelayF5?.manual()){RelayF5.choose(i+1);return;} selected = unitAt(i).start; revealSelected(); };
     bar.append(seg);
   }
 }
@@ -202,12 +202,12 @@ async function start(event) {
       stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null;
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
-      else { draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
+      else { toast('녹음 완료'); draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
       if(draft && globalThis.RelayF7?.enabled()){const targetDraft=draft;targetDraft.qualityChecking=true;RelayF7.analyze(blob,(Date.now()-startedAt)/1000).then(warnings=>{if(draft===targetDraft){draft.quality=warnings;draft.qualityChecking=false;render();}});}
       render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
-    current.start(250); render(); status('');
+    current.start(250); render(); status(''); toast('녹음 시작');
   } catch (err) { stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null; globalThis.RelayF2?.release(); status('녹음 실패: ' + err.message); }
   finally { acquiring = false; controls(); }
 }
@@ -311,8 +311,16 @@ function bookIndex(chapter) { return Math.max(0, books.findLastIndex(book => boo
 function bookAt(chapter) { return books[bookIndex(chapter)] || {title:title.slice(0,80) || '본문',startChapter:0}; }
 const BIBLE = [['창세기',50],['출애굽기',40],['레위기',27],['민수기',36],['신명기',34],['여호수아',24],['사사기',21],['룻기',4],['사무엘상',31],['사무엘하',24],['열왕기상',22],['열왕기하',25],['역대상',29],['역대하',36],['에스라',10],['느헤미야',13],['에스더',10],['욥기',42],['시편',150],['잠언',31],['전도서',12],['아가',8],['이사야',66],['예레미야',52],['예레미야애가',5],['에스겔',48],['다니엘',12],['호세아',14],['요엘',3],['아모스',9],['오바댜',1],['요나',4],['미가',7],['나훔',3],['하박국',3],['스바냐',3],['학개',2],['스가랴',14],['말라기',4],
 ['마태복음',28],['마가복음',16],['누가복음',24],['요한복음',21],['사도행전',28],['로마서',16],['고린도전서',16],['고린도후서',13],['갈라디아서',6],['에베소서',6],['빌립보서',4],['골로새서',4],['데살로니가전서',5],['데살로니가후서',3],['디모데전서',6],['디모데후서',4],['디도서',3],['빌레몬서',1],['히브리서',13],['야고보서',5],['베드로전서',5],['베드로후서',3],['요한일서',5],['요한이서',1],['요한삼서',1],['유다서',1],['요한계시록',22]];
+function shortBook(label) {
+  const m = label.match(/^(.+?)(상|하|전서|후서|일서|이서|삼서)$/);
+  const known = ['사무엘','열왕기','역대','고린도','데살로니가','디모데','베드로','요한'];
+  if (!m || !known.includes(m[1])) return [label, ''];
+  const rn = {상:'Ⅰ',하:'Ⅱ',전서:'Ⅰ',후서:'Ⅱ',일서:'Ⅰ',이서:'Ⅱ',삼서:'Ⅲ'}[m[2]];
+  return [m[1] === '요한' ? '요한서' : m[1], rn];
+}
 function bookButton(label, index) {
-  const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+  const button = document.createElement('button'); button.type = 'button'; const [short, rn] = shortBook(label); button.textContent = short;
+  button.setAttribute('aria-label', label); if (rn) { const r = document.createElement('span'); r.className = 'rn'; r.textContent = rn; button.append?.(r); }
   if (index < 0) { button.className = 'empty'; button.onclick = () => showSampleChapters(label); }
   else { button.setAttribute('aria-current', String(index === bookIndex(page))); button.onclick = () => showChapters(index); }
   return button;
@@ -326,14 +334,21 @@ function showSampleChapters(name) {
 }
 let bookTab = 0;
 try { bookTab = Number(localStorage.getItem('relay.bookTab')) || 0; } catch {}
-function showBooks() {
+let bookSide = 0;
+try { bookSide = Number(localStorage.getItem('relay.bookSide')) || 0; } catch {}
+function showBooks(flash) {
   $('picker-tabs').hidden = true;
   const known = new Set(BIBLE.map(b => b[0]));
+  const extra = books.map((b, i) => [b, i]).filter(([b]) => !known.has(b.title));
   const items = $('picker-items'); items.replaceChildren(); items.className = 'books';
-  BIBLE.forEach(([t]) => items.append(bookButton(t, books.findIndex(b => b.title === t))));
-  books.forEach((b, i) => { if (!known.has(b.title)) items.append(bookButton(b.title, i)); });
+  const anyKnown = books.some(b => known.has(b.title));
+  if (!anyKnown) { extra.forEach(([b, i]) => items.append(bookButton(b.title, i))); items.scrollTop = 0; return; }
+  (bookSide === 0 ? BIBLE.slice(0, 39) : BIBLE.slice(39)).forEach(([t]) => items.append(bookButton(t, books.findIndex(b => b.title === t))));
+  if (bookSide === 1) extra.forEach(([b, i]) => items.append(bookButton(b.title, i)));
+  const f = $('picker-flash'); if (f) { f.textContent = ['구약', '신약', '기타'][bookSide]; f.style.opacity = flash ? '1' : '.55'; if (flash) setTimeout(() => { f.style.opacity = '.55'; }, 600); }
   items.scrollTop = 0;
 }
+function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true); }
 function showChapters(index) {
   const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
   const items = $('picker-items'); items.replaceChildren(); items.className = 'chapters';
@@ -479,3 +494,18 @@ async function saveGroups(next,discardRecordings) {
 globalThis.RelayF9?.init({text:()=>({title,verses:lines,pageStarts,chapters,books}),locked:()=>locked(),render:()=>render(),report:status,
   label:(start,end)=>{const ch=pageFor(start),base=chapterAt(ch).startVerse-pageStarts[ch];return `${base+start}–${base+end}`;},
   records:()=>RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1})),save:saveGroups});
+
+let toastTimer = null;
+function toast(msg) { const t = $('toast'); if (!t) return; t.textContent = msg; t.classList?.add?.('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList?.remove?.('show'), 1200); }
+// 시트 위치: 틀 고정 줄 바로 아래
+function sheetTop() { const r = document.getElementById('sticky')?.getBoundingClientRect?.(); if (r) document.documentElement?.style?.setProperty?.('--sheet-top', Math.round(r.bottom + 4) + 'px'); }
+['book-picker','people','settings'].forEach(id => { const d = $(id); const o = d.showModal?.bind(d); if (o) d.showModal = () => { sheetTop(); o(); }; });
+// 책 창 좌우 쓸기: 구약 ↔ 신약 (넘어가지 않음)
+{ let x0 = null; const it = $('picker-items');
+  it.addEventListener?.('touchstart', e => { x0 = e.touches[0].clientX; }, {passive: true});
+  it.addEventListener?.('touchend', e => { if (x0 === null || it.className !== 'books') return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 60) setBookSide(bookSide + (dx < 0 ? 1 : -1)); }); }
+// ⑥ 절 블록 좌우 쓸기
+{ let x0 = null; const c = $('center');
+  c.addEventListener?.('touchstart', e => { x0 = e.touches[0].clientX; gridSwiped = false; e.stopPropagation(); }, {passive: true});
+  c.addEventListener?.('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; e.stopPropagation();
+    if (Math.abs(dx) > 30) { gridSwiped = true; setTimeout(() => { gridSwiped = false; }, 300); const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length; const bands = Math.max(1, Math.ceil((to - from) / 20)); const nb = gridBand + (dx < 0 ? 1 : -1); if (nb >= 0 && nb < bands) { gridBand = nb; gridManual = true; drawProgress(); } } }); }
