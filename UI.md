@@ -1,11 +1,17 @@
-# 화면 연결 (1차)
+# 화면 연결
 
-`index.html#url=인코딩한_웹앱주소&key=인코딩한_공유키` 링크로 접속하면 이 폰 브라우저에 연결 정보를 기억하고 주소의 fragment를 제거한다. 각 값은 `encodeURIComponent`로 인코딩. 웹 앱 주소는 `https://script.google.com/macros/s/배포ID/exec` 형식만 허용. 링크와 키는 그룹 안에서만 안전하게 전달. 키는 브라우저 localStorage에 저장되므로 공용 기기에서는 **연결 지우고 시험 모드** 사용. 이름은 별도 기억.
+`index.html#url=인코딩한_웹앱주소&key=인코딩한_공유키` 링크로 접속하면 이 폰에 연결 정보를 기억하고 fragment를 지운다. 값은 각각 `encodeURIComponent`로 인코딩. 주소는 `https://script.google.com/macros/s/배포ID/exec` 형식. 링크와 키는 그룹 안에서만 전달. 키는 localStorage에 저장되므로 공용 기기에서는 **연결 지우고 시험 모드** 사용. 이름도 폰에 기억.
 
-주소·키 없으면 기존 폰 안의 시험 모드. 공유 연결 시 현재는 **본문·녹음 목록 조회만** 가능하며 녹음·재생 버튼은 비활성화한다. 잘못된 키/통신 오류는 연결 실패로 표시하며 시험 모드로 몰래 전환하지 않는다. 서버의 빈 본문도 그대로 표시한다.
+공유 모드: 본문·목록 조회, 꾹 누르고 녹음 → 확인 시 업로드, 절 클릭 재생, 재녹음 교체, 녹음된 절만 이어듣기. 본문 편집은 첫 줄 제목, 나머지는 빈 줄로 절 구분. 화면의 **기존 녹음 삭제 동의**에 체크해야 저장 가능.
 
-다음 작업: 공유 녹음 업로드/재녹음, getAudio 재생·이어듣기, 본문 편집과 녹음 삭제 확인. API 호출은 storage.js의 RelayStorage.request에 모은다. revision 충돌 처리 필요.
+주소·키 없으면 폰 안 시험 모드. 시험 녹음·본문 편집은 새로고침 시 사라진다. 공유 통신 실패를 시험 저장으로 처리하지 않는다. 업로드 실패 시 임시 녹음을 유지하므로 재시도 가능. 시간 초과는 서버 저장 여부가 불확실하므로 취소 후 목록 새로고침으로 확인. 본문 버전 충돌 시 임시 녹음을 취소하고 새로고침. 다른 사람이 같은 절을 녹음하면 마지막 저장이 적용된다.
+
+API 호출은 storage.js, 화면/녹음 제어는 ui.js. 음성은 서버에서 Base64로 받아 일시적인 Blob URL로 재생하며 Drive 공개 공유 불필요. webm/ogg 미지원 브라우저는 녹음을 차단. 마이크는 HTTPS 필요.
 
 검증:
-- `node --test tests/storage.test.cjs`: 연결 정보 검증, fragment 삭제, 이름 기억, POST 계약, revision 재조회, 인증 오류.
-- `node tests/ui-smoke.cjs`: Playwright와 Chromium 설치된 환경에서 화면 모의 smoke test. 실제 Google 배포의 CORS/마이크/폰 재생 검증은 별도 필요.
+- `node tests/storage.test.cjs`: 2개 API/연결 테스트
+- `node tests/ui.test.cjs`: 2개 모의 화면/녹음 테스트
+- `node apps-script/Code.test.cjs`: 2개 서버 모의 테스트
+- `node tests/ui-smoke.cjs`: Playwright와 Chromium 설치 시 실행. 현재 Chromium 다운로드 도메인 정책 차단으로 미실행.
+
+실제 배포 후 폰 2대에서 녹음→다른 폰 조회·재생→교체→이어듣기, 본문 삭제 확인, CORS/마이크 권한을 확인해야 한다. 모의 테스트는 실제 브라우저·Google 권한 검증을 대신하지 않는다.
