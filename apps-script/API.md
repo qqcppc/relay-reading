@@ -26,8 +26,8 @@ if (!result.ok) throw new Error(result.error.message);
 
 | action | 추가 요청 필드 | 성공 data |
 | --- | --- | --- |
-| getText | 없음 | `{title, verses: ["첫 절", "둘째 절"], revision}` |
-| saveText | `title`, `verses` 문자열 배열, `revision` | 새 본문 객체 |
+| getText | 없음 | `{title, verses: ["첫 줄", "둘째 줄"], pageStarts: [0], revision}` |
+| saveText | `title`, `verses` 문자열 배열, `pageStarts`(선택), `revision` | 새 본문 객체 |
 | listRecordings | 없음 | `{revision, recordings: [{verse, readerName, playbackUrl, recordedAt}]}` |
 | uploadRecording | `revision`, `verse`, `readerName`, `mimeType`, `audioBase64` | 녹음 객체(위 목록의 항목과 동일) |
 | getAudio | `revision`, `verse` | `{mimeType, audioBase64}` |
@@ -70,3 +70,11 @@ audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호�
 `CONFLICT` 본문 버전 변경 · `NOT_FOUND` 미녹음 절 · `BUSY` 잠시 후 재시도 ·
 `NOT_CONFIGURED` 서버 설정 누락 · `INTERNAL_ERROR` Drive/서버 오류.
 실패·시간 초과 시 자동으로 업로드 성공으로 처리하지 말고 목록을 재조회한다.
+
+## 여러 페이지 (2026-10-23)
+
+`verses`는 전체 페이지의 줄을 순서대로 이어 붙인 배열이다. 녹음 `verse`는 이 배열의 **1부터 시작하는 전체 줄 번호**를 유지한다. `pageStarts`는 각 페이지 첫 줄의 **0부터 시작하는 배열 위치**다. 예: 4줄씩 4페이지는 `[0,4,8,12]`.
+
+`saveText`에 `pageStarts`를 보내면 저장하고 `getText`와 저장 응답에서 반환한다. 첫 값 0, 엄격한 오름차순 정수, 모든 값은 `verses.length` 미만이어야 한다. 생략한 구형 요청/기존 저장 데이터는 `[0]`(전체 한 페이지)로 처리한다. 빈 초기 본문도 `[0]`이다. 페이지 경계 변경도 본문 저장이므로 revision 변경·기존 녹음 초기화가 적용된다.
+
+이번 페이지 기능을 공유 모드에서 사용하기 전에 최신 Code.gs로 웹 앱 새 버전 배포 필요. 구형 서버는 pageStarts를 보존하지 못한다.

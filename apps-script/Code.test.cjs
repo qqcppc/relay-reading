@@ -69,3 +69,14 @@ test('인증·형식 검사, GET 쓰기 거부', () => {
   assert.equal(s.context.doGet({ parameter: { action: 'getText', key: 'test-key' } }).ok, true);
   assert.equal(s.call({ action: 'saveText', revision: '0', title: ' ', verses: ['a'] }).error.code, 'INVALID_REQUEST');
 });
+
+test('페이지 경계 저장·조회와 잘못된 경계 거부, 구형 요청 호환', () => {
+  const s = server();
+  for (const pageStarts of [[1], [0, 0], [0, 3], [0, -1], [0, 1.5]]) {
+    assert.equal(s.call({action:'saveText',revision:'0',title:'제목',verses:['a','b','c'],pageStarts}).error.code,'INVALID_REQUEST');
+  }
+  const text=s.call({action:'saveText',revision:'0',title:'제목',verses:['a','b','c'],pageStarts:[0,2]}).data;
+  assert.deepEqual(text.pageStarts,[0,2]);
+  assert.deepEqual(s.call({action:'getText'}).data.pageStarts,[0,2]);
+  assert.deepEqual(s.call({action:'saveText',revision:text.revision,title:'구형',verses:['a']}).data.pageStarts,[0]);
+});

@@ -65,6 +65,8 @@
         const text = await request('getText');
         const list = await request('listRecordings');
         if (text.revision !== list.revision) continue;
+        const starts = text.pageStarts || [0];
+        if (!Array.isArray(starts) || !starts.length || starts[0] !== 0 || starts.some((v,i) => !Number.isInteger(v) || v < 0 || (text.verses?.length ? v >= text.verses.length : v !== 0) || (i > 0 && v <= starts[i-1]))) throw new Error('페이지 정보 오류');
         if (typeof text.title !== 'string' || !Array.isArray(text.verses) || !text.verses.every(v=>typeof v === 'string') || !Array.isArray(list.recordings)) throw new Error('서버 응답 형식 오류');
         return {text, recordings: list.recordings};
       }

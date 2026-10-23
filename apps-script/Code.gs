@@ -72,8 +72,14 @@ function dispatch_(request) {
       if (JSON.stringify({ title: title, verses: verses }).length > 500000) {
         fail_('INVALID_REQUEST', '본문 크기 초과');
       }
+      var pageStarts = request.pageStarts === undefined ? [0] : request.pageStarts;
+      if (!Array.isArray(pageStarts) || !pageStarts.length || pageStarts[0] !== 0 ||
+          pageStarts.some(function (start, index) {
+            return !Number.isInteger(start) || start < 0 || start >= verses.length ||
+              (index > 0 && start <= pageStarts[index - 1]);
+          })) fail_('INVALID_REQUEST', '페이지 시작 위치 오류');
       var previous = state.recordings;
-      state = { title: title, verses: verses, revision: Utilities.getUuid(), recordings: {} };
+      state = { title: title, verses: verses, pageStarts: pageStarts, revision: Utilities.getUuid(), recordings: {} };
       persist_(folder, properties, stateFile, state);
       Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });
       return text_(state);
@@ -137,7 +143,7 @@ function trash_(fileId) {
 }
 
 function text_(state) {
-  return { title: state.title, verses: state.verses, revision: state.revision };
+  return { title: state.title, verses: state.verses, pageStarts: state.pageStarts || [0], revision: state.revision };
 }
 
 function recording_(value) {

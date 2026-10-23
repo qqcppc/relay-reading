@@ -15,12 +15,12 @@ const assert=require('node:assert/strict');
  await page.locator('#reader').fill('영희');await page.locator('#identity button').click();
  await page.reload();assert.equal(await page.locator('#reader').inputValue(),'영희');
  await page.goto('https://relay.test/index.html#'+new URLSearchParams({url:'https://script.google.com/macros/s/test/exec',key:'test-key'}));
- await page.waitForFunction(()=>document.querySelector('#heading').textContent==='공유 제목' && !document.querySelector('#hold').disabled);
- assert.equal(new URL(page.url()).hash,'');assert.equal(await page.locator('#hold').isDisabled(),false);
+ await page.waitForFunction(()=>document.querySelector('#heading').textContent==='공유 제목' && !document.querySelector('#save-text').disabled);
+ assert.equal(new URL(page.url()).hash,'');assert.equal(await page.locator('#stop-record').isVisible(),false);
  assert.match(await page.locator('.tag').textContent(),/민수/);
- await page.reload();await page.waitForFunction(()=>document.querySelector('#heading').textContent==='공유 제목' && !document.querySelector('#hold').disabled);
+ await page.reload();await page.waitForFunction(()=>document.querySelector('#heading').textContent==='공유 제목' && !document.querySelector('#save-text').disabled);
  await page.locator('#disconnect').click();await page.waitForFunction(()=>document.querySelectorAll('.line').length===4);
- assert.equal(await page.locator('#hold').isDisabled(),false);assert.deepEqual(errors,[]);
+ assert.equal(await page.locator('#stop-record').isVisible(),false);assert.deepEqual(errors,[]);
  console.log('PASS: trial, name persistence, shared reads, fragment clearing, reload, disconnect');
  }finally{await browser.close()}
 })().catch(err=>{console.error(err);process.exitCode=1});

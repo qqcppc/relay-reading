@@ -12,25 +12,27 @@ function setup(){
  }};
  class Recorder{static isTypeSupported(){return true}constructor(){this.mimeType='audio/webm';this.state='inactive'}start(){this.state='recording'}stop(){this.state='inactive';this.ondataavailable({data:new Blob(['voice'])});this.onstop()}}
  class Reader{readAsDataURL(){this.result='data:audio/webm;base64,dm9pY2U=';this.onload()}}
- const ctx=vm.createContext({requestAnimationFrame: fn => fn(),console,Blob,Uint8Array,atob,FileReader:Reader,MediaRecorder:Recorder,Audio:Element,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},RelayStorage:api,document:{getElementById:$,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){released=true}}]})}},location:{},history:{}});
+ const ctx=vm.createContext({setTimeout,clearTimeout,requestAnimationFrame: fn => fn(),console,Blob,Uint8Array,atob,FileReader:Reader,MediaRecorder:Recorder,Audio:Element,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},RelayStorage:api,document:{getElementById:$,createElement:()=>new Element(),addEventListener(){}},window:{addEventListener(){}},navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){released=true}}]})}},location:{},history:{}});
  vm.runInContext(fs.readFileSync('ui.js','utf8'),ctx);
  return {$,ctx,uploads,reads,setFailure:v=>failUpload=v,setConflict:v=>conflict=v,released:()=>released};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 test('공유 녹음 저장·교체·실패 보존·재생 및 본문 삭제 동의',async()=>{
- const s=setup();await tick();s.$('reader').value='민수';assert.equal(s.$('hold').disabled,false);
- await s.$('hold').listeners.pointerdown({preventDefault(){}});s.$('hold').listeners.pointerup();
+ const s=setup();await tick();s.$('reader').value='민수';assert.equal(s.$('stop-record').hidden,true);
+ await s.ctx.start({preventDefault(){}});assert.equal(s.$('review').hidden,true);s.$('stop-record').onclick();
  assert.equal(s.released(),true);assert.equal(s.$('review').hidden,false);
  s.setFailure(true);await s.$('ok').onclick();assert.equal(s.$('review').hidden,false);
  s.setFailure(false);await s.$('ok').onclick();assert.equal(s.$('review').hidden,true);
  assert.equal(s.uploads[0].revision,'r1');assert.equal(s.uploads[0].verse,1);assert.equal(s.uploads[0].audioBase64,'dm9pY2U=');
  await s.$('list').children[0].onclick();await tick();assert.equal(s.reads[0].verse,1);
- await s.$('hold').listeners.pointerdown({preventDefault(){}});s.$('hold').listeners.pointerup();await s.$('ok').onclick();assert.equal(s.uploads.at(-1).verse,1);
+ await s.ctx.start({preventDefault(){}});assert.equal(s.$('review').hidden,true);s.$('stop-record').onclick();await s.$('ok').onclick();assert.equal(s.uploads.at(-1).verse,1);
  s.$('text-input').value='새 제목\n첫 문단\n이어지는 줄\n\n둘째 문단';await s.$('save-text').onclick();assert.match(s.$('st').textContent,/동의/);
  s.$('erase-confirm').checked=true;await s.$('save-text').onclick();assert.equal(s.$('heading').textContent,'새 제목');assert.equal(s.$('list').children.length,2);
 });
-test('권한 대기 중 손을 떼면 녹음 시작 안 함; 충돌은 새로고침 요구',async()=>{
+test('카드 길게 누름 후 손 떼도 녹음 유지; 페이지 편집·충돌 처리',async()=>{
  const s=setup();await tick();s.$('reader').value='민수';
- const start=s.$('hold').listeners.pointerdown({preventDefault(){}});s.$('hold').listeners.pointerup();await start;assert.equal(s.$('review').hidden,true);assert.equal(s.released(),true);
- s.setConflict(true);s.$('text-input').value='새 제목\n새 절';s.$('erase-confirm').checked=true;await s.$('save-text').onclick();assert.match(s.$('st').textContent,/본문이 변경됨/);assert.equal(s.$('hold').disabled,true);assert.equal(s.$('refresh').disabled,false);
+ const card=s.$('list').children[0];card.listeners.pointerdown({clientX:0,clientY:0,button:0});await new Promise(r=>setTimeout(r,480));card.listeners.pointerup();
+ assert.equal(s.$('stop-record').hidden,false);assert.equal(s.$('review').hidden,true);s.$('stop-record').onclick();assert.equal(s.$('review').hidden,false);s.$('no').onclick();
+ const parsed=s.ctx.parsePages('첫 줄\n\n둘째 줄\n\n---\n\n셋째 줄');assert.equal(parsed.verses.length,3);assert.equal(parsed.pageStarts.join(','),'0,2');
+ s.setConflict(true);s.$('text-input').value='새 제목\n새 절';s.$('erase-confirm').checked=true;await s.$('save-text').onclick();assert.match(s.$('st').textContent,/본문이 변경됨/);assert.equal(s.$('save-text').disabled,true);assert.equal(s.$('refresh').disabled,false);
 });
