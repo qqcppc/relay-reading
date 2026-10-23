@@ -34,7 +34,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} #29`; $('tb-ch').textContent = chapter.title; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = chapter.title; $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
@@ -380,6 +380,7 @@ if (!RelayStorage.connected) {
     const run = 1 + (k % 3 === 0 ? 1 : 0); const who = order[k % order.length];
     for (let r = 0; r < run && i < pageStarts[10]; r++, i++) if (who) local.set(i, {demo: true, readerName: who});
   }
+  for (let i = pageStarts[1]; i < pageStarts[2]; i++) if (!local.has(i)) local.set(i, {demo: true, readerName: ['민지', '도윤', '하늘'][i % 3]});
   selected = lines.findIndex((_, i) => !local.has(i)); page = pageFor(selected); render();
 }
 function showPeople() {
