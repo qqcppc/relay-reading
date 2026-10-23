@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
-<link rel="stylesheet" href="settings.css?v=30">
-<script src="features.js?v=30"></script>
-<script src="settings.js?v=30"></script>
+<link rel="stylesheet" href="settings.css?v=32">
+<script src="features.js?v=32"></script>
+<script src="settings.js?v=32"></script>
 <style>
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
 .line{box-sizing:border-box;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:10px}
@@ -152,7 +152,7 @@ body.modal-open{overflow:hidden}
 <div id="f1-connection" hidden><label class="fld">연결 주소<input id="f1-url" type="url" placeholder="https://script.google.com/…/exec" autocomplete="off"></label><label class="fld">공유키<input id="f1-key" type="password" autocomplete="off"></label><div class="row"><button id="f1-connect" type="button">연결</button><button id="f1-disconnect" type="button">해제</button></div><button id="f1-text" type="button">본문 편집</button><output id="f1-status" role="status"></output></div>
 <label class="feature-toggle"><span>F2 잠금·본인 재녹음</span><input id="feature-f2" type="checkbox" role="switch"></label>
 <label class="feature-toggle"><span>F3 앱·초대</span><input id="feature-f3" type="checkbox" role="switch"></label>
-<div id="f3-actions" hidden><button id="f3-install" type="button">홈 화면에 추가</button><output id="f3-install-status" role="status"></output></div><output id="feature-status" role="status"></output></fieldset></dialog>
+<div id="f3-actions" hidden><button id="f3-install" type="button">홈 화면에 추가</button><output id="f3-install-status" role="status"></output></div><label class="feature-toggle" data-n="21"><span>F4 이어 말하기</span><input id="feature-f4" type="checkbox" role="switch"></label><output id="feature-status" role="status"></output></fieldset></dialog>
 <dialog id="book-picker" aria-labelledby="picker-title"><div id="picker-head"><button id="picker-back" type="button" hidden aria-label="책 목록" data-n="17">◀</button><h2 id="picker-title">책</h2><button id="picker-close" type="button" hidden aria-label="닫기">✕</button></div><div id="picker-tabs" class="segments" data-n="18"></div><div id="picker-items" data-n="19"></div></dialog>
 <p id="connection" role="status" hidden>폰 안에서만 도는 시험 모드 · 새로고침하면 녹음 삭제</p>
 <div class="row"><button id="refresh" hidden>공유 본문·목록 새로고침</button><button id="disconnect" hidden>연결 지우고 시험 모드</button></div>
@@ -170,8 +170,9 @@ body.modal-open{overflow:hidden}
   <div class="row"><button id="ok" aria-label="확인" data-n="10"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><button id="listen" aria-label="듣기" data-n="11"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg></button><button id="no" aria-label="취소" data-n="12"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
 </div>
 
-<script src="storage.js?v=30"></script>
-<script src="f2-locks.js?v=30"></script>
-<script src="f3-app.js?v=30"></script>
-<script src="ui.js?v=30"></script>
+<script src="storage.js?v=32"></script>
+<script src="f2-locks.js?v=32"></script>
+<script src="f3-app.js?v=32"></script>
+<script src="f4-continuation.js?v=32"></script>
+<script src="ui.js?v=32"></script>
 </body></html>
