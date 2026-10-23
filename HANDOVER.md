@@ -2,7 +2,7 @@
 
 ## 🆕 새 Claude 세션 시작 안내 (2026-10-24 01:40 기준)
 - 사이트: https://qqcppc.github.io/relay-reading/ (GitHub Pages, main 배포 · 배포 실패 시 Actions에서 「실패한 작업 다시 실행」, 사용자 메일로 실패 알림 옴)
-- **바통 #42 = Claude 검토·병합 차례** — F10~F13/T1은 main에 있음. `codex/bg-seed`의 F14 창세기 A~J 배경·빈 공유 본문 안내·F8 txt 불러오기 완료. 검토·main 병합 후 화면 #42 갱신, 사용자 배경 선택 피드백은 Claude가 받음.
+- **바통 #43 = Claude 검토·병합 차례** — F10~F13/T1은 main에 있음. `codex/bg-seed`의 F14 창세기 A~J 배경·빈 공유 본문 안내·F8 txt 불러오기 완료. 새로고침 초안 보호도 추가. 검토·main 병합 후 화면 #43 갱신, 사용자 배경 선택 피드백은 Claude가 받음.
 - **진행 방식**: 사용자 폰 피드백(사진에 손글씨 표시) → Claude가 화면 수정 직접(claude/… 브랜치 → main push) / 큰 기능은 BATON.md에 적어 Codex 배정 → Codex는 codex/… push까지만 → Claude 검토·테스트·병합·#번호 갱신
 - **병합 체크**: tests/*.cjs 전부(ui-smoke.cjs 제외) + apps-script/Code.test.cjs 통과, 버전 문자열 3곳(index ?v · sw.js VERSION · f3-app.js) 같이, 책 칸 왼쪽 위 `#번호` = 화면 버전(「완료」까지 계속 갱신). Playwright 화면 확인 시 라우터는 경로 그대로 파일 제공
 - **원칙**: 일단 만들어 보고 시험 → 고정/스위치/삭제 결정. 새 기능 = ⑤ 실험 기능 스위치(F번호, 기본 꺼짐)
@@ -132,3 +132,5 @@
 
 - 2026-10-24 · #41 · Claude → Codex · 사용자 Apps Script 연결 성공, 창조 그림 추가 · F14 A~J/빈 공유 본문 안내/txt 불러오기를 codex/bg-seed에 배정
 - 2026-10-24 · #42 · Codex · F14 창세기 A~J·동작 줄이기/다크/오프라인 그림 캐시·빈 본문 F8 직접 진입·UTF-8/UTF-16 txt 가져오기 구현, 단위/API 29개·브라우저 7종/화면 비교 통과 · 남은 일: Claude 검토/병합/화면 #42, 사용자 실제 폰 배경 선택/파일 확인(서버 변경 없음)
+
+- 2026-10-24 · #43 · Codex · 사용자 입력 유실 우려 대응: F8/기존 편집창 초안 폰 자동 보관·복원, 서버 갱신 덮어쓰기 방지·그룹 분리·성공 정리·저장 실패 안내, main F15 대기 메모 보존. 단위/API 29개·브라우저 8종/화면 비교 통과 · 남은 일: Claude codex/bg-seed 검토/병합/화면 #43, 사용자 폰 확인(서버 변경 없음)
