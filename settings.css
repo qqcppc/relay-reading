@@ -82,3 +82,5 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 #f11-list{padding-left:18px;font-size:.8rem}#f11-list li{display:flex;gap:8px;align-items:center;margin:6px 0}#f11-list span{flex:1}
 
 #f12-controls output{display:block;font-size:.8rem;margin:6px 0}#f12-download{padding:10px;color:var(--blue)}
+
+#f13-controls{margin-top:12px}#f13-text{width:100%;box-sizing:border-box;font:inherit;font-size:.85rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px}#f13-status{display:block;font-size:.8rem}

@@ -75,7 +75,7 @@ function render() {
   if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent='⚠';$('f7-warning').title=warning;$('f7-warning').setAttribute('aria-label',warning);$('f7-warning').onclick=()=>status(warning);$('f7-warning').hidden=!warning;}
   if($('f10-compare')){$('f10-compare').hidden=!draft || !globalThis.RelayF10?.enabled();$('f10-status').textContent=draft?.trimChecking?'무음 확인 중':draft?.trimMessage||'';for(const id of ['f10-original','f10-trimmed'])$(id).disabled=busy||!!draft?.trimChecking; $('f10-trimmed').hidden=!draft?.trimChanged;}
   globalThis.RelayF5?.paint();globalThis.RelayF9?.paint();
-  drawProgress();globalThis.RelayF12?.paint();
+  drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
   controls();
@@ -476,11 +476,12 @@ const DEMO_GOALS = {민지: 120, 도윤: 100, 하늘: 40};
 let myGoal = 100;
 try { myGoal = Number(localStorage.getItem('relay.goal')) || 100; } catch {}
 function showPeople() {
+  globalThis.RelayF13?.paint();
   const list = $('people-list'); list.replaceChildren();
   const counts = new Map(); const me = $('reader').value.trim();
   if (!RelayStorage.connected) DEMO_PEOPLE.forEach(n => counts.set(n, 0));
-  const all = RelayStorage.connected ? recordings : [...local.values()];
-  all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + 1));
+  const all = RelayStorage.connected ? recordings : [...local].map(([index,item])=>({...item,verse:index+1}));
+  all.forEach(r => counts.set(r.readerName, (counts.get(r.readerName) || 0) + (r.endVerse??r.verse)-r.verse+1));
   const mine = counts.get(me) || 0;
   $('me-count').textContent = `${mine}절 / ${myGoal}절`; $('me-chip').style.setProperty?.('--pc', personColor(me));
   $('me-chip').style.setProperty?.('--pct', Math.min(100, Math.round(mine / myGoal * 100)) + '%');
@@ -492,7 +493,7 @@ function showPeople() {
     const b = document.createElement('b'); b.textContent = name; li.append(b); list.append(li);
   });
 }
-$('me-count').onclick = () => { const v = prompt('내 목표 절 수', String(myGoal)); const n = Math.round(Number(v)); if (n > 0) { myGoal = n; try { localStorage.setItem('relay.goal', n); } catch {} showPeople(); } };
+$('me-count').onclick = () => { const v = prompt('내 목표 절 수', String(myGoal)); const n = Math.round(Number(v)); if (n > 0) { myGoal = n; try { localStorage.setItem('relay.goal', n); } catch {} showPeople();globalThis.RelayF13?.paint(); } };
 $('reader').addEventListener('input', showPeople);
 function nameView() { $('me-name').textContent = $('reader').value.trim(); $('me-name').hidden = false; $('reader').hidden = true; $('me-ok').hidden = true; }
 $('me-name').onclick = () => { $('me-name').hidden = true; $('reader').hidden = false; $('me-ok').hidden = false; $('reader').focus?.(); };
@@ -580,3 +581,5 @@ globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;contro
   snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
   audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
 });
+
+globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});
