@@ -33,7 +33,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #23`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = `${bookAt(page).title} ${chapter.title}`; $('ver-sub').textContent = `${chapter.startVerse}~${endVerse}절 · #25`;
   review.remove();
   $('list').replaceChildren();
   lines.forEach((text, i) => {
