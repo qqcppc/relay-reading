@@ -56,3 +56,4 @@
 - 2026-10-23 · Codex · apps-script API 명세·Drive 저장/교체·본문 API·배포 안내 구현, 로컬 모의 테스트 2개 통과 · 남은 일: 사용자 Apps Script 배포, Claude 화면 연동 및 실제 폰 재생/CORS 확인
 - 2026-10-23 · Claude(설정) → Codex · 저장소 준비(index.html 시험판, HANDOVER/AGENTS/CLAUDE.md, 바통 체계) · 인계: 저장 쪽만 작업
 - 2026-10-23 · Codex · BATON.md 차례를 Claude로 넘김, 최신 main 병합 · 남은 일: Claude PR 검토·합치기, 화면 연동 계획, 사용자 배포 후 실기기 검증
+- 2026-10-23 · Codex · codex/storage에서 apps-script API 계약·Drive 저장/교체·본문 저장/조회·한글 배포 안내 및 모의 테스트 구현 · 남은 일: 사용자 웹 앱 배포, Claude 화면 API 연결, 폰 2대 재생 확인

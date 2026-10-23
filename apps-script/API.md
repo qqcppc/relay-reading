@@ -1,49 +1,72 @@
 # 화면 ↔ 저장 API
 
-단일 본문을 공유한다. 절 번호 `verse`는 **1부터 시작**한다. 본문 수정 시 기존 녹음은 전부 삭제한다(절 번호가 달라지는 문제 방지). 제목/절 내용이 같으면 유지한다.
+웹 앱 `/exec` 사용. 한 배포는 본문 하나를 관리한다. 절 번호는 1부터 시작한다.
+모든 응답은 JSON: 성공 `{ "ok": true, "data": ... }`, 실패
+`{ "ok": false, "error": { "code": "INVALID_REQUEST", "message": "..." } }`.
+HTTP 상태 대신 `ok`를 반드시 확인한다. 시각은 UTC ISO 8601 문자열.
 
-## 호출
+## 요청
 
-웹 앱 `/exec` 주소 사용. GET은 URL 쿼리, POST는 JSON 문자열을 **`Content-Type: text/plain;charset=utf-8`** 로 전송한다. Apps Script는 JSON Content-Type의 CORS 사전 요청을 처리하지 못하므로 text/plain 사용. 리다이렉트를 따라가고 응답 JSON의 `ok`를 확인한다(오류도 HTTP 200).
+GET: `/exec?action=getText&key=공유키` 또는 `action=listRecordings`.
+POST: JSON 문자열을 **text/plain;charset=utf-8**로 전송한다. 인증 헤더나
+application/json은 사용하지 않는다(브라우저 사전 요청 방지). 읽기도 POST 가능.
+`key`는 배포자가 정한 소그룹 공유키이며 저장소에 커밋하지 않는다. GET URL에는
+키가 남으므로 화면에서는 POST 권장. 공유키를 아는 사람은 모두 읽기·쓰기 가능.
 
-- 성공: `{"ok":true,"data": ...}`
-- 실패: `{"ok":false,"error":{"code":"INVALID_REQUEST","message":"..."}}`
-- 오류 코드: `INVALID_REQUEST`, `UNAUTHORIZED`, `NOT_FOUND`, `BUSY`, `NOT_CONFIGURED`, `INTERNAL_ERROR`
-- 모든 요청에 공유 암호 `token` 필요. GET은 쿼리, POST는 본문에 포함. 공개 저장소/소스에 암호를 넣지 말고 사용자 입력으로 받는다. GET URL에 암호가 포함되므로 링크 공유/로그에 주의. 조회도 POST로 가능.
-
-## 본문
-
-GET `?action=getText&token=...`
-
-```json
-{"ok":true,"data":{"title":"애국가","verses":["동해 물과 백두산이","마르고 닳도록"],"updatedAt":"2026-10-23T00:00:00.000Z"}}
+```js
+const result = await fetch(API_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+  body: JSON.stringify({ action: 'getText', key: groupKey })
+}).then(r => r.json());
+if (!result.ok) throw new Error(result.error.message);
 ```
 
-처음에는 `title: ""`, `verses: []`, `updatedAt: null`.
+리디렉션은 기본 설정대로 따른다. `mode: 'no-cors'`는 응답을 읽지 못하므로 금지.
 
-POST `{"action":"saveText","token":"...","title":"애국가","verses":["동해 물과 백두산이","마르고 닳도록"]}` → 저장된 본문 반환. 제목 200자, 절 1~500개, 절당 5,000자, 전체 JSON UTF-8 200KB 이하. 빈 제목/절 거부.
+| action | 추가 요청 필드 | 성공 data |
+| --- | --- | --- |
+| getText | 없음 | `{title, verses: ["첫 절", "둘째 절"], revision}` |
+| saveText | `title`, `verses` 문자열 배열, `revision` | 새 본문 객체 |
+| listRecordings | 없음 | `{revision, recordings: [{verse, readerName, playbackUrl, recordedAt}]}` |
+| uploadRecording | `revision`, `verse`, `readerName`, `mimeType`, `audioBase64` | 녹음 객체(위 목록의 항목과 동일) |
+| getAudio | `revision`, `verse` | `{mimeType, audioBase64}` |
 
-## 녹음 저장/교체
+초기 본문은 `{title:"", verses:[], revision:"0"}`.
+저장·업로드·음성 조회는 마지막으로 읽은 `revision`을 보낸다.
+본문 저장은 **모든 절 녹음을 초기화**하고 이전 파일을 휴지통으로 옮긴다.
+본문 버전이 다르면 `CONFLICT`: 본문과 목록을 다시 조회한다.
+같은 절 업로드는 마지막으로 성공한 요청이 이기며 이전 파일은 휴지통으로 이동한다.
+목록은 녹음된 절만 절 번호순으로 반환한다.
 
-POST:
 ```json
-{"action":"uploadRecording","token":"...","verse":1,"reader":"민수","mimeType":"audio/webm;codecs=opus","audioBase64":"BASE64_ONLY"}
+{"action":"uploadRecording","key":"공유키","revision":"본문에서 받은 버전","verse":1,"readerName":"민수","mimeType":"audio/webm;codecs=opus","audioBase64":"BASE64_ONLY"}
 ```
 
-`audio/webm`, `audio/ogg` 및 codecs 매개변수 허용. Data URL 접두사 없이 base64만 전송. 디코딩된 파일 최대 10MiB. 읽은 사람 이름 80자 이하. 기존 본문의 절만 저장 가능. 같은 절은 마지막으로 완료된 업로드로 교체. 동시 쓰기는 서버 잠금으로 순차 처리. 교체된 Drive 파일은 휴지통으로 이동.
+`audioBase64`는 Data URL 접두사 없는 표준 Base64. webm/ogg만 허용하며
+`audio/webm`, `audio/ogg`와 `;codecs=opus` 같은 매개변수를 받는다.
+파일당 최대 5 MiB. 제목 200자, 이름 80자, 절 500개, 절당 10,000자,
+본문 전체 JSON 500,000자 이하. 빈 제목·이름·절은 거부한다.
 
-응답 `data`는 아래 목록의 녹음 항목 하나.
+## 재생
 
-## 녹음 목록
+`playbackUrl`은 Drive 파일 열기 주소다. 파일은 비공개이므로 배포자 계정의
+Drive 플레이어에서 확인할 때 사용한다. 익명 `<audio src>` 직접 재생용 주소가 아니다.
+**다른 폰의 화면 재생은 getAudio로 받아 Blob URL을 만든다.** Drive 공개 공유 불필요.
 
-GET `?action=listRecordings&token=...`
-```json
-{"ok":true,"data":{"recordings":[{"verse":1,"reader":"민수","playbackUrl":"https://script.google.com/macros/s/DEPLOYMENT/exec?action=getAudio&verse=1","recordedAt":"2026-10-23T00:00:00.000Z","mimeType":"audio/webm"}]}}
+```js
+// data는 getAudio 성공 응답의 data
+const bytes = Uint8Array.from(atob(data.audioBase64), c => c.charCodeAt(0));
+const url = URL.createObjectURL(new Blob([bytes], { type: data.mimeType }));
+audio.src = url; // 절 전환/목록 갱신 때 이전 URL.revokeObjectURL 호출
 ```
 
-절 번호 오름차순. 녹음 없는 절은 생략. `playbackUrl`은 **오디오 바이트가 아니라 JSON 음성 조회 주소**이며 암호는 포함하지 않는다. 이 주소에 `token` 쿼리를 추가해 조회하거나, 같은 웹 앱에 POST `{"action":"getAudio","token":"...","verse":1}` 호출.
+재녹음 후에는 getAudio를 다시 호출한다. 오래된 Blob URL은 자동 갱신되지 않는다.
+이어듣기는 listRecordings 순서대로 getAudio 후 재생한다.
 
-응답: `{"ok":true,"data":{"mimeType":"audio/webm","audioBase64":"..."}}`.
-화면에서 base64를 바이트 배열로 디코딩 → `new Blob([bytes], {type: mimeType})` → `URL.createObjectURL(blob)`을 `<audio src>`에 사용하고 사용 후 `URL.revokeObjectURL` 호출. Drive 파일은 비공개이고 직접 공개 다운로드 링크는 만들지 않는다. JSON 응답 주소를 `<audio src>`에 바로 넣으면 안 된다.
+## 오류
 
-POST로 조회할 때 `action`은 `getText`, `listRecordings`, `getAudio` 그대로 사용. JSONP 미지원. 암호를 아는 그룹원은 본문/녹음을 읽고 교체할 수 있으며 사용자별 권한/동시 녹음 예약은 이번 범위 밖.
+`UNAUTHORIZED` 공유키 오류 · `INVALID_REQUEST` 잘못된 JSON/필드/파일 ·
+`CONFLICT` 본문 버전 변경 · `NOT_FOUND` 미녹음 절 · `BUSY` 잠시 후 재시도 ·
+`NOT_CONFIGURED` 서버 설정 누락 · `INTERNAL_ERROR` Drive/서버 오류.
+실패·시간 초과 시 자동으로 업로드 성공으로 처리하지 말고 목록을 재조회한다.

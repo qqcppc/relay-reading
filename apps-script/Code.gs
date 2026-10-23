@@ -1,100 +1,159 @@
-/* Script properties: DRIVE_FOLDER_ID, API_TOKEN. Audio never leaves Drive except API reads. */
-var MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+/** One private Drive folder and one shared key per deployment. */
+var MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 
-function doGet(e) { return respond_(e && e.parameter || {}, false); }
+function doGet(e) {
+  return respond_(function () {
+    var request = (e && e.parameter) || {};
+    if (['getText', 'listRecordings'].indexOf(request.action) < 0) {
+      fail_('INVALID_REQUEST', 'GET은 본문·목록 조회만 가능함');
+    }
+    return dispatch_(request);
+  });
+}
+
 function doPost(e) {
-  try {
-    var raw = e && e.postData && e.postData.contents || '';
-    if (raw.length > 15 * 1024 * 1024) fail_('INVALID_REQUEST', '요청이 너무 큼');
-    return respond_(JSON.parse(raw), true);
-  } catch (err) { return error_(err); }
+  return respond_(function () {
+    var raw = e && e.postData && e.postData.contents;
+    if (!raw || raw.length > 7200000) fail_('INVALID_REQUEST', '요청 크기 초과 또는 빈 요청');
+    var request;
+    try { request = JSON.parse(raw); }
+    catch (_) { fail_('INVALID_REQUEST', 'JSON 형식 오류'); }
+    return dispatch_(request);
+  });
 }
-function respond_(request, writable) {
-  var lock;
+
+function respond_(operation) {
+  var result;
+  try { result = { ok: true, data: operation() }; }
+  catch (error) {
+    result = { ok: false, error: {
+      code: error.apiCode || 'INTERNAL_ERROR',
+      message: error.apiCode ? error.message : '저장 서버 오류. 배포자가 실행 기록 확인 필요'
+    } };
+  }
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function dispatch_(request) {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    fail_('INVALID_REQUEST', '요청 객체 필요');
+  }
+  var properties = PropertiesService.getScriptProperties();
+  var key = properties.getProperty('API_KEY');
+  var folderId = properties.getProperty('DRIVE_FOLDER_ID');
+  if (!key || !folderId) fail_('NOT_CONFIGURED', 'API_KEY와 DRIVE_FOLDER_ID 설정 필요');
+  if (request.key !== key) fail_('UNAUTHORIZED', '공유키 확인 필요');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) fail_('BUSY', '잠시 후 재시도');
   try {
-    if (!request || typeof request !== 'object' || Array.isArray(request)) fail_('INVALID_REQUEST', '요청 형식 오류');
-    var props = PropertiesService.getScriptProperties();
-    var token = props.getProperty('API_TOKEN');
-    var folderId = props.getProperty('DRIVE_FOLDER_ID');
-    if (!token || !folderId) fail_('NOT_CONFIGURED', '스크립트 속성 설정 필요');
-    if (request.token !== token) fail_('UNAUTHORIZED', '암호 확인 필요');
-    var action = request.action;
-    if (['getText', 'saveText', 'uploadRecording', 'listRecordings', 'getAudio'].indexOf(action) < 0) fail_('INVALID_REQUEST', '알 수 없는 action');
-    if (!writable && (action === 'saveText' || action === 'uploadRecording')) fail_('INVALID_REQUEST', 'POST 필요');
-    lock = LockService.getScriptLock();
-    if (!lock.tryLock(30000)) fail_('BUSY', '잠시 후 다시 시도');
     var folder = DriveApp.getFolderById(folderId);
-    var stateFile = stateFile_(folder);
-    var state = stateFile ? JSON.parse(stateFile.getBlob().getDataAsString('UTF-8')) : {text: {title: '', verses: [], updatedAt: null}, recordings: {}};
-    var result;
-    if (action === 'getText') result = state.text;
-    if (action === 'listRecordings') result = {recordings: Object.keys(state.recordings).map(function(key) { return metadata_(state.recordings[key]); }).sort(function(a, b) { return a.verse - b.verse; })};
-    if (action === 'getAudio') {
-      var recording = state.recordings[verse_(request.verse, state)];
-      if (!recording) fail_('NOT_FOUND', '녹음 없음');
-      result = {mimeType: recording.mimeType, audioBase64: Utilities.base64Encode(DriveApp.getFileById(recording.fileId).getBlob().getBytes())};
+    var fileId = properties.getProperty('STATE_FILE_ID');
+    var stateFile = fileId ? DriveApp.getFileById(fileId) : null;
+    var state = stateFile ? JSON.parse(stateFile.getBlob().getDataAsString('UTF-8')) : {
+      title: '', verses: [], revision: '0', recordings: {}
+    };
+    if (request.action === 'getText') return text_(state);
+    if (request.action === 'listRecordings') {
+      return { revision: state.revision, recordings: Object.keys(state.recordings)
+        .sort(function (a, b) { return Number(a) - Number(b); })
+        .map(function (verse) { return recording_(state.recordings[verse]); }) };
     }
-    if (action === 'saveText') {
-      var title = string_(request.title, 200);
-      if (!Array.isArray(request.verses) || !request.verses.length || request.verses.length > 500) fail_('INVALID_REQUEST', '절은 1~500개 필요');
-      var verses = request.verses.map(function(v) { return string_(v, 5000); });
-      var text = {title: title, verses: verses, updatedAt: new Date().toISOString()};
-      if (Utilities.newBlob(JSON.stringify(text)).getBytes().length > 200 * 1024) fail_('INVALID_REQUEST', '본문이 너무 큼');
-      var oldRecordings = state.recordings;
-      if (title !== state.text.title || JSON.stringify(verses) !== JSON.stringify(state.text.verses)) state.recordings = {};
-      state.text = text;
-      saveState_(folder, stateFile, state);
-      if (state.recordings !== oldRecordings) Object.keys(oldRecordings).forEach(function(key) { trash_(oldRecordings[key].fileId); });
-      result = text;
+    if (['saveText', 'uploadRecording', 'getAudio'].indexOf(request.action) < 0) {
+      fail_('INVALID_REQUEST', '지원하지 않는 action');
     }
-    if (action === 'uploadRecording') {
-      var verse = verse_(request.verse, state);
-      var reader = string_(request.reader, 80);
-      var mime = typeof request.mimeType === 'string' ? request.mimeType.split(';')[0].trim().toLowerCase() : '';
-      if (mime !== 'audio/webm' && mime !== 'audio/ogg') fail_('INVALID_REQUEST', 'webm/ogg만 지원');
-      var encoded = request.audioBase64;
-      if (typeof encoded !== 'string' || !encoded.length || encoded.length > Math.ceil(MAX_AUDIO_BYTES / 3) * 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) fail_('INVALID_REQUEST', 'base64 형식/크기 오류');
-      var bytes = Utilities.base64Decode(encoded);
-      if (!bytes.length || bytes.length > MAX_AUDIO_BYTES) fail_('INVALID_REQUEST', '녹음 크기 오류');
-      var file = folder.createFile(Utilities.newBlob(bytes, mime, 'verse-' + verse + '-' + Utilities.getUuid() + (mime === 'audio/webm' ? '.webm' : '.ogg')));
-      var old = state.recordings[verse];
-      var item = {verse: verse, reader: reader, mimeType: mime, recordedAt: new Date().toISOString(), fileId: file.getId()};
-      state.recordings[verse] = item;
-      try { saveState_(folder, stateFile, state); } catch (err) { trash_(file.getId()); throw err; }
-      if (old) trash_(old.fileId);
-      result = metadata_(item);
+    if (request.revision !== state.revision) fail_('CONFLICT', '본문을 다시 조회한 뒤 재시도');
+    if (request.action === 'saveText') {
+      var title = string_(request.title, 200, '제목');
+      if (!Array.isArray(request.verses) || !request.verses.length || request.verses.length > 500) {
+        fail_('INVALID_REQUEST', '절은 1~500개 필요');
+      }
+      var verses = request.verses.map(function (v) { return string_(v, 10000, '절'); });
+      if (JSON.stringify({ title: title, verses: verses }).length > 500000) {
+        fail_('INVALID_REQUEST', '본문 크기 초과');
+      }
+      var previous = state.recordings;
+      state = { title: title, verses: verses, revision: Utilities.getUuid(), recordings: {} };
+      persist_(folder, properties, stateFile, state);
+      Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });
+      return text_(state);
     }
-    return json_({ok: true, data: result});
-  } catch (err) { return error_(err); }
-  finally { if (lock) lock.releaseLock(); }
+    var verse = request.verse;
+    if (!Number.isInteger(verse) || verse < 1 || verse > state.verses.length) {
+      fail_('INVALID_REQUEST', '현재 본문의 절 번호 필요');
+    }
+    var old = state.recordings[verse];
+    if (request.action === 'getAudio') {
+      if (!old) fail_('NOT_FOUND', '아직 녹음하지 않은 절');
+      return { mimeType: old.mimeType,
+        audioBase64: Utilities.base64Encode(DriveApp.getFileById(old.fileId).getBlob().getBytes()) };
+    }
+    var readerName = string_(request.readerName, 80, '읽은 사람 이름');
+    var mime = typeof request.mimeType === 'string' ? request.mimeType.split(';')[0].trim().toLowerCase() : '';
+    if (['audio/webm', 'audio/ogg'].indexOf(mime) < 0) fail_('INVALID_REQUEST', 'webm/ogg만 지원');
+    var encoded = request.audioBase64;
+    if (typeof encoded !== 'string' || !encoded.length ||
+        encoded.length > 4 * Math.ceil(MAX_AUDIO_BYTES / 3) ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) {
+      fail_('INVALID_REQUEST', 'Base64 형식 또는 파일 크기 오류');
+    }
+    var bytes = Utilities.base64Decode(encoded);
+    if (!bytes.length || bytes.length > MAX_AUDIO_BYTES) fail_('INVALID_REQUEST', '파일 크기 초과');
+    // Verify the container signature, not just the client-supplied MIME type.
+    var signature = bytes.slice(0, 4).map(function (b) { return b & 255; }).join(',');
+    if (signature !== (mime === 'audio/webm' ? '26,69,223,163' : '79,103,103,83')) {
+      fail_('INVALID_REQUEST', '음성 컨테이너 형식 불일치');
+    }
+    var file = folder.createFile(Utilities.newBlob(bytes, mime,
+      'verse-' + verse + '-' + Utilities.getUuid() + (mime === 'audio/webm' ? '.webm' : '.ogg')));
+    try {
+      // Dedicated folder must be private; never enable public link sharing here.
+      file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
+      state.recordings[verse] = { verse: verse, readerName: readerName,
+        fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
+        recordedAt: new Date().toISOString() };
+      persist_(folder, properties, stateFile, state);
+    } catch (error) {
+      trash_(file.getId());
+      throw error;
+    }
+    if (old) trash_(old.fileId);
+    return recording_(state.recordings[verse]);
+  } finally { lock.releaseLock(); }
 }
-function stateFile_(folder) {
-  var files = folder.getFilesByName('relay-reading-state.json');
-  var file = files.hasNext() ? files.next() : null;
-  if (files.hasNext()) fail_('INTERNAL_ERROR', '상태 파일 중복: 관리자 확인 필요');
-  return file;
+
+function persist_(folder, properties, file, state) {
+  var json = JSON.stringify(state);
+  if (file) { file.setContent(json); return; }
+  var created = folder.createFile('relay-reading-state.json', json, MimeType.PLAIN_TEXT);
+  try { properties.setProperty('STATE_FILE_ID', created.getId()); }
+  catch (error) { trash_(created.getId()); throw error; }
 }
-function saveState_(folder, file, state) {
-  var content = JSON.stringify(state);
-  if (file) file.setContent(content);
-  else folder.createFile('relay-reading-state.json', content, MimeType.PLAIN_TEXT);
+
+function trash_(fileId) {
+  // Committed state remains authoritative even when old-file cleanup fails.
+  try { DriveApp.getFileById(fileId).setTrashed(true); }
+  catch (_) { console.warn('이전 파일 정리 실패: Drive에서 수동 정리 필요'); }
 }
-function metadata_(item) {
-  return {verse: item.verse, reader: item.reader, playbackUrl: ScriptApp.getService().getUrl() + '?action=getAudio&verse=' + item.verse, recordedAt: item.recordedAt, mimeType: item.mimeType};
+
+function text_(state) {
+  return { title: state.title, verses: state.verses, revision: state.revision };
 }
-function verse_(value, state) {
-  var number = typeof value === 'number' ? value : (typeof value === 'string' && /^[1-9][0-9]*$/.test(value) ? Number(value) : NaN);
-  if (!Number.isInteger(number) || number < 1 || number > state.text.verses.length) fail_('INVALID_REQUEST', '본문의 절 번호 필요');
-  return number;
+
+function recording_(value) {
+  return { verse: value.verse, readerName: value.readerName,
+    playbackUrl: value.playbackUrl, recordedAt: value.recordedAt };
 }
-function string_(value, max) {
-  if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail_('INVALID_REQUEST', '문자열 길이/형식 오류');
+
+function string_(value, limit, label) {
+  if (typeof value !== 'string' || !value.trim() || value.length > limit) {
+    fail_('INVALID_REQUEST', label + ' 입력값 확인 필요');
+  }
   return value.trim();
 }
-function trash_(id) {
-  try { DriveApp.getFileById(id).setTrashed(true); }
-  catch (err) { console.warn('이전 파일 정리 실패; Drive 휴지통 정리 필요'); }
+
+function fail_(code, message) {
+  var error = new Error(message);
+  error.apiCode = code;
+  throw error;
 }
-function fail_(code, message) { var err = new Error(message); err.apiCode = code; throw err; }
-function error_(err) { return json_({ok: false, error: {code: err.apiCode || 'INTERNAL_ERROR', message: err.apiCode ? err.message : '저장 서비스 오류; 관리자 확인 필요'}}); }
-function json_(data) { return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }

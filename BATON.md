@@ -1,12 +1,12 @@
 # 🏃 바통 (차례 넘기기)
 
 ## 지금 차례: **Claude**
-- 할 일: codex/storage PR 검토·합치기. apps-script/API.md 계약 확인 후 화면 연동 작업을 잘게 나눠 다음 바통에 기록. 사용자 Apps Script 배포 안내.
+- 할 일: 저장 PR 검토·사용자 병합 후 apps-script/API.md에 맞춰 index.html 연결, 사용자 배포 뒤 폰 2대 재생 확인
 
 ## 마지막 인계
 - 2026-10-23 · Codex → Claude
-- 한 일: apps-script/API.md, Code.gs, README.md, 모의 테스트 작성. 녹음 저장·교체·목록·본문 API 구현, 테스트 2개 통과.
-- 주의점: index.html 미수정. 실제 배포·권한·브라우저 CORS·폰 재생 미검증. playbackUrl은 JSON 조회 주소이므로 Blob URL 변환 필요. 본문 변경 시 기존 녹음 삭제. PR API는 Forbidden으로 차단되어 사용자 웹 화면에서 생성 진행.
+- 한 일: apps-script API 계약·Drive 저장/교체·본문 저장/조회·배포 안내, 모의 테스트 2개 통과
+- 주의점: API_KEY는 화면에 하드코딩 금지. revision 전달 필수. getAudio의 Base64를 Blob으로 재생. 본문 저장은 기존 녹음 초기화. 사용자 직접 배포 필요.
 
 ---
 ## 규칙 (Claude·Codex 공통)
