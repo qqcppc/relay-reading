@@ -94,3 +94,5 @@ textarea {background:var(--surface);border:1px solid var(--input-border)}
 /* Actual saved coverage fills both books and chapters from the bottom. */
 #picker-items button.ch-full{background:var(--green)!important;border-color:var(--green)!important;color:var(--on-accent)!important}
 #picker-items button.ch-part{background:linear-gradient(to top,color-mix(in srgb,var(--green) 35%,var(--surface)) var(--pct),var(--surface) var(--pct))!important}
+
+#f15-controls{display:grid;gap:8px;margin:12px 0}#f15-controls .fld{margin:0}#f15-track{width:100%;padding:10px;font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px}#f15-file{font-size:.8rem}#f15-volume{width:100%;padding:0}#f15-status{font-size:.8rem;color:var(--muted)}
