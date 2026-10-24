@@ -127,3 +127,6 @@ body.range-mode{padding-bottom:110px}
 @media (prefers-reduced-motion:reduce){#connection,#inapp-hint{animation:none}}
 #sticky:has(#connection:not([hidden])),#sticky:has(#inapp-hint:not([hidden])){gap:8px!important}
 #title-btn #tb-book{justify-content:center!important;text-align:center!important}
+
+/* #54 연결 모드: 불러오기 전 시험 본문(애국가) 깜빡 표시 막기 */
+body.shared-loading #list,body.shared-loading #title-btn,body.shared-loading #progress{visibility:hidden}

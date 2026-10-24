@@ -173,7 +173,7 @@ async function loadShared() {
   stopPlayback(); busy = true; controls();
   try { await refresh(); status(''); }
   catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; status('공유 연결 실패. 새로고침 또는 F1 해제'); }
-  finally { busy = false; render();globalThis.RelayF11?.flush(); }
+  finally { busy = false; document.body?.classList?.remove?.('shared-loading'); render();globalThis.RelayF11?.flush(); }
 }
 function discard() {
   clearComparison();
@@ -419,7 +419,7 @@ $('disconnect').onclick = () => { if (locked()) return; try { RelayStorage.disco
 try { RelayStorage.acceptLink(location, history); } catch (err) { $('connection').textContent = err.message; }
 ready = !RelayStorage.connected;
 $('text-input').value = editorText();
-if (RelayStorage.connected) { $('refresh').hidden = false; $('disconnect').hidden = false; loadShared(); }
+if (RelayStorage.connected) { document.body?.classList?.add?.('shared-loading'); $('refresh').hidden = false; $('disconnect').hidden = false; loadShared(); }
 render();
 
 $('listen').onclick = () => { const a = $('au'); if (a.paused) { if(draft)a.src=draft.url; a.currentTime = 0; a.play().catch(() => status('미리듣기 실패. 다시 시도')); $('listen').textContent = '■ 멈춤'; } else { a.pause(); $('listen').textContent = '▶ 듣기'; } };
