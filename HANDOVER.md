@@ -2,7 +2,7 @@
 
 ## 🆕 새 Claude 세션 시작 안내 (2026-10-24 01:40 기준)
 - 사이트: https://qqcppc.github.io/relay-reading/ (GitHub Pages, main 배포 · 배포 실패 시 Actions에서 「실패한 작업 다시 실행」, 사용자 메일로 실패 알림 옴)
-- **바통 #51 = Claude 검토·병합 차례** — main은 #50. codex/basics2에 ADMIN_KEY·기본 대기열·첫 안내 틀·F16 완성된 장/장 자산 연결·소리 점검 완료. 검토·병합 뒤 화면 #51, 사용자 ADMIN_KEY 추가/Code.gs 새 버전 배포. 잠언 배경 전달 폴더는 링크 공유로 바뀜(Claude가 기존 주소로 받기).
+- **바통 #56 = Claude 검토·병합 차례** — main은 #55 배정(화면 #54). codex/settings2에 선택식 크기·실제 크기 미리보기/목록 칸 수/버전 이름/다크 회색/관리자 모드 분리 완료. 병합 뒤 화면 #56. 사용자 ADMIN_KEY 추가/Code.gs 새 버전 배포는 계속 대기.
 - **진행 방식**: 사용자 폰 피드백(사진에 손글씨 표시) → Claude가 화면 수정 직접(claude/… 브랜치 → main push) / 큰 기능은 BATON.md에 적어 Codex 배정 → Codex는 codex/… push까지만 → Claude 검토·테스트·병합·#번호 갱신
 - **병합 체크**: tests/*.cjs 전부(ui-smoke.cjs 제외) + apps-script/Code.test.cjs 통과, 버전 문자열 3곳(index ?v · sw.js VERSION · f3-app.js) 같이, 책 칸 왼쪽 위 `#번호` = 화면 버전(「완료」까지 계속 갱신). Playwright 화면 확인 시 라우터는 경로 그대로 파일 제공
 - **원칙**: 일단 만들어 보고 시험 → 고정/스위치/삭제 결정. 새 기능 = ⑤ 실험 기능 스위치(F번호, 기본 꺼짐)
@@ -153,3 +153,5 @@
 - 2026-10-24 · Claude · #53 잠언 1장 완료 배경(assets/bg/proverbs/1.webp, chapters/catalog) · 남은 일: 잠언 1장 배경음악 파일
 - 2026-10-24 · Claude · #54 연결 모드 새로고침 때 애국가 시험 본문 깜빡 표시 제거
 - 2026-10-25 · Claude · #55 설정 글자 크기 선택식·버전 이름·다크 회색·관리자 모드 분리 Codex 배정
+
+- 2026-10-25 · #56 · Codex · codex/settings2에 공용 크기·미리보기/책·절 목록 1~5칸/버전 이름/무채색 다크/키 검증 관리자 모드·첫 연결·초대 자동 연결·기본 대기 목록 창 구현, 단위/API 41사례·브라우저 13종/기준 화면 6장 통과 · 남은 일: Claude 검토·병합·화면 #56, 사용자 ADMIN_KEY 설정·Code.gs 배포·폰 확인

@@ -9,18 +9,18 @@
 @media (prefers-color-scheme:dark) {
   :root:not([data-theme="light"]) {
     color-scheme:dark;
-    --bg:#181d1b; --surface:#242c28; --text:#eeeae1; --ink:#fff; --muted:#b4b6ac;
-    --border:#3e4942; --border-strong:#526057; --input-border:#738076; --number:#b6b1a2;
+    --bg:#1f1f1f; --surface:#2b2b2b; --text:#f1f1f1; --ink:#fff; --muted:#bcbcbc;
+    --border:#454545; --border-strong:#626262; --input-border:#858585; --number:#b8b8b8;
     --green:#547f68; --blue:#506c8d; --terra:#a56155; --record:#db6459;
-    --done-bg:#27392d; --done-border:#405c49; --record-bg:#402c28; --subtle:#343e37;
+    --done-bg:#303030; --done-border:#555555; --record-bg:#382c2b; --subtle:#383838;
   }
 }
 :root[data-theme="dark"] {
   color-scheme:dark;
-  --bg:#181d1b; --surface:#242c28; --text:#eeeae1; --ink:#fff; --muted:#b4b6ac;
-  --border:#3e4942; --border-strong:#526057; --input-border:#738076; --number:#b6b1a2;
+  --bg:#1f1f1f; --surface:#2b2b2b; --text:#f1f1f1; --ink:#fff; --muted:#bcbcbc;
+  --border:#454545; --border-strong:#626262; --input-border:#858585; --number:#b8b8b8;
   --green:#547f68; --blue:#506c8d; --terra:#a56155; --record:#db6459;
-  --done-bg:#27392d; --done-border:#405c49; --record-bg:#402c28; --subtle:#343e37;
+  --done-bg:#303030; --done-border:#555555; --record-bg:#382c2b; --subtle:#383838;
 }
 /* Keep text on filled buttons and element-number badges legible in both modes. */
 #ok,#listen,#no,#center,#identity #all,#identity button,.me-tag {color:var(--on-accent)!important}
@@ -130,3 +130,10 @@ body.range-mode{padding-bottom:110px}
 
 /* #54 연결 모드: 불러오기 전 시험 본문(애국가) 깜빡 표시 막기 */
 body.shared-loading #list,body.shared-loading #title-btn,body.shared-loading #progress{visibility:hidden}
+
+/* #56 Shared controls; legacy #52 and #54 blocks above remain unchanged. */
+#size-targets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#size-targets button{border:1px solid var(--border);border-radius:8px;background:var(--surface);font:inherit;padding:9px 3px;font-size:.85rem}#size-targets button[aria-pressed=true]{border-color:var(--green);font-weight:750;background:var(--subtle)}
+#size-preview{min-height:70px;max-height:150px;overflow:auto;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:10px;padding:8px;margin:8px 0;background:var(--surface);box-sizing:border-box}#size-preview .preview-grid{display:grid;width:100%;grid-template-columns:repeat(var(--preview-columns,1),minmax(0,1fr));gap:4px}#size-preview .preview-grid span{border:1px solid var(--border);border-radius:5px;text-align:center;padding:5px;min-width:0;overflow:hidden}#size-value{display:block;text-align:center;font-size:.8rem;color:var(--muted);margin:5px}#size-buttons button{flex:1}
+#tb-book #version{font-size:var(--hfs,1.15rem)!important}#title-btn #tb-ch{font-size:var(--chapter-fs,3rem)!important}#title-btn #tb-ch.long-chapter{font-size:calc(var(--chapter-fs,3rem)*.8)!important}#top #progress .seg{font-size:var(--verse-fs,9px)!important;color:var(--muted)}
+body #picker-items.books{grid-template-columns:repeat(var(--book-columns,4),minmax(0,1fr))!important}#list{display:grid;grid-template-columns:repeat(var(--verse-columns,1),minmax(0,1fr));gap:8px}#list .line{box-sizing:border-box;min-width:0;margin-bottom:0}#list .t{overflow-wrap:anywhere}
+#admin-entry{display:block;width:auto;margin:16px auto 0;padding:8px;border:0;background:none;font:inherit;font-size:.75rem;color:var(--muted);touch-action:pan-y;user-select:none}#admin-area{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}#admin-build{font-size:.75rem;color:var(--muted)}#admin-area #experiments{margin-top:16px}#admin-connect-status,#settings-name-status{display:block;font-size:.8rem;color:var(--muted)}#settings-name{box-sizing:border-box;width:100%}

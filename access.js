@@ -3,7 +3,7 @@
   'use strict';const $=id=>document.getElementById(id),KEY='relay.admin.v1';let context=null,key=null,allowed=false,scope=null,ready=false;
   function paint(){if(!context)return;for(const node of document.querySelectorAll('[data-edit]'))node.hidden=!allowed;
     $('f1-text').hidden=!allowed||!root.RelayStorage.connected;$('f8-open').hidden=!allowed||!root.RelayF8?.enabled();$('f9-controls').hidden=!allowed||!root.RelayF9?.enabled();if(!allowed)$('editor').hidden=true;
-    $('admin-forget').hidden=!allowed;$('admin-checks').hidden=!allowed;
+    $('admin-forget').hidden=!allowed;$('admin-checks').hidden=!allowed;root.RelayAdmin?.paint();
   }
   function revoke(){allowed=false;key=null;$('checks-list').replaceChildren();$('checks-status').textContent='';try{localStorage.removeItem(KEY);}catch(_){}paint();context?.changed();}
   async function verify(value,remember){

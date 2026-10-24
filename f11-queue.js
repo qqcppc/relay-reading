@@ -41,7 +41,7 @@
   }
   root.RelayF11={enabled,enqueue,flush,pending:verse=>enabled()&&items.some(r=>r.verse<=verse&&r.endVerse>=verse),hasPending:()=>enabled()&&items.length>0,
     retryable:error=>!error.code||['BUSY','INTERNAL_ERROR'].includes(error.code),
-    init(next){context=next;document.getElementById('pending-count').onclick=()=>{document.getElementById('settings').showModal();document.getElementById('f11-controls').scrollIntoView({block:'nearest'});};if(!enabled())return;document.getElementById('f11-controls').hidden=false;if(root.BroadcastChannel){channel=new BroadcastChannel('relay.outbox.v1');channel.onmessage=event=>{if(event.data?.scope===scope)reload().then(()=>flush()).catch(error=>context.report(error.message));};}
+    init(next){context=next;document.getElementById('pending-count').onclick=()=>{document.getElementById('outbox-view').showModal();};document.getElementById('outbox-open').onclick=()=>document.getElementById('outbox-view').showModal();if(!enabled())return;document.getElementById('f11-controls').hidden=false;if(root.BroadcastChannel){channel=new BroadcastChannel('relay.outbox.v1');channel.onmessage=event=>{if(event.data?.scope===scope)reload().then(()=>flush()).catch(error=>context.report(error.message));};}
       document.getElementById('f11-retry').onclick=async()=>{if(running)return;try{await transaction(true,s=>{s.getAll().onsuccess=e=>{for(const item of e.target.result)if(item.scope===scope)s.put({...item,blocked:false,message:''});};});await flush();}catch(error){context.report(error.message);}};
       root.addEventListener('online',()=>flush());setInterval(()=>flush(),30000);
       root.RelayStorage.queueScope().then(value=>{scope=value;return reload();}).then(()=>flush()).catch(error=>context.report(error.message));

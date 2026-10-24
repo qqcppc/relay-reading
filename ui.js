@@ -442,13 +442,6 @@ $('book-picker').addEventListener?.('close', () => document.body?.classList?.rem
 ['book-picker','people','settings'].forEach(id => { const d = $(id); const open = d.showModal?.bind(d); if (open) d.showModal = () => { document.body?.classList?.add?.('modal-open'); open(); }; d.addEventListener?.('close', () => document.body?.classList?.remove?.('modal-open')); });
 $('center-play').onclick = () => $('all').onclick();
 $('reader').addEventListener('change', () => $('identity').onsubmit({preventDefault(){}}));
-let fontScale = 1.15;
-try { fontScale = Math.max(.9, Math.min(2, Number(localStorage.getItem('relay.font')) || 1.15)); } catch {}
-function applyFont() { document.documentElement?.style?.setProperty('--fs', fontScale + 'rem'); try { localStorage.setItem('relay.font', fontScale); } catch {} }
-$('font-down').onclick = () => { fontScale = Math.max(.9, +(fontScale - .1).toFixed(2)); applyFont(); };
-$('font-up').onclick = () => { fontScale = Math.min(2, +(fontScale + .1).toFixed(2)); applyFont(); };
-applyFont();
-
 $('edit-toggle').onclick = () => { $('editor').open = !$('editor').open; };
 
 const PALETTE = ['#5f8f74','#8a7aa6','#b8925a','#5d8c9c','#b07a86','#7f8a5a','#9c7f6a','#6f7fa8','#a0884a'];
@@ -501,7 +494,7 @@ document.querySelectorAll?.('dialog').forEach(d => d.addEventListener('click', e
 $('people-open').onclick = () => { nameView(); showPeople(); $('people').showModal(); };
 let lastSheet = 'settings';
 try { lastSheet = localStorage.getItem('relay.sheet') || 'settings'; } catch {}
-function openSheet(id) { lastSheet = id; try { localStorage.setItem('relay.sheet', id); } catch {} if (id === 'people') { nameView(); showPeople(); } $(id).showModal(); }
+function openSheet(id) { lastSheet = id; try { localStorage.setItem('relay.sheet', id); } catch {} if (id === 'people') { nameView(); showPeople(); } if(id==='settings')$('settings-name').value=RelayStorage.readerName;$(id).showModal(); }
 $('settings-open').onclick = null;
 document.querySelectorAll?.('.dlg-tabs button').forEach(b => b.onclick = () => { const cur = b.closest('dialog'); if (b.dataset.go === cur.id) return; cur.close(); openSheet(b.dataset.go); });
 document.querySelectorAll?.('.dlg-close').forEach(b => b.onclick = () => b.closest('dialog').close());
@@ -557,21 +550,8 @@ function sheetTop() { const r = document.getElementById('sticky')?.getBoundingCl
   c.addEventListener?.('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; e.stopPropagation();
     if (Math.abs(dx) > 30) { gridSwiped = true; setTimeout(() => { gridSwiped = false; }, 300); const from = pageStarts[page], to = pageStarts[page + 1] ?? lines.length; const bands = Math.max(1, Math.ceil((to - from) / 20)); const nb = gridBand + (dx < 0 ? 1 : -1); if (nb >= 0 && nb < bands) { gridBand = nb; gridManual = true; drawProgress(); } } }); }
 
-let bookFont = .95;
-try { bookFont = Number(localStorage.getItem('relay.bfont')) || .95; } catch {}
-function applyBookFont() { document.documentElement?.style?.setProperty?.('--bfs', bookFont + 'rem'); try { localStorage.setItem('relay.bfont', bookFont); } catch {} }
-$('bfont-down').onclick = () => { bookFont = Math.max(.7, +(bookFont - .05).toFixed(2)); applyBookFont(); };
-$('bfont-up').onclick = () => { bookFont = Math.min(1.3, +(bookFont + .05).toFixed(2)); applyBookFont(); };
-applyBookFont();
 $('settings-open').addEventListener?.('click', e => e.stopPropagation());
 $('center').addEventListener?.('touchmove', e => { e.preventDefault?.(); e.stopPropagation(); }, {passive: false});
-
-let headFont = 1.15;
-try { headFont = Number(localStorage.getItem('relay.hfont')) || 1.15; } catch {}
-function applyHeadFont() { document.documentElement?.style?.setProperty?.('--hfs', headFont + 'rem'); try { localStorage.setItem('relay.hfont', headFont); } catch {} }
-$('hfont-down').onclick = () => { headFont = Math.max(.8, +(headFont - .05).toFixed(2)); applyHeadFont(); };
-$('hfont-up').onclick = () => { headFont = Math.min(1.6, +(headFont + .05).toFixed(2)); applyHeadFont(); };
-applyHeadFont();
 
 // F11 never advances F4 on a local-only queued take.
 globalThis.RelayF11?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},base64,refresh:async()=>{await refresh();render();},render:()=>render(),report:status});
@@ -652,3 +632,6 @@ globalThis.RelayAccess?.init({locked,changed:()=>render()});
 globalThis.RelayWelcome?.init({name:name=>{$('reader').value=name;nameView();render();}});
 globalThis.RelaySoundChecks?.init({revision:()=>revision,name:()=>$('reader').value.trim(),clear:()=>RelayBasics.clear(),toast});
 globalThis.RelayF16?.init({state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;let complete=to>from;for(let i=from;i<to;i++){const r=recordingAt(i);if(!r||r.demo)complete=false;}return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,from,to,complete,capture:!!recorder||acquiring||!!draft,lines,playing:playingIndex,recording:recordingAt};},stop:stopPlayback,changed:render,play:index=>{if(locked()||!ready)return;stopPlayback();selected=index;RelayF15.play(musicSnapshot(),true);}});
+
+// General preferences and the explicit creator-only settings area.
+globalThis.RelayAdmin?.init({locked,changed:render,name:()=>{$('reader').value=RelayStorage.readerName;nameView();render();}});

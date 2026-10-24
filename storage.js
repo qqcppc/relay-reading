@@ -56,7 +56,7 @@
       const next = validate(params.get('url'), params.get('key'));
       try {localStorage.setItem(CONFIG, JSON.stringify(next));}
       catch (_) {throw new Error('이 폰에 연결 정보를 기억할 수 없음. 브라우저 저장 설정 확인');}
-      config = next;
+      config = next;root.RelayFeatures?.enableConnection?.();
     },
     setReaderName(value) {
       if (typeof value !== 'string' || !value.trim() || value.trim().length > 80) throw new Error('이름은 1~80자 입력');
