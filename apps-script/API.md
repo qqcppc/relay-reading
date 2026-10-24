@@ -145,3 +145,20 @@ uploadRecording 선택 필드:
 녹음 응답/listRecordings에는 `uploadId`(구형 녹음은 null)를 추가한다. 현재 저장된 녹음과 같은 uploadId 재요청은 같은 객체를 반환하며 파일을 다시 만들지 않는다. 이 성공 확인은 소비된 F2 잠금을 다시 요구하지 않지만 공유키·현재 revision·묶음 범위 검증은 적용한다. 다른 녹음으로 교체된 뒤의 오래된 재시도는 expectedPrevious 검사로 막는다. 두 필드를 생략한 기존 클라이언트 동작은 그대로다.
 
 F11 대기열은 폰 IndexedDB에만 저장한다. 주소+공유키의 SHA-256 범위 키를 사용하며 공유키 자체/잠금 토큰을 대기열에 저장하지 않는다. 재전송 전 listRecordings의 revision·uploadId·playbackUrl을 확인하고, listLocks.enabled이면 acquireLock으로 새 잠금을 얻어 업로드 후 해제한다. 서버의 expectedPrevious 검사가 조회/업로드 사이 경쟁도 막는다. CONFLICT/권한·형식 오류는 자동 덮어쓰기 없이 보관, 통신/BUSY/LOCKED는 나중에 재시도한다. F12/F13은 기존 조회 API만 사용하고 새 서버 속성은 없다.
+
+## 등록 기기와 본인 녹음 삭제 (#49, 기초 1차)
+
+새 화면은 녹음 업로드에 `deviceId`(영문·숫자·하이픈 8~80자), `deviceToken`(무작위 32바이트를 소문자 hex 64자로 표현), `readerName`을 함께 보낸다. 토큰은 이 폰 브라우저 localStorage에만 기억한다. 서버는 토큰의 SHA-256만 private 상태 파일의 `deviceHash`에 보관한다. 녹음 목록/업로드 응답에는 `deviceId`만 추가하고 토큰·해시는 반환하지 않는다. 초대 링크에도 포함하지 않는다.
+
+새로 기기 등록된 녹음은 같은 기기 증명과 같은 등록 이름만 교체할 수 있다(F2 OFF에서도 적용). F2 잠금 재취득도 이 증명을 확인한다. 업로드의 `expectedPrevious`가 현재 파일과 다른 경우 기존 CONFLICT 검사를 사용한다. F11 대기에는 deviceId만 보관하고 재전송 때 브라우저의 비밀값을 사용한다.
+
+`deleteRecordings`는 POST만 허용한다:
+
+```js
+{ action: 'deleteRecordings', key, revision, deviceId, deviceToken, readerName,
+  targets: [{ verse: 3, playbackUrl: '목록에서 받은 현재 파일 주소' }] }
+```
+
+대상은 중복 없는 첫 절 키 1~500개. 묶음 파일은 첫 절 키 한 개다. 성공 data는 `{revision, deleted:[3], skipped:[4], recordings:[...]}`. 기기 해시와 이름이 모두 맞는 본인 녹음만 삭제하고 타인/미등록/이미 없는 녹음은 skipped로 돌려준다. 타인의 deviceId나 이름만 복사해도 삭제할 수 없다. 소유한 대상의 파일 주소가 바뀌었으면 CONFLICT, 현재 잠금이 있으면 LOCKED이며 요청 전체를 적용하지 않는다. ScriptLock 안에서 검사·상태 저장을 마친 뒤 해당 파일만 Drive 휴지통으로 보낸다. 본문·그룹·배정표와 본문 revision은 유지한다.
+
+**기존 기기 정보 없는 녹음은 이름만으로 소유를 추정해 삭제하지 않는다.** 기존 조회/업로드 요청은 호환되지만 이 삭제 기능에는 최신 Code.gs 배포가 필요하다. 브라우저 데이터 삭제/다른 브라우저 사용은 등록 비밀값을 잃거나 바꾸므로 이전 소유 확인을 자동 복구하지 않는다. 이용자는 녹음 때 쓴 브라우저와 이름을 사용한다. ADMIN_KEY 본문 수정 권한 분리는 다음 묶음(7번)이다.
