@@ -141,3 +141,22 @@ test('F11 retry is idempotent after lost reply, never overwrites a changed recor
  const first=s.call(upload).data;assert.equal(first.uploadId,'queued-0001');const size=s.files.size;s.props.F2_ENABLED='true';assert.equal(s.call(upload).data.playbackUrl,first.playbackUrl);assert.equal(s.files.size,size);s.props.F2_ENABLED='false';
  const next=s.call({...upload,uploadId:'queued-0002',expectedPrevious:first.playbackUrl}).data;assert.notEqual(next.playbackUrl,first.playbackUrl);assert.equal(s.call(upload).error.code,'CONFLICT');assert.equal(s.call({...upload,revision:'old'}).error.code,'CONFLICT');
 });
+
+test('Device deletion proves token and name, skips foreign/legacy, keeps secret hashes private',()=>{
+ const s=server(),text=s.call({action:'saveText',revision:'0',title:'기기 예시',verses:['예시 하나','예시 둘','예시 셋']}).data,device={deviceId:'device-alpha',deviceToken:'a'.repeat(64)},other={deviceId:'device-bravo',deviceToken:'b'.repeat(64)};
+ const upload=(verse,fields)=>s.call({action:'uploadRecording',revision:text.revision,verse,readerName:'나',mimeType:'audio/webm',audioBase64:Buffer.from([26,69,223,163,1]).toString('base64'),...fields}).data;
+ const a=upload(1,device),b=upload(2,other),legacy=upload(3,{});assert.equal(a.deviceId,device.deviceId);assert.equal(a.deviceHash,undefined);assert.equal(a.deviceToken,undefined);
+ const remove=fields=>s.call({action:'deleteRecordings',revision:text.revision,readerName:'나',...device,targets:[a,b,legacy].map(r=>({verse:r.verse,playbackUrl:r.playbackUrl})),...fields});
+ assert.equal(remove({deviceToken:'c'.repeat(64)}).data.deleted.length,0);assert.equal(remove({readerName:'다른 이름'}).data.deleted.length,0);
+ const result=remove({}).data;assert.deepEqual(result.deleted,[1]);assert.deepEqual(result.skipped,[2,3]);assert.equal(result.recordings.length,2);assert.equal(s.call({action:'getText'}).data.revision,text.revision);
+});
+test('Owned deletion rejects stale replacement or active lease atomically',()=>{
+ const s=server(),text=s.call({action:'saveText',revision:'0',title:'충돌 예시',verses:['예시 하나','예시 둘']}).data,device={deviceId:'device-alpha',deviceToken:'a'.repeat(64)};
+ const upload=verse=>s.call({action:'uploadRecording',revision:text.revision,verse,readerName:'나',...device,mimeType:'audio/webm',audioBase64:Buffer.from([26,69,223,163,1]).toString('base64')}).data;
+ const a=upload(1),b=upload(2);upload(2);const fields={action:'deleteRecordings',revision:text.revision,readerName:'나',...device,targets:[a,b].map(r=>({verse:r.verse,playbackUrl:r.playbackUrl}))};assert.equal(s.call(fields).error.code,'CONFLICT');assert.equal(s.call({action:'listRecordings'}).data.recordings.length,2);
+ s.props.F2_ENABLED='true';s.call({action:'acquireLock',revision:text.revision,verse:1,readerName:'나',...device});assert.equal(s.call({...fields,targets:[fields.targets[0]]}).error.code,'LOCKED');assert.equal(s.call({...fields,revision:'stale'}).error.code,'CONFLICT');assert.equal(s.call({action:'listRecordings'}).data.recordings.length,2);
+});
+test('Bound recordings cannot be replaced by a spoofed device or name even with F2 OFF',()=>{
+ const s=server(),text=s.call({action:'saveText',revision:'0',title:'기기 예시',verses:['예시 하나']}).data,fields={action:'uploadRecording',revision:text.revision,verse:1,readerName:'나',deviceId:'device-alpha',deviceToken:'a'.repeat(64),mimeType:'audio/webm',audioBase64:Buffer.from([26,69,223,163,1]).toString('base64')};assert.equal(s.call(fields).ok,true);
+ for(const changed of [{deviceToken:'b'.repeat(64)},{readerName:'다른 이름'},{deviceId:'device-other'}])assert.equal(s.call({...fields,...changed}).error.code,'FORBIDDEN');assert.equal(s.call(fields).ok,true);
+});

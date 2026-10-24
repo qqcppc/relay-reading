@@ -1,0 +1,4 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
+function module(){const ctx=vm.createContext({});vm.runInContext(fs.readFileSync('basics.js','utf8'),ctx);return ctx.RelayBasics;}
+test('Swipes require 60px, horizontal dominance, and no prior vertical scroll',()=>{const g=module();assert.equal(g.direction(-80,10,false),1);assert.equal(g.direction(90,-20,false),-1);for(const [dx,dy,blocked]of [[59,0,false],[80,50,false],[100,50,false],[220,90,true],[0,100,false]])assert.equal(g.direction(dx,dy,blocked),0);});
+test('Selection extends both directions and includes complete grouped units',()=>{const g=module();assert.deepEqual(JSON.parse(JSON.stringify(g.range({start:4,end:6},{start:1,end:1}))),{start:1,end:6});assert.deepEqual(JSON.parse(JSON.stringify(g.range({start:1,end:2},{start:8,end:8}))),{start:1,end:8});});

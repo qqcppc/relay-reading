@@ -15,7 +15,7 @@ npm run test:browser
 BROWSER_EXECUTABLE=/usr/bin/chromium npm run test:browser
 ```
 
-- `npm test`: 9개 파일의 단위/API 검사(33개 사례). Apps Script·Drive는 메모리 모의 서비스, WAV도 합성 PCM 바이트만 사용한다.
+- `npm test`: 10개 파일의 단위/API 검사(38개 사례). Apps Script·Drive는 메모리 모의 서비스, WAV도 합성 PCM 바이트만 사용한다.
 - `features-smoke.cjs`: F1 연결/두 폰 F2/이름별 교체/F3 실제 SW·오프라인·공유·OFF 복귀.
 - `settings-smoke.cjs`: 테마·글꼴·기억·저장 차단·모바일 시트.
 - `f4-f8-smoke.cjs`: F4+F5 자동 시작/배정 동기화/F7 실제 해독/F8 입력·동의·복원.
@@ -25,7 +25,8 @@ BROWSER_EXECUTABLE=/usr/bin/chromium npm run test:browser
 - `drafts-smoke.cjs`: 입력/파일 초안의 새로고침·스위치 재시작 복원, 저장 성공 정리, 서버 목록 갱신 중 입력 보존, 그룹 범위·삭제·저장 실패 이탈 경고.
 - `picker-progress-smoke.cjs`: 가짜 예약 없음/실제 F2 잠금·사람 색·해제, 책·장 실제 절 비율/묶음/대기·연출 제외/완료 표시.
 - `f15-smoke.cjs`: 실제 Web Audio 그래프를 OfflineAudioContext로 렌더해 음악 덕킹/회복과 피크 확인. 절별 음량·여백·반복, 장 경계 음악 전환/음악 없음, 재생 중 음량 변경, 폰 파일 기억/잘못된 파일/삭제, 정적 곡 캐시, 읽기 취소/마이크 시작/버전 충돌 검증. 음악·목소리는 합성 PCM 메모리 바이트만 사용한다.
-- `screen-smoke.cjs`: 현재 한 줄 머리/20칸 격자 쓸기/구약·신약 4열/온기목장·설정 시트, 전체 기능 ON·OFF·교차 조합, F10~F15 스위치 재시작·복귀. `ui-smoke.cjs`는 이 검사의 호환 진입점이다.
+- `basics-smoke.cjs`: 세로→가로 쓸기 차단, 머리 한 번/길게, 한 번 이동/두 번 녹음/길게 선택·범위 복사·폰 뒤로가기, 본인/타인·묶음 삭제와 확인 횟수, 전체 듣기 가운데 따라가기, 마이크/카톡 안내. 서버 테스트는 기기 비밀값·이름·갱신 충돌·잠금·기존 미등록 녹음을 따로 확인한다.
+- `screen-smoke.cjs`: 현재 겹친 책·장 머리/20칸 격자 쓸기/구약·신약 4열/머리 길게 눌러 사람·설정 시트, 전체 기능 ON·OFF·교차 조합, F10~F15 스위치 재시작·복귀. `ui-smoke.cjs`는 이 검사의 호환 진입점이다.
 
 ## 390×800 화면 비교
 

@@ -1,7 +1,9 @@
 /* All shared-storage access lives here. Never hardcode deployment URLs or keys. */
 (function(root) {
   'use strict';
-  const CONFIG = 'relay.connection.v1', NAME = 'relay.reader.v1';
+  const CONFIG = 'relay.connection.v1', NAME = 'relay.reader.v1', DEVICE='relay.device.v1';
+  let device=null;
+  try{const saved=JSON.parse(localStorage.getItem(DEVICE)||'null');if(saved&&/^[a-zA-Z0-9-]{8,80}$/.test(saved.id)&&/^[a-f0-9]{64}$/.test(saved.token))device=saved;}catch(_){}
   let config = null, readerName = '';
   try {
     const candidate = JSON.parse(localStorage.getItem(CONFIG) || 'null');
@@ -78,6 +80,11 @@
       const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(config)));
       return Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');
     },
+    deviceFields(){
+      if(!device){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);const next={id:crypto.randomUUID(),token:Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')};try{localStorage.setItem(DEVICE,JSON.stringify(next));}catch(_){throw Error('이 폰 등록 정보 보관 실패 · 브라우저 저장 설정 확인');}device=next;}
+      return {deviceId:device.id,deviceToken:device.token};
+    },
+    owns(item,name){return !!device&&!!item&&!item.demo&&item.deviceId===device.id&&item.readerName===name.trim();},
     request,
     async load() {
       // A changed text between reads must never attach old audio to new verses.

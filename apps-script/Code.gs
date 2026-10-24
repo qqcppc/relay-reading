@@ -61,10 +61,25 @@ function dispatch_(request) {
     }
     if (request.action === 'getAssignments') return f5Plan_(state);
     if (request.action === 'listLocks') return f2List_(state, properties);
-    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock','saveAssignments','saveGroups'].indexOf(request.action) < 0) {
+    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock','saveAssignments','saveGroups','deleteRecordings'].indexOf(request.action) < 0) {
       fail_('INVALID_REQUEST', '지원하지 않는 action');
     }
     if (request.revision !== state.revision) fail_('CONFLICT', '본문을 다시 조회한 뒤 재시도');
+    if(request.action==='deleteRecordings'){
+      var device=registeredDevice_(request,false),reader=string_(request.readerName,80,'읽은 사람 이름'),targets=request.targets;
+      if(!Array.isArray(targets)||!targets.length||targets.length>500)fail_('INVALID_REQUEST','삭제할 녹음 필요');
+      var seen={},removed=[],skipped=[];
+      targets.forEach(function(target){
+        if(!target||!Number.isInteger(target.verse)||target.verse<1||target.verse>state.verses.length||seen[target.verse]||typeof target.playbackUrl!=='string'||target.playbackUrl.length>2000)fail_('INVALID_REQUEST','삭제 대상 형식 오류');
+        seen[target.verse]=true;var item=state.recordings[target.verse];
+        if(!ownsRecording_(item,device,reader)){skipped.push(target.verse);return;}
+        if(item.playbackUrl!==target.playbackUrl)fail_('CONFLICT','녹음이 바뀜 · 목록 다시 확인');
+        var lease=(state.locks||{})[target.verse];if(lease&&lease.expiresAt>Date.now())fail_('LOCKED','녹음 중인 절은 잠금 해제 후 삭제');removed.push(item);
+      });
+      removed.forEach(function(item){delete state.recordings[item.verse];});
+      if(removed.length){persist_(folder,properties,stateFile,state);removed.forEach(function(item){trash_(item.fileId);});}
+      return {revision:state.revision,deleted:removed.map(function(item){return item.verse;}),skipped:skipped,recordings:Object.keys(state.recordings).map(function(v){return recording_(state.recordings[v]);})};
+    }
     // F5: plans use an independent revision to reject stale simultaneous edits.
     if (request.action === 'saveAssignments') {
       if (request.assignmentRevision !== (state.assignmentRevision || '0')) fail_('CONFLICT', '배정표 다시 조회 필요');
@@ -151,6 +166,8 @@ function dispatch_(request) {
         audioBase64: Utilities.base64Encode(DriveApp.getFileById(old.fileId).getBlob().getBytes()) };
     }
     var readerName = string_(request.readerName, 80, '읽은 사람 이름');
+    var device=registeredDevice_(request,true);
+    if(old&&old.deviceId&&!ownsRecording_(old,device,readerName))fail_('FORBIDDEN','등록한 기기와 이름만 다시 녹음 가능');
     var mime = typeof request.mimeType === 'string' ? request.mimeType.split(';')[0].trim().toLowerCase() : '';
     if (['audio/webm', 'audio/ogg', 'audio/wav'].indexOf(mime) < 0) fail_('INVALID_REQUEST', 'webm/ogg/wav만 지원');
     var encoded = request.audioBase64;
@@ -172,7 +189,7 @@ function dispatch_(request) {
       // Dedicated folder must be private; never enable public link sharing here.
       file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
       state.recordings[verse] = { verse: verse, endVerse:unit.end, readerName: readerName,
-        uploadId:request.uploadId || null, fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
+        deviceId:device?device.id:null,deviceHash:device?device.hash:null,uploadId:request.uploadId || null, fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
         recordedAt: new Date().toISOString() };
       if (f2Enabled_(properties) && state.locks) delete state.locks[verse];
       persist_(folder, properties, stateFile, state);
@@ -204,7 +221,7 @@ function text_(state) {
 }
 
 function recording_(value) {
-  return { verse: value.verse, endVerse:value.endVerse || value.verse, readerName: value.readerName,
+  return { deviceId:value.deviceId || null, verse: value.verse, endVerse:value.endVerse || value.verse, readerName: value.readerName,
     uploadId:value.uploadId || null, playbackUrl: value.playbackUrl, recordedAt: value.recordedAt };
 }
 
@@ -245,6 +262,7 @@ function f2Lease_(request, state, properties, folder, file) {
   var reader=string_(request.readerName,80,'읽은 사람 이름');
   if (request.action === 'acquireLock') {
     var recording=state.recordings[request.verse];
+    if(recording&&recording.deviceId&&!ownsRecording_(recording,registeredDevice_(request,true),reader))fail_('FORBIDDEN','등록한 기기와 이름만 다시 녹음 가능');
     if (recording && recording.readerName !== reader) fail_('FORBIDDEN', '녹음한 이름만 다시 녹음 가능');
     if (current && current.expiresAt > now) fail_('LOCKED', '다른 폰에서 읽는 중');
     current={endVerse:f9Range_(state.groups || [],request.verse).end,readerName:reader,token:Utilities.getUuid(),expiresAt:now+120000};
@@ -288,3 +306,12 @@ function wavValid_(bytes) {
   function uint(at,n){var value=0;for(var i=0;i<n;i++)value+=(bytes[at+i]&255)*Math.pow(256,i);return value;}
   return bytes.length>44 && bytes.length%2===0 && str(0,4)==='RIFF' && str(8,4)==='WAVE' && str(12,4)==='fmt ' && str(36,4)==='data' && uint(4,4)===bytes.length-8 && uint(16,4)===16 && uint(20,2)===1 && uint(22,2)===1 && uint(24,4)===24000 && uint(28,4)===48000 && uint(32,2)===2 && uint(34,2)===16 && uint(40,4)===bytes.length-44;
 }
+
+// Device tokens never leave private state as plaintext and are never returned in listings.
+function registeredDevice_(request,optional){
+  if(optional&&request.deviceId===undefined&&request.deviceToken===undefined)return null;
+  if(typeof request.deviceId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(request.deviceId)||typeof request.deviceToken!=='string'||!/^[a-f0-9]{64}$/.test(request.deviceToken))fail_('INVALID_REQUEST','등록 기기 정보 필요');
+  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,request.deviceToken,Utilities.Charset.UTF_8);
+  return {id:request.deviceId,hash:bytes.map(function(b){return ('0'+(b&255).toString(16)).slice(-2);}).join('')};
+}
+function ownsRecording_(item,device,reader){return !!item&&!!device&&!!item.deviceId&&item.deviceId===device.id&&item.deviceHash===device.hash&&item.readerName===reader;}

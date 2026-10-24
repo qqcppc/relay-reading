@@ -19,7 +19,7 @@ function server() {
   }) }, DriveApp: { getFolderById: () => folder, getFileById: id => files.get(id),
     Access: { PRIVATE: 'private' }, Permission: { VIEW: 'view' } },
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
-    Utilities: { getUuid: () => 'uuid-' + (++next),
+    Utilities: { DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf8'},computeDigest:(algorithm,value,encoding)=>[...require('node:crypto').createHash(algorithm).update(value,encoding).digest()],getUuid: () => 'uuid-' + (++next),
       newBlob: (b, mime) => blob(b, mime), base64Decode: s => [...Buffer.from(s, 'base64')],
       base64Encode: b => Buffer.from(b).toString('base64') }, MimeType: { PLAIN_TEXT: 'text/plain' },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: text => ({
