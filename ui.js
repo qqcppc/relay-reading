@@ -611,3 +611,31 @@ globalThis.RelayBasics?.init({locked,ready:()=>ready,stop:stopPlayback,render,to
   owned:range=>actualItems().filter(item=>ownsItem(item)&&item.verse>=range.start+1&&(item.endVerse??item.verse)<=range.end+1),remove:removeOwnRecordings
 });
 window.addEventListener('resize',readingMargin);
+
+// #49 back button: 열린 창은 뒤로가기로 닫고, 맨 바깥에서는 한 번 더 눌러야 나감
+(function backGuard() {
+  if (typeof history === 'undefined' || !history.pushState || !globalThis.addEventListener) return;
+  let exitAt = 0, armed = false, prog = 0;
+  const back0 = history.back.bind(history); history.back = () => { prog++; back0(); };
+  const openDialogs = () => [...document.querySelectorAll('dialog[open]')];
+  const arm = () => { if (armed) return; armed = true; try { history.pushState({ relayGuard: 1 }, ''); } catch {} };
+  document.addEventListener('pointerdown', arm, { once: true, capture: true });
+  document.querySelectorAll('dialog').forEach(d => {
+    const o = d.showModal?.bind(d);
+    if (o) d.showModal = () => { arm(); if (!openDialogs().length && !history.state?.relaySheet) { try { history.pushState({ relaySheet: 1 }, ''); } catch {} } o(); };
+    d.addEventListener('close', () => { if (!openDialogs().length && history.state?.relaySheet) { try { history.replaceState({ relayGuard: 1 }, ''); } catch {} } });
+  });
+  addEventListener('popstate', () => {
+    if (prog) { prog--; return; }
+    const open = openDialogs();
+    if (open.length) { open.forEach(d => d.close()); return; }
+    if (history.state?.relaySelection) return;
+    if (Date.now() - exitAt < 2000) { back0(); return; }
+    exitAt = Date.now(); toast('한 번 더 누르면 나감', 1800);
+    try { history.pushState({ relayGuard: 1 }, ''); } catch {}
+  });
+  try {
+    const r = JSON.parse(sessionStorage.getItem('relay.reopen') || 'null'); sessionStorage.removeItem('relay.reopen');
+    if (r && $(r.id)) setTimeout(() => { openSheet(r.id); $(r.id).scrollTop = r.top || 0; }, 0);
+  } catch {}
+})();
