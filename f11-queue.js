@@ -12,12 +12,13 @@
     for(const item of items){const li=document.createElement('li'),label=document.createElement('span');label.textContent=`${item.verse}${item.endVerse>item.verse?'–'+item.endVerse:''}절 · ${item.readerName} · ${item.message||'연결되면 재전송'}`;const del=document.createElement('button');del.type='button';del.textContent='삭제';del.disabled=running;del.onclick=async()=>{if(!root.confirm('이 폰에 보관한 대기 녹음을 삭제할까?'))return;try{await transaction(true,(s,done,tx)=>{s.get(item.id).onsuccess=e=>{if(e.target.result?.claimUntil>Date.now()){tx.abort();return;}s.delete(item.id);};});await reload();}catch(error){context.report(error.message);}};li.append(label,del);list.append(li);}
   }
   async function enqueue(take){if(!enabled())throw Error('대기열 꺼짐');if(!scope)scope=await root.RelayStorage.queueScope();
-    await transaction(true,(s,done,tx)=>{s.getAll().onsuccess=e=>{const rows=e.target.result;if(rows.some(r=>r.scope===scope&&r.revision===take.revision&&r.verse===take.verse)||rows.length>=20||rows.reduce((sum,r)=>sum+r.blob.size,0)+take.blob.size>50*1024*1024){tx.abort();return;}s.add({id:take.uploadId,scope,verse:take.verse,endVerse:take.endVerse,revision:take.revision,readerName:take.readerName,blob:take.blob,expectedPrevious:take.expectedPrevious,createdAt:Date.now(),blocked:false});};});
+    await transaction(true,(s,done,tx)=>{s.getAll().onsuccess=e=>{const rows=e.target.result;if(rows.some(r=>r.scope===scope&&r.revision===take.revision&&r.verse===take.verse)||rows.length>=20||rows.reduce((sum,r)=>sum+r.blob.size,0)+take.blob.size>50*1024*1024){tx.abort();return;}s.add({id:take.uploadId,scope,verse:take.verse,endVerse:take.endVerse,revision:take.revision,readerName:take.readerName,deviceId:take.deviceId||null,blob:take.blob,expectedPrevious:take.expectedPrevious,createdAt:Date.now(),blocked:false});};});
     await reload();
   }
   async function claim(id){return transaction(true,(s,done)=>{s.get(id).onsuccess=e=>{const item=e.target.result;if(!item||item.blocked||item.claimUntil>Date.now())return done(null);item.claimOwner=owner;item.claimUntil=Date.now()+180000;s.put(item);done(item);};});}
   async function finish(item,error){await transaction(true,s=>{s.get(item.id).onsuccess=e=>{const stored=e.target.result;if(stored?.claimOwner!==owner)return;if(!error)s.delete(item.id);else{s.put({...stored,claimUntil:0,claimOwner:null,blocked:!!error.code && !['BUSY','INTERNAL_ERROR','LOCKED'].includes(error.code),message:error.message});}};});}
   async function send(item){
+    const device=root.RelayStorage.deviceFields();if(item.deviceId&&item.deviceId!==device.deviceId)throw Object.assign(Error('이 폰 등록 정보 변경 · 대기 보관본 확인'),{code:'FORBIDDEN'});
     const list=await root.RelayStorage.request('listRecordings');if(list.revision!==item.revision)throw Object.assign(Error('본문 변경 · 보관본 삭제 후 새로 녹음'),{code:'CONFLICT'});
     const current=list.recordings.find(r=>r.verse===item.verse);
     if(current?.uploadId===item.id)return; // Previous response was lost, but the server persisted it.
@@ -25,8 +26,8 @@
     let lease;
     try{
       const locks=await root.RelayStorage.request('listLocks');
-      if(locks.enabled){lease=await root.RelayStorage.request('acquireLock',{revision:item.revision,verse:item.verse,readerName:item.readerName});}
-      await root.RelayStorage.request('uploadRecording',{revision:item.revision,verse:item.verse,endVerse:item.endVerse,readerName:item.readerName,mimeType:item.blob.type,audioBase64:await context.base64(item.blob),uploadId:item.id,expectedPrevious:item.expectedPrevious,...(lease?{leaseToken:lease.leaseToken}:{})});
+      if(locks.enabled){lease=await root.RelayStorage.request('acquireLock',{...device,revision:item.revision,verse:item.verse,readerName:item.readerName});}
+      await root.RelayStorage.request('uploadRecording',{...device,revision:item.revision,verse:item.verse,endVerse:item.endVerse,readerName:item.readerName,mimeType:item.blob.type,audioBase64:await context.base64(item.blob),uploadId:item.id,expectedPrevious:item.expectedPrevious,...(lease?{leaseToken:lease.leaseToken}:{})});
     }finally{if(lease)await root.RelayStorage.request('releaseLock',{revision:item.revision,verse:item.verse,leaseToken:lease.leaseToken}).catch(()=>{});}
   }
   async function flush(){
