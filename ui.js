@@ -33,9 +33,12 @@ function controls() {
   $('ok').disabled = busy || !!draft?.qualityChecking || !!draft?.trimChecking;
   $('text-input').disabled = locked();
   $('reader').disabled = busy || acquiring || !!recorder;
+  globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();
 }
 function render() {
   $('heading').textContent = title || '공유 본문 없음';$('connection').hidden=RelayStorage.connected&&(ready||busy);$('connection').textContent=RelayStorage.connected?'연결 확인 필요':'공유 연결 필요';
+  if($('empty-import'))$('empty-import').hidden=!!globalThis.RelayAccess&&!RelayAccess.allowed();
+  if($('empty-text-label'))$('empty-text-label').textContent=globalThis.RelayAccess&&!RelayAccess.allowed()?'본문 준비 중':'공유 본문이 비어 있어. 읽을 본문을 넣어 줘.';
   if($('empty-text')){$('empty-text').hidden=!(RelayStorage.connected&&ready&&!lines.length);$('empty-import').disabled=locked()||!ready;}
   page = Math.max(0, Math.min(page, pageStarts.length - 1));
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
@@ -79,7 +82,7 @@ function render() {
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && !globalThis.RelayF15?.active() && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();globalThis.RelayBasics?.paint();readingMargin();
+  controls();globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();globalThis.RelayBasics?.paint();globalThis.RelayAccess?.paint();readingMargin();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
 function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1); }
@@ -111,14 +114,14 @@ function drawProgress() {
 function pageFor(i) { return Math.max(0, pageStarts.findLastIndex(start => start <= i)); }
 function followSelected() { selected=unitAt(selected).start; page = pageFor(selected); render(); }
 function readingMargin(){const rect=$('sticky')?.getBoundingClientRect?.();if(rect)document.documentElement?.style?.setProperty('--reading-top',Math.max(0,Math.round(rect.bottom))+'px');}
-function scrollReading(block='start',behavior='instant') {readingMargin();requestAnimationFrame(()=>{const row=$('list').querySelector(`[data-verse="${unitAt(selected).start+1}"]`);if(!row)return;if(block==='center'&&row.getBoundingClientRect){const rect=row.getBoundingClientRect();window.scrollTo({top:Math.max(0,window.scrollY+rect.top+rect.height/2-window.innerHeight/2),behavior});}else row.scrollIntoView({block,behavior});});}
+function scrollReading(block='start',behavior='instant') {readingMargin();requestAnimationFrame(()=>{const row=(globalThis.RelayF16?.active()?$('completed-text'):$('list')).querySelector(`[data-verse="${unitAt(selected).start+1}"]`);if(!row)return;if(block==='center'&&row.getBoundingClientRect){const rect=row.getBoundingClientRect();window.scrollTo({top:Math.max(0,window.scrollY+rect.top+rect.height/2-window.innerHeight/2),behavior});}else row.scrollIntoView({block,behavior});});}
 function revealSelected() {followSelected();scrollReading();}
 function stopPlayback() {
   globalThis.RelayF15?.stop();
   playingIndex = -1;
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
   if (playbackUrl) URL.revokeObjectURL(playbackUrl); playbackUrl = null;
-  $('all').textContent = '▶'; $('play-ic').textContent = '▶';drawProgress();
+  $('all').textContent = '▶'; $('play-ic').textContent = '▶';drawProgress();globalThis.RelayF16?.paint();
 }
 async function play(i, chain = false, sequence) {
   if (locked() || !ready) return;
@@ -157,6 +160,7 @@ async function refresh() {
   await globalThis.RelayF5?.refresh();
 }
 async function failure(err) {
+  if(err.code==='ADMIN_REQUIRED')globalThis.RelayAccess?.revoke();
   status('실패: ' + err.message);
   if (err.code === 'CONFLICT') {
     // Keep draft bound to its original revision; never silently upload to a new text.
@@ -169,7 +173,7 @@ async function loadShared() {
   stopPlayback(); busy = true; controls();
   try { await refresh(); status(''); }
   catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; status('공유 연결 실패. 새로고침 또는 F1 해제'); }
-  finally { busy = false; render(); }
+  finally { busy = false; render();globalThis.RelayF11?.flush(); }
 }
 function discard() {
   clearComparison();
@@ -279,11 +283,12 @@ function replaceBody(text) {
   title=text.title;lines=text.verses;pageStarts=text.pageStarts || [0];chapters=text.chapters || [];books=text.books || [{title:title.slice(0,80),startChapter:0}];page=0;revision=text.revision;recordings=[];local.clear();selected=0;
 }
 async function saveBody(next) {
+  if(globalThis.RelayAccess)RelayAccess.fields();
   if(locked() || !ready)throw Error('녹음 확인 또는 연결을 먼저 마쳐야 함');
   if(globalThis.RelayF8?.enabled())RelayF8.validate(next);
   busy=true;stopPlayback();globalThis.RelayF4?.cancel();controls();
   try {
-    const text=RelayStorage.connected?await RelayStorage.request('saveText',{...next,revision}):next;
+    const text=RelayStorage.connected?await RelayStorage.request('saveText',{...globalThis.RelayAccess?.fields(),...next,revision}):next;
     globalThis.RelayF8?.remember(text);try{localStorage.removeItem('relay.groups.v1');}catch(_){}replaceBody(text);globalThis.RelayF5?.reset();
     if(globalThis.RelayDrafts)RelayDrafts.serverText(editorText());else $('text-input').value=editorText();$('erase-confirm').checked=false;$('editor').open=false;status('본문 저장 완료 · 기존 녹음 초기화');return text;
   } catch(error) {await failure(error);throw error;} finally {busy=false;render();}
@@ -406,7 +411,7 @@ function editorText() {
     return (book ? `# ${book.title}\n` : '') + `@${chapterAt(index).title} | ${chapterAt(index).startVerse}\n` + lines.slice(start, pageStarts[index + 1] ?? lines.length).join('\n\n');
   }).join('\n\n---\n\n').replace(/\n\n---\n\n(?=# )/g, '\n\n');
 }
-$('all').onclick = () => { if (playbackUrl||globalThis.RelayF15?.active()) { stopPlayback(); status(''); return; }if(locked()||!ready)return;if(globalThis.RelayF15?.enabled()){stopPlayback();RelayF15.play(musicSnapshot());return;} const from = Math.max(0, selected); const first = lines.findIndex((_, i) => i >= from && hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
+$('all').onclick = () => { if (playbackUrl||globalThis.RelayF15?.active()) { stopPlayback(); status(''); return; }if(locked()||!ready)return;if(globalThis.RelayF15?.enabled()||globalThis.RelayF16?.active()){stopPlayback();RelayF15.play(musicSnapshot(),!!globalThis.RelayF16?.active());return;} const from = Math.max(0, selected); const first = lines.findIndex((_, i) => i >= from && hasAudio(i)); if (first >= 0) play(first, true); else status('아직 녹음 없음'); };
 $('refresh').onclick = loadShared;
 $('reader').value = RelayStorage.readerName;
 $('identity').onsubmit = e => { e.preventDefault(); try { RelayStorage.setReaderName($('reader').value); status(''); } catch (err) { status(err.message); } };
@@ -520,10 +525,11 @@ $('grid-page')?.addEventListener?.('click', e => { e.stopPropagation(); const fr
 
 // F9 grouping edits never silently discard a real recording.
 async function saveGroups(next,discardRecordings) {
+  if(globalThis.RelayAccess)RelayAccess.fields();
   if(locked() || !ready)throw Error('녹음 확인 또는 연결 필요');
   busy=true;stopPlayback();globalThis.RelayF4?.cancel();controls();
   try {
-    if(RelayStorage.connected){await RelayStorage.request('saveGroups',{revision,groups:next,discardRecordings});await refresh();}
+    if(RelayStorage.connected){await RelayStorage.request('saveGroups',{...globalThis.RelayAccess?.fields(),revision,groups:next,discardRecordings});await refresh();}
     else {
       const affected=[...local].filter(([index,item])=>RelayF9.changed({...item,verse:index+1},next));
       if(!discardRecordings&&affected.some(([,item])=>!item.demo)){const error=Error('변경될 녹음 삭제 동의 필요');error.code='RECORDINGS_EXIST';throw error;}
@@ -578,14 +584,14 @@ globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;contro
 
 globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});
 
-globalThis.RelayF14?.init({state:()=>({book:bookAt(page).title,chapter:chapterAt(page).title,from:pageStarts[page],startVerse:chapterAt(page).startVerse,count:(pageStarts[page+1]??lines.length)-pageStarts[page]})});
+globalThis.RelayF14?.init({state:()=>({book:bookAt(page).title,chapter:chapterAt(page).title,from:pageStarts[page],startVerse:chapterAt(page).startVerse,count:(pageStarts[page+1]??lines.length)-pageStarts[page],capture:!!recorder||acquiring||!!draft})});
 
 globalThis.RelayDrafts?.init({revision:()=>revision,ready:()=>ready&&!busy,locked});
 
 function musicSnapshot(){
   const from=pageStarts[page],to=pageStarts[page+1]??lines.length;
-  const tracks=(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&(RelayStorage.connected||item.blob)&&(item.endVerse??item.verse)>selected).sort((a,b)=>a.verse-b.verse).map(item=>{const chapter=pageFor(item.verse-1);return {...item,book:bookAt(chapter).title,chapter:chapterAt(chapter).title,startVerse:chapterAt(chapter).startVerse};});
-  return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,tracks};
+  const tracks=(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&(RelayStorage.connected||item.blob)&&(item.endVerse??item.verse)>selected).sort((a,b)=>a.verse-b.verse).map(item=>{const chapter=pageFor(item.verse-1);return {...item,book:bookAt(chapter).title,chapter:chapterAt(chapter).title,startVerse:chapterAt(chapter).startVerse,...(globalThis.RelayF16?.active()?{chapterMusic:RelayF16.material(bookAt(chapter).title,chapterAt(chapter).title).music||null}:{})};});
+  return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,tracks:globalThis.RelayF16?.active()?tracks.filter(item=>item.verse>from&&item.verse<=to):tracks};
 }
 globalThis.RelayF15?.init({locked,ready:()=>ready,snapshot:musicSnapshot,play:()=>$('all').onclick(),stop:stopPlayback,end:stopPlayback,
   changed:()=>{$('all').textContent='■';$('play-ic').textContent='■';$('center-txt').textContent='음악과 듣기';drawProgress();},
@@ -608,7 +614,7 @@ globalThis.RelayBasics?.init({locked,ready:()=>ready,stop:stopPlayback,render,to
   page:step=>changePage(page+step),sheet:()=>openSheet(lastSheet),books:()=>$('book-open').onclick(),groupEditing:()=>!!globalThis.RelayF9?.editing(),group:index=>RelayF9.select(index),
   label:range=>{const ch=pageFor(range.start),first=chapterAt(ch).startVerse+range.start-pageStarts[ch],last=first+range.end-range.start;return `${first}${last>first?'–'+last:''}절`;},
   copyText:range=>{const ch=pageFor(range.start),book=bookAt(ch).title,index=BIBLE.findIndex(item=>item[0]===book),first=chapterAt(ch).startVerse+range.start-pageStarts[ch],last=first+range.end-range.start,chapter=chapterAt(ch).title.replace(/장$/,'');return lines.slice(range.start,range.end+1).join('\n')+'\n\n'+(COPY_BOOKS[index]||book)+' '+chapter+':'+first+(last>first?'-'+last:'');},
-  owned:range=>actualItems().filter(item=>ownsItem(item)&&item.verse>=range.start+1&&(item.endVerse??item.verse)<=range.end+1),remove:removeOwnRecordings
+  owned:range=>actualItems().filter(item=>ownsItem(item)&&item.verse>=range.start+1&&(item.endVerse??item.verse)<=range.end+1),foreign:range=>RelayStorage.connected?actualItems().filter(item=>!ownsItem(item)&&!item.demo&&(item.deviceId||item.readerName!==$('reader').value.trim())&&item.verse>=range.start+1&&(item.endVerse??item.verse)<=range.end+1):[],check:items=>RelaySoundChecks.open(items),remove:removeOwnRecordings
 });
 window.addEventListener('resize',readingMargin);
 
@@ -639,3 +645,10 @@ window.addEventListener('resize',readingMargin);
     if (r && $(r.id)) setTimeout(() => { openSheet(r.id); $(r.id).scrollTop = r.top || 0; }, 0);
   } catch {}
 })();
+
+globalThis.RelayAccess?.init({locked,changed:()=>render()});
+
+// Follow-up modules initialize after the preserved #50 history guard.
+globalThis.RelayWelcome?.init({name:name=>{$('reader').value=name;nameView();render();}});
+globalThis.RelaySoundChecks?.init({revision:()=>revision,name:()=>$('reader').value.trim(),clear:()=>RelayBasics.clear(),toast});
+globalThis.RelayF16?.init({state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;let complete=to>from;for(let i=from;i<to;i++){const r=recordingAt(i);if(!r||r.demo)complete=false;}return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,from,to,complete,capture:!!recorder||acquiring||!!draft,lines,playing:playingIndex,recording:recordingAt};},stop:stopPlayback,changed:render,play:index=>{if(locked()||!ready)return;stopPlayback();selected=index;RelayF15.play(musicSnapshot(),true);}});
