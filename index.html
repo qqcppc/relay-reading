@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴레이 낭독</title>
-<link rel="stylesheet" href="settings.css?v=51">
-<link rel="stylesheet" href="f14-background.css?v=51">
-<script src="features.js?v=51"></script>
-<script src="settings.js?v=51"></script>
+<link rel="stylesheet" href="settings.css?v=52">
+<link rel="stylesheet" href="f14-background.css?v=52">
+<script src="features.js?v=52"></script>
+<script src="settings.js?v=52"></script>
 <style>
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0 auto;padding:20px 16px 24px;display:grid;gap:12px;max-width:520px}
 .line{box-sizing:border-box;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:10px}
@@ -233,7 +233,7 @@ body.modal-open{overflow:hidden}
 #completed-text{position:relative;line-height:1.95;font-size:var(--fs,1.15rem);font-family:var(--reading-font,system-ui,sans-serif);padding:18px 12px 80px;white-space:pre-wrap;overflow-wrap:anywhere}#completed-text button{display:inline;border:0;background:transparent;color:inherit;font:inherit;line-height:inherit;text-align:left;padding:0;min-height:0;white-space:pre-wrap}#completed-text small{font-size:.5em;vertical-align:super;margin-right:5px}#completed-text .future{opacity:.55}#completed-text .reading{font-weight:750;color:var(--terra,#a85a4f);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:5px}#completed-toggle{width:auto;display:inline-flex;align-items:center;justify-content:center;font-size:12px;min-height:28px;padding:2px 10px;margin:8px 0}#completed-scene{position:fixed;inset:0;z-index:-1;background-position:center;background-size:cover;pointer-events:none}.completed-art #completed-text{background:color-mix(in srgb,var(--bg,#faf8f3) 88%,transparent);border-radius:12px}.completed-art #completed-scene{z-index:0}.completed-art main,.completed-art #completed-toggle,.completed-art #completed-text{position:relative}#checks-list li{padding:10px 0;border-bottom:1px solid #aaa}#checks-list button{font-size:12px;min-height:30px}
 </style></head><body>
 <div id="f14-scene" aria-hidden="true" hidden></div>
-<div id="sticky"><small id="connection" role="status" hidden>공유 연결 필요</small><small id="inapp-hint" hidden>⋮ → 다른 브라우저로 열기</small><button id="pending-count" type="button" hidden></button><header id="top"><button id="prev-page" aria-label="이전 장" hidden>‹</button><button id="next-page" aria-label="다음 장" hidden>›</button><div id="title-btn" role="group" aria-label="위치" data-n="3"><span id="settings-open" aria-label="화면 번호">#50</span><button id="tb-book" type="button" aria-label="책 고르기"><span id="version">책</span></button><span id="tb-ch" aria-hidden="true"></span><button id="tb-vs" type="button" aria-label="절 범위" hidden></button><small id="ver-sub" hidden></small></div><div id="center" data-n="6"><div id="progress" aria-label="녹음 진행"></div><button id="grid-page" type="button" hidden aria-label="다음 30절">1/2</button><button id="center-play" type="button" hidden><span id="play-ic">▶</span> <span id="center-txt">처음부터 듣기</span></button><span id="page-label" hidden></span></div><button id="people-open" type="button" aria-label="사람" hidden>👤</button></header><small id="f14-label" hidden></small></div>
+<div id="sticky"><small id="connection" role="status" hidden>공유 연결 필요</small><small id="inapp-hint" hidden>⋮ → 다른 브라우저로 열기</small><button id="pending-count" type="button" hidden></button><header id="top"><button id="prev-page" aria-label="이전 장" hidden>‹</button><button id="next-page" aria-label="다음 장" hidden>›</button><div id="title-btn" role="group" aria-label="위치" data-n="3"><span id="settings-open" aria-label="화면 번호">#52</span><button id="tb-book" type="button" aria-label="책 고르기"><span id="version">책</span></button><span id="tb-ch" aria-hidden="true"></span><button id="tb-vs" type="button" aria-label="절 범위" hidden></button><small id="ver-sub" hidden></small></div><div id="center" data-n="6"><div id="progress" aria-label="녹음 진행"></div><button id="grid-page" type="button" hidden aria-label="다음 30절">1/2</button><button id="center-play" type="button" hidden><span id="play-ic">▶</span> <span id="center-txt">처음부터 듣기</span></button><span id="page-label" hidden></span></div><button id="people-open" type="button" aria-label="사람" hidden>👤</button></header><small id="f14-label" hidden></small></div>
 <h2 id="heading" hidden>🎤 릴레이 녹음 시험</h2>
 <form id="identity" hidden><button id="all" type="button" hidden>▶</button><button id="edit-toggle" type="button" hidden>✎</button><button id="book-open" type="button" hidden>책</button></form>
 <dialog id="people" class="sheet"><div class="dlg-tabs" data-n="20"><button type="button" data-go="people" aria-pressed="true">👤 사람</button><button type="button" data-go="settings">⚙ 설정</button></div><div id="me-chip" class="me" data-n="13"><button id="me-name" type="button" aria-label="내 이름 바꾸기"></button><input id="reader" maxlength="80" autocomplete="nickname" placeholder="내 이름" hidden><button id="me-ok" type="button" hidden aria-label="이름 확인" data-n="14">확인</button><button id="me-count" type="button" aria-label="내 목표 바꾸기"></button></div><ul id="people-list" data-n="15"></ul><button id="f3-invite" type="button" hidden data-n="16">초대 링크 보내기</button><textarea id="f3-copy" readonly aria-label="초대 링크" hidden></textarea><output id="f3-share-status" role="status"></output><div id="f13-controls" hidden data-n="47"><textarea id="f13-text" readonly rows="3" aria-label="진행 문구"></textarea><button id="f13-copy" type="button">진행 문구 복사</button><output id="f13-status" role="status"></output></div></dialog>
@@ -272,28 +272,28 @@ body.modal-open{overflow:hidden}
   <div class="row"><button id="ok" aria-label="확인" data-n="10"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><button id="listen" aria-label="듣기" data-n="11"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg></button><button id="no" aria-label="취소" data-n="12"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div>
 </div>
 
-<script src="storage.js?v=51"></script>
-<script src="f2-locks.js?v=51"></script>
-<script src="f3-app.js?v=51"></script>
-<script src="f4-continuation.js?v=51"></script>
-<script src="f5-assignments.js?v=51"></script>
-<script src="f7-quality.js?v=51"></script>
-<script src="f9-groups.js?v=51"></script>
-<script src="f8-import.js?v=51"></script>
-<script src="audio-tools.js?v=51"></script>
-<script src="f10-trim.js?v=51"></script>
-<script src="f11-queue.js?v=51"></script>
-<script src="f12-chapter.js?v=51"></script>
-<script src="f13-progress.js?v=51"></script>
-<script src="f14-background.js?v=51"></script>
-<script src="drafts.js?v=51"></script>
-<script src="f15-audio.js?v=51"></script>
-<script src="f15-music.js?v=51"></script>
-<script src="basics.js?v=51"></script>
-<script src="welcome.js?v=51"></script>
-<script src="sound-checks.js?v=51"></script>
-<script src="f16-completed.js?v=51"></script>
-<script src="access.js?v=51"></script>
-<script src="ui.js?v=51"></script>
+<script src="storage.js?v=52"></script>
+<script src="f2-locks.js?v=52"></script>
+<script src="f3-app.js?v=52"></script>
+<script src="f4-continuation.js?v=52"></script>
+<script src="f5-assignments.js?v=52"></script>
+<script src="f7-quality.js?v=52"></script>
+<script src="f9-groups.js?v=52"></script>
+<script src="f8-import.js?v=52"></script>
+<script src="audio-tools.js?v=52"></script>
+<script src="f10-trim.js?v=52"></script>
+<script src="f11-queue.js?v=52"></script>
+<script src="f12-chapter.js?v=52"></script>
+<script src="f13-progress.js?v=52"></script>
+<script src="f14-background.js?v=52"></script>
+<script src="drafts.js?v=52"></script>
+<script src="f15-audio.js?v=52"></script>
+<script src="f15-music.js?v=52"></script>
+<script src="basics.js?v=52"></script>
+<script src="welcome.js?v=52"></script>
+<script src="sound-checks.js?v=52"></script>
+<script src="f16-completed.js?v=52"></script>
+<script src="access.js?v=52"></script>
+<script src="ui.js?v=52"></script>
 <div id="toast" role="status" aria-live="polite"></div>
 </body></html>

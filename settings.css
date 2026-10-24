@@ -115,3 +115,15 @@ body.range-mode{padding-bottom:110px}
 
 #tb-book #version{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #title-btn #tb-ch.long-chapter{font-size:2.4rem!important}
+
+/* #52 토스트 크게·색 구분, 연결 안내는 줄 차지 없이 겹쳐 표시, 책 이름 가운데 */
+#toast{font-size:1.15rem!important;font-weight:800;padding:12px 26px!important;bottom:40px!important;box-shadow:0 6px 18px #0003}
+#toast[data-kind=rec]{background:#c0392b!important;color:#fff}
+#toast[data-kind=done]{background:#2e7d4f!important;color:#fff}
+#sticky{position:sticky}
+#connection,#inapp-hint{position:absolute!important;top:2px;left:50%;transform:translateX(-50%);z-index:30;background:#f6c343;color:#3a2a00!important;font-weight:700;padding:1px 10px!important;border-radius:999px;font-size:.7rem!important;white-space:nowrap;pointer-events:none;animation:conn-blink 2.4s ease-in-out infinite}
+#inapp-hint{top:auto;bottom:2px}
+@keyframes conn-blink{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){#connection,#inapp-hint{animation:none}}
+#sticky:has(#connection:not([hidden])),#sticky:has(#inapp-hint:not([hidden])){gap:8px!important}
+#title-btn #tb-book{justify-content:center!important;text-align:center!important}

@@ -214,12 +214,12 @@ async function start(event) {
       stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null;
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
-      else { toast('녹음 완료'); draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
+      else { toast('✓ 녹음 완료',1500,'done'); draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
       if(draft)prepareDraft(draft,(Date.now()-startedAt)/1000);
       render();
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
-    current.start(250); render();scrollReading();status('');toast('녹음 시작');try{if(!localStorage.getItem('relay.mic-tip.v1')){status('조용한 곳 · 폰 20cm');toast('조용한 곳 · 폰 20cm',2400);localStorage.setItem('relay.mic-tip.v1','1');}}catch(_){}
+    current.start(250); render();scrollReading();status('');toast('● 녹음 시작',1500,'rec');try{if(!localStorage.getItem('relay.mic-tip.v1')){status('조용한 곳 · 폰 20cm');toast('조용한 곳 · 폰 20cm',2400);localStorage.setItem('relay.mic-tip.v1','1');}}catch(_){}
   } catch (err) { stream?.getTracks().forEach(t => t.stop()); stream = null; recorder = null; globalThis.RelayF2?.release(); const denied=err.name==='NotAllowedError'||err.name==='PermissionDeniedError';const message=denied?'주소창 왼쪽 자물쇠 → 마이크 허용':'녹음 실패: '+err.message;status(message);toast(message); }
   finally { acquiring = false; controls(); }
 }
@@ -543,7 +543,7 @@ globalThis.RelayF9?.init({text:()=>({title,verses:lines,pageStarts,chapters,book
   records:()=>RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1})),save:saveGroups});
 
 let toastTimer = null;
-function toast(msg,duration=1200) { const t = $('toast'); if (!t) return; t.textContent = msg; t.classList?.add?.('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList?.remove?.('show'), duration); }
+function toast(msg,duration=1200,kind='') { const t = $('toast'); if (!t) return; t.textContent = msg; if (t.dataset) t.dataset.kind = kind; t.classList?.add?.('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList?.remove?.('show'), duration); }
 // 시트 위치: 틀 고정 줄 바로 아래
 function sheetTop() { const r = document.getElementById('sticky')?.getBoundingClientRect?.(); if (r) document.documentElement?.style?.setProperty?.('--sheet-top', Math.round(r.bottom) + 'px'); }
 ['book-picker','people','settings'].forEach(id => { const d = $(id); const o = d.showModal?.bind(d); if (o) d.showModal = () => { sheetTop(); o(); }; });
