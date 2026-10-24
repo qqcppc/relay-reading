@@ -66,7 +66,7 @@
 - Apps Script 배포(웹 앱 주소 발급)는 사용자 구글 계정으로 1회 필요
 
 ## 작업 기록
-- 2026-10-24 · #51 · Codex · codex/basics2에 서버 ADMIN_KEY·편집 메뉴 검증/기본 전송 대기·두 탭 동기화/첫 안내 4장/F16 완성 본문·장 자산·그룹 강조/비공개 소리 점검 구현, 단위/API 41사례·브라우저 12종 통과 · 남은 일: Claude 검토·병합·화면 #51, 사용자 ADMIN_KEY 설정·Code.gs 배포/폰 확인, Claude 공유 폴더의 잠언 배경 받기
+- 2026-10-24 · #51 · Codex · codex/basics2에 서버 ADMIN_KEY·편집 메뉴 검증/기본 전송 대기·두 탭 동기화/첫 안내 4장/F16 완성 본문·장 자산·그룹 강조/비공개 소리 점검 구현, 단위/API 41사례·브라우저 12종 통과 · 남은 일: Claude PR 생성(API Forbidden)·검토·병합·화면 #51, 사용자 ADMIN_KEY 설정·Code.gs 배포/폰 확인, Claude 공유 폴더의 잠언 배경 받기
 - 2026-10-23 · Claude · index.html(녹음 시험판), HANDOVER/AGENTS/CLAUDE.md 추가 · 남은 일: Pages 주소 폰 확인
 - 2026-10-23 · Claude · 저장 장소 Apps Script 확정, 담당 제안 기록
 - 2026-10-23 · Codex · apps-script API 명세·Drive 저장/교체·본문 API·배포 안내 구현, 로컬 모의 테스트 2개 통과 · 남은 일: 사용자 Apps Script 배포, Claude 화면 연동 및 실제 폰 재생/CORS 확인

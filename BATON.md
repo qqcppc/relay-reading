@@ -16,7 +16,7 @@
 - 버전 문자열은 index.html ?v · sw.js VERSION · f3-app.js 를 항상 같이 올릴 것
 
 ## 이번 할 일 (#51, Claude 검토·병합)
-1. `codex/basics2` 검토 → main 병합 → 화면 #51로 갱신. index의 `?v`·sw VERSION·f3-app은 이미 51. 후속 묶음 전부 구현: ADMIN_KEY·기본 대기열·첫 안내 틀·F16·소리 점검.
+1. `codex/basics2` 검토 → main 병합 → 화면 #51로 갱신. PR 생성은 GitHub GraphQL/REST 모두 `Forbidden`으로 차단되어 미생성. [PR 만들기](https://github.com/qqcppc/relay-reading/compare/main...codex/basics2?expand=1)에서 생성·검토. index의 `?v`·sw VERSION·f3-app은 이미 51. 후속 묶음 전부 구현: ADMIN_KEY·기본 대기열·첫 안내 틀·F16·소리 점검.
 2. 최신 Code.gs 배포 안내: 스크립트 속성에 **ADMIN_KEY 추가(API_KEY와 다르게)** → 배포 관리/수정/새 버전. 기존 URL 유지. 키 미설정/불일치는 본문·묶음 쓰기 차단. 폰 설정에서 검증한 뒤 편집. 키는 초대/공개 저장소에 넣지 않음.
 3. 사용자 폰에서 이름 미등록 안내(안내 1~4), F16 OFF/ON·완성/미완성·묶음 강조·카드 복귀, 전송 실패/시작 재전송, 타인 범위의 소리 점검/비공개 목록 확인. 실제 안내 문구는 사용자 결정 대기.
 4. **사용자가 배경 전달 폴더를 ‘링크가 있는 모든 사용자’로 바꿨다고 알림.** 앞서 받은 잠언 1장 그림 폴더에 다시 접근해 자산 추가. 연결 목록은 `assets/chapters/catalog.json`: `{book:"잠언",chapter:"1장",background:"assets/bg/잠언/1.webp",music:"assets/music/잠언/1.mp3"}`. 현재 빈 목록이며 없는 그림/음악은 텍스트·낭독만. 음악 재료는 사용자 전달 대기. **녹음 저장용 비공개 폴더와 배경 전달용 공유 폴더 구분**.
