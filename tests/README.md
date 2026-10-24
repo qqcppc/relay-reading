@@ -39,3 +39,6 @@ UPDATE_SCREENSHOTS=1 BROWSER_EXECUTABLE=/usr/bin/chromium npm run test:visual
 ```
 
 음성은 가상 마이크·메모리 Blob·테스트용 IndexedDB만 사용한다. WAV 다운로드는 Blob URL을 메모리에서 해독하며 파일로 저장하지 않는다. 실제 녹음 파일은 저장소에 넣지 않는다. 실제 Google 배포 권한/CORS, 카톡 붙여넣기·파일 공유, iPhone/Android의 마이크·해독·설치·저장 용량은 사용자 배포 후 폰에서 별도 확인한다.
+
+
+#51: `tests/basics2-smoke.cjs`는 실제 서버 권한 검증·키 해제/재시작, 이름 없는 첫 안내, 소리 점검 비공개 목록, F11 OFF 상태의 기본 보관/시작 재전송, 완성/미완성 장·묶음 강조·탭/카드 전환·장 그림/음악을 검증한다. 본문은 예시 문자열, 소리는 메모리에서 만든 PCM만 사용한다. 기존 편집 테스트만 별도의 `helpers/admin.cjs`로 검증용 키를 넣으며 HTTP 라우트는 호출자의 필드를 그대로 서버에 전달한다.

@@ -20,7 +20,7 @@
     $('f14-scene').style.setProperty('--f14-y',(position(verse)*100).toFixed(2)+'%');
   }
   function schedule(){if(active==='A'&&!reduce?.matches&&frame===null)frame=root.requestAnimationFrame(update);}
-  function paint(){if(!context)return;const state=context.state(),next=enabled()&&state.count>0?mode(state.book,state.chapter):null;
+  function paint(){if(!context)return;const state=context.state(),next=enabled()&&!state.capture&&!root.RelayF16?.active()&&state.count>0?mode(state.book,state.chapter):null;
     if(next!==active){active=next;const scene=$('f14-scene');scene.hidden=!next;scene.dataset.mode=next||'';document.body.classList.toggle('f14-active',!!next);$('f14-label').hidden=!next;
       $('f14-label').textContent=next?'배경 시험 '+next:'';scene.style.removeProperty('--f14-y');}
     document.body.classList.toggle('f14-paused',!!document.hidden);schedule();

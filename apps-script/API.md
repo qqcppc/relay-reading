@@ -11,7 +11,7 @@ GET: `/exec?action=getText&key=공유키` 또는 `action=listRecordings`.
 POST: JSON 문자열을 **text/plain;charset=utf-8**로 전송한다. 인증 헤더나
 application/json은 사용하지 않는다(브라우저 사전 요청 방지). 읽기도 POST 가능.
 `key`는 배포자가 정한 소그룹 공유키이며 저장소에 커밋하지 않는다. GET URL에는
-키가 남으므로 화면에서는 POST 권장. 공유키를 아는 사람은 모두 읽기·쓰기 가능.
+키가 남으므로 화면에서는 POST 권장. 공유키는 본문·음성 조회와 녹음에 사용한다. **본문 저장(saveText)·묶음 변경(saveGroups)은 별도 ADMIN_KEY가 필수**다.
 
 ```js
 const result = await fetch(API_URL, {
@@ -27,7 +27,7 @@ if (!result.ok) throw new Error(result.error.message);
 | action | 추가 요청 필드 | 성공 data |
 | --- | --- | --- |
 | getText | 없음 | `{title, verses: ["첫 줄", "둘째 줄"], pageStarts: [0], revision}` |
-| saveText | `title`, `verses` 문자열 배열, `pageStarts`(선택), `revision` | 새 본문 객체 |
+| saveText | `adminKey`, `title`, `verses` 문자열 배열, `pageStarts`(선택), `revision` | 새 본문 객체 |
 | listRecordings | 없음 | `{revision, recordings: [{verse, readerName, playbackUrl, recordedAt}]}` |
 | uploadRecording | `revision`, `verse`, `readerName`, `mimeType`, `audioBase64` | 녹음 객체(위 목록의 항목과 동일) |
 | getAudio | `revision`, `verse` | `{mimeType, audioBase64}` |
@@ -162,3 +162,22 @@ F11 대기열은 폰 IndexedDB에만 저장한다. 주소+공유키의 SHA-256 �
 대상은 중복 없는 첫 절 키 1~500개. 묶음 파일은 첫 절 키 한 개다. 성공 data는 `{revision, deleted:[3], skipped:[4], recordings:[...]}`. 기기 해시와 이름이 모두 맞는 본인 녹음만 삭제하고 타인/미등록/이미 없는 녹음은 skipped로 돌려준다. 타인의 deviceId나 이름만 복사해도 삭제할 수 없다. 소유한 대상의 파일 주소가 바뀌었으면 CONFLICT, 현재 잠금이 있으면 LOCKED이며 요청 전체를 적용하지 않는다. ScriptLock 안에서 검사·상태 저장을 마친 뒤 해당 파일만 Drive 휴지통으로 보낸다. 본문·그룹·배정표와 본문 revision은 유지한다.
 
 **기존 기기 정보 없는 녹음은 이름만으로 소유를 추정해 삭제하지 않는다.** 기존 조회/업로드 요청은 호환되지만 이 삭제 기능에는 최신 Code.gs 배포가 필요하다. 브라우저 데이터 삭제/다른 브라우저 사용은 등록 비밀값을 잃거나 바꾸므로 이전 소유 확인을 자동 복구하지 않는다. 이용자는 녹음 때 쓴 브라우저와 이름을 사용한다. ADMIN_KEY 본문 수정 권한 분리는 다음 묶음(7번)이다.
+
+
+## 관리자 키·소리 점검 (#51)
+
+`API_KEY`와 다른 임의의 긴 `ADMIN_KEY`를 스크립트 속성에 설정한다. 요청의 `adminKey`와 서버 속성이 일치해야 하며, 화면의 스위치나 이름은 권한 증명이 아니다. 미설정은 `NOT_CONFIGURED`, 누락·오류는 `ADMIN_REQUIRED`. 검사는 본문 revision/내용 검사보다 먼저 수행하므로 무권한 요청으로 삭제·교체되지 않는다. ADMIN_KEY는 초대 링크·공개 JSON·응답·저장소에 넣지 않는다.
+
+| POST action | 추가 필드 | 성공 data |
+| --- | --- | --- |
+| getAccess | `adminKey`(검증 시) | `{admin:boolean, configured:boolean}` |
+| saveText / saveGroups | 기존 필드 + `adminKey` | 기존 응답 |
+| createSoundCheck | `revision`, `readerName`(점검 이용자), `deviceId`, `deviceToken`, `reason:"cut" 또는 "silent"`, `targets:[{verse,playbackUrl}]` | `{created:개수}` |
+| listSoundChecks | `adminKey` | `{revision,checks:[{id,verse,endVerse,playbackUrl,recordingReader,observer,reason,deviceId,createdAt}]}` |
+| resolveSoundCheck | `adminKey`, `revision`, `id` | `{resolved:true}` |
+
+소리 점검은 파일을 변경하지 않는다. 대상은 묶음 첫 절과 현재 `playbackUrl`로 지정한다. 바뀐 파일은 `CONFLICT`, 본인 녹음은 제외한다. 같은 기기·파일·사유의 중복을 합치며 미완료 목록은 최대 500개. 완료하거나 교체/삭제된 파일의 항목은 목록에서 빠진다. 점검 기록은 비공개 상태 JSON에만 저장하며 getText/listRecordings 응답에는 포함하지 않는다. 키가 확인된 폰만 목록을 조회·완료 처리한다.
+
+화면은 검증된 키를 해당 연결의 SHA-256 범위와 함께 이 폰에 기억하고, 재시작 때 서버에 다시 검증한다. 키 해제·연결 변경·키 교체 뒤에는 재확인이 필요하다. 그룹 공유키만 가진 이용자는 새/구형 화면 또는 직접 API 호출로도 본문·묶음을 바꿀 수 없다. 이전 Code.gs 배포에는 이 보장이 없으므로 서버 재배포가 필요하다.
+
+F11 대기열은 #51부터 F1 연결의 기본 동작이다. 이전 F11 스위치 값과 무관하게 시작·온라인 복귀 때 재전송하며, 연결 범위·본문 버전·현재 파일·등록 기기를 확인한다. 충돌 항목은 자동 교체하지 않는다.

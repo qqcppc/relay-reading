@@ -2,7 +2,7 @@
 
 ## 🆕 새 Claude 세션 시작 안내 (2026-10-24 01:40 기준)
 - 사이트: https://qqcppc.github.io/relay-reading/ (GitHub Pages, main 배포 · 배포 실패 시 Actions에서 「실패한 작업 다시 실행」, 사용자 메일로 실패 알림 옴)
-- **바통 #49 = Claude 검토·병합 차례** — F1~F15는 main. codex/basics에 기초 1차(손동작·머리·본인 삭제·재생 따라가기·마이크/카톡 안내) 완료. 검토 후 화면 #49 갱신, ADMIN_KEY/기본 대기열/첫 안내/F16/소리 점검은 후속 묶음.
+- **바통 #51 = Claude 검토·병합 차례** — main은 #50. codex/basics2에 ADMIN_KEY·기본 대기열·첫 안내 틀·F16 완성된 장/장 자산 연결·소리 점검 완료. 검토·병합 뒤 화면 #51, 사용자 ADMIN_KEY 추가/Code.gs 새 버전 배포. 잠언 배경 전달 폴더는 링크 공유로 바뀜(Claude가 기존 주소로 받기).
 - **진행 방식**: 사용자 폰 피드백(사진에 손글씨 표시) → Claude가 화면 수정 직접(claude/… 브랜치 → main push) / 큰 기능은 BATON.md에 적어 Codex 배정 → Codex는 codex/… push까지만 → Claude 검토·테스트·병합·#번호 갱신
 - **병합 체크**: tests/*.cjs 전부(ui-smoke.cjs 제외) + apps-script/Code.test.cjs 통과, 버전 문자열 3곳(index ?v · sw.js VERSION · f3-app.js) 같이, 책 칸 왼쪽 위 `#번호` = 화면 버전(「완료」까지 계속 갱신). Playwright 화면 확인 시 라우터는 경로 그대로 파일 제공
 - **원칙**: 일단 만들어 보고 시험 → 고정/스위치/삭제 결정. 새 기능 = ⑤ 실험 기능 스위치(F번호, 기본 꺼짐)
@@ -66,6 +66,7 @@
 - Apps Script 배포(웹 앱 주소 발급)는 사용자 구글 계정으로 1회 필요
 
 ## 작업 기록
+- 2026-10-24 · #51 · Codex · codex/basics2에 서버 ADMIN_KEY·편집 메뉴 검증/기본 전송 대기·두 탭 동기화/첫 안내 4장/F16 완성 본문·장 자산·그룹 강조/비공개 소리 점검 구현, 단위/API 41사례·브라우저 12종 통과 · 남은 일: Claude 검토·병합·화면 #51, 사용자 ADMIN_KEY 설정·Code.gs 배포/폰 확인, Claude 공유 폴더의 잠언 배경 받기
 - 2026-10-23 · Claude · index.html(녹음 시험판), HANDOVER/AGENTS/CLAUDE.md 추가 · 남은 일: Pages 주소 폰 확인
 - 2026-10-23 · Claude · 저장 장소 Apps Script 확정, 담당 제안 기록
 - 2026-10-23 · Codex · apps-script API 명세·Drive 저장/교체·본문 API·배포 안내 구현, 로컬 모의 테스트 2개 통과 · 남은 일: 사용자 Apps Script 배포, Claude 화면 연동 및 실제 폰 재생/CORS 확인

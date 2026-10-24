@@ -1,0 +1,6 @@
+/* Placeholder guide: actual wording is deliberately left to the creator. */
+(function(root){'use strict';const $=id=>document.getElementById(id);let step=0,context;
+ function paint(){$('welcome-title').textContent='안내 '+(step+1);$('welcome-step').textContent=(step+1)+' / 4';$('welcome-prev').disabled=step===0;$('welcome-next').textContent=step===3?'시작':'다음';$('welcome-name-label').hidden=step!==3;}
+ function move(delta){step=Math.max(0,Math.min(3,step+delta));paint();}
+ root.RelayWelcome={init(next){context=next;if(root.RelayStorage.readerName)return;paint();$('welcome-prev').onclick=()=>move(-1);$('welcome-next').onclick=()=>{if(step<3){move(1);return;}const name=$('welcome-name').value.trim();if(!name){$('welcome-status').textContent='이름 입력';return;}try{root.RelayStorage.setReaderName(name);context.name(name);$('welcome').close();}catch(error){$('welcome-status').textContent=error.message;}};let touch=null;$('welcome-card').addEventListener('touchstart',e=>{touch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});$('welcome-card').addEventListener('touchend',e=>{if(!touch)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;touch=null;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*2)move(dx<0?1:-1);},{passive:true});$('welcome').showModal();}};
+})(globalThis);

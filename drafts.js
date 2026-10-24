@@ -19,7 +19,7 @@
   function capture(kind){const form=forms[kind];form.restored=false;form.dirty=!same(fields(form),form.baseline);
     if(form.dirty)persist(kind);else{form.persisted=false;if(prefix)try{localStorage.removeItem(prefix+kind);}catch(_){}paint(kind);}
   }
-  function reveal(){if(!pendingReveal||!context?.ready()||context.locked())return;
+  function reveal(){if(!pendingReveal||!context?.ready()||context.locked()||root.RelayAccess&&!root.RelayAccess.allowed())return;
     if(pendingReveal==='import'){if(!root.RelayF8?.enabled())return;root.RelayF8.open();}
     else{$('editor').hidden=false;$('editor').open=true;}
     pendingReveal=null;

@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
       const path = new URL(route.request().url()).pathname.slice(1) || 'index.html';
       return route.fulfill({contentType:path.endsWith('.js')?'application/javascript':path.endsWith('.css')?'text/css':'text/html',body:fs.readFileSync(path,'utf8')});
     });
-    await page.goto('https://relay.test/');
+    await page.addInitScript(()=>{try{if(!localStorage.getItem('relay.reader.v1'))localStorage.setItem('relay.reader.v1','나');}catch(_){}});await page.goto('https://relay.test/');
     assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
     const text=await page.locator('.t').allTextContents();
     const badges=await page.locator('[data-n]').count();

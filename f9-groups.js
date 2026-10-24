@@ -18,19 +18,19 @@
   function unit(index){return enabled()?canonical(index):{start:index,end:index};}
   function changed(record,next){const index=record.verse-1,group=next.find(g=>g.start<=record.verse&&g.end>=record.verse);return (group?.start??index+1)!==record.verse || (group?.end??index+1)!==(record.endVerse??record.verse);}
   function paint(){
-    if(!context)return;
-    $('f9-controls').hidden=!enabled();$('f9-tools').hidden=!enabled()||!editing||!selection.size;
+    if(!context)return;if(root.RelayAccess&&!root.RelayAccess.allowed()){editing=false;selection.clear();proposal=null;$('f9-edit').checked=false;}
+    $('f9-controls').hidden=!enabled()||!!root.RelayAccess&&!root.RelayAccess.allowed();$('f9-tools').hidden=!enabled()||!editing||!selection.size;
     const selected=[...selection].map(canonical);$('f9-merge').textContent=selected.length>1?context.label(Math.min(...selected.map(g=>g.start)),Math.max(...selected.map(g=>g.end)))+' 묶기':'묶기';
     $('f9-merge').disabled=selection.size<2||saving;$('f9-split').disabled=!selection.size||saving;
   }
   async function persist(next,discard){
-    if(saving||context.locked())return;saving=true;paint();
+    if(saving||context.locked()||root.RelayAccess&&!root.RelayAccess.allowed())return;saving=true;paint();
     try{await context.save(next,discard);groups=next;selection.clear();proposal=null;$('f9-confirm').close();context.render();$('f9-status').textContent='';}
     catch(error){if(error.code==='RECORDINGS_EXIST'){proposal=next;$('f9-consent').checked=false;$('f9-confirm').showModal();}else {$('f9-status').textContent=error.message;context.report(error.message);}}
     finally{saving=false;paint();}
   }
   function propose(split){
-    if(!selection.size||saving||context.locked())return;
+    if(!selection.size||saving||context.locked()||root.RelayAccess&&!root.RelayAccess.allowed())return;
     try{
       const chosen=[...selection].map(canonical),start=Math.min(...chosen.map(g=>g.start)),end=Math.max(...chosen.map(g=>g.end));
       let next;
@@ -44,9 +44,9 @@
   root.RelayF9={enabled,validate,canonical,unit,changed,
     raw:()=>groups.map(g=>({...g})),
     set(list,text){groups=validate(list||[],text);selection.clear();},
-    editing:()=>enabled()&&editing,
+    editing:()=>enabled()&&editing&&(!root.RelayAccess||root.RelayAccess.allowed()),
     selected:index=>{if(!enabled()||!selection.size)return false;const chosen=[...selection].map(canonical);return index>=Math.min(...chosen.map(g=>g.start))&&index<=Math.max(...chosen.map(g=>g.end));},
-    select(index){if(!enabled()||!editing||saving||context.locked())return;const start=canonical(index).start;if(selection.has(start))selection.delete(start);else selection.add(start);context.render();paint();},
+    select(index){if(!enabled()||!editing||saving||context.locked()||root.RelayAccess&&!root.RelayAccess.allowed())return;const start=canonical(index).start;if(selection.has(start))selection.delete(start);else selection.add(start);context.render();paint();},
     clear(){selection.clear();paint();},
     fromMarkers(text,markers){
       const list=markers.map(marker=>{
@@ -62,7 +62,7 @@
     init(ctx){
       context=ctx;paint();if(!enabled())return;
       if(!root.RelayStorage.connected){try{const saved=JSON.parse(localStorage.getItem('relay.groups.v1')||'null');if(saved?.signature===JSON.stringify(context.text()))groups=validate(saved.groups,context.text());}catch(_){}context.render();}
-      $('f9-edit').onchange=()=>{if(context.locked()){ $('f9-edit').checked=editing;return;}editing=$('f9-edit').checked;selection.clear();context.render();paint();};
+      $('f9-edit').onchange=()=>{if(context.locked()||root.RelayAccess&&!root.RelayAccess.allowed()){ $('f9-edit').checked=editing;return;}editing=$('f9-edit').checked;selection.clear();context.render();paint();};
       $('f9-merge').onclick=()=>propose(false);$('f9-split').onclick=()=>propose(true);$('f9-cancel').onclick=()=>{selection.clear();editing=false;$('f9-edit').checked=false;context.render();paint();};
       $('f9-confirm-save').onclick=()=>{if(proposal&&$('f9-consent').checked)persist(proposal,true);};
     },paint

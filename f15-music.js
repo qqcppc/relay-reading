@@ -26,14 +26,15 @@
     try{persist({...config,chapters:Object.fromEntries(Object.entries({...config.chapters,[key]:id}).slice(-500))});context.stop();message='';}
     catch(_){message='장별 음악 선택을 이 폰에 기억할 수 없음';}paint();
   }
-  async function loadMusic(ctx,snapshot){await readyPromise;const id=selected(snapshot);if(id==='none')return null;if(id==='tone')return root.RelayMix.tone(ctx);
+  async function loadMusic(ctx,snapshot){await readyPromise;const id=Object.hasOwn(snapshot,'chapterMusic')?(snapshot.chapterMusic?'chapter:'+snapshot.chapterMusic:'none'):selected(snapshot);if(id==='none')return null;if(id==='tone')return root.RelayMix.tone(ctx);
     let blob;
-    if(id.startsWith('asset:')){const track=catalog.find(track=>track.id===id);if(!track)throw Error('선택한 곡 없음 · 음악을 다시 선택');const response=await fetch(new URL('assets/music/'+encodeURIComponent(track.file),location.href));if(!response.ok)throw Error('배경 음악 불러오기 실패');const length=Number(response.headers.get('Content-Length'));if(length>20*1024*1024)throw Error('배경 음악은 20MiB 이하만 가능');blob=await response.blob();}
+    if(id.startsWith('chapter:')){try{const response=await fetch(new URL(snapshot.chapterMusic,location.href));if(!response.ok)return null;const length=Number(response.headers.get('Content-Length'));if(length>20*1024*1024)return null;blob=await response.blob();}catch(_){return null;}}
+    else if(id.startsWith('asset:')){const track=catalog.find(track=>track.id===id);if(!track)throw Error('선택한 곡 없음 · 음악을 다시 선택');const response=await fetch(new URL('assets/music/'+encodeURIComponent(track.file),location.href));if(!response.ok)throw Error('배경 음악 불러오기 실패');const length=Number(response.headers.get('Content-Length'));if(length>20*1024*1024)throw Error('배경 음악은 20MiB 이하만 가능');blob=await response.blob();}
     else{const file=files.find(file=>file.id===id);if(!file)throw Error('이 폰의 곡이 없음 · 다시 선택');blob=file.blob;}
-    if(!blob?.size||blob.size>20*1024*1024)throw Error('배경 음악은 0바이트 초과 20MiB 이하만 가능');let buffer;try{buffer=await ctx.decodeAudioData(await blob.arrayBuffer());}catch(_){throw Error('배경 음악 해독 실패 · 다른 곡 선택');}if(!buffer.length||buffer.duration<.1||buffer.duration>600)throw Error('배경 음악은 0.1초~10분만 가능');return buffer;
+    if(id.startsWith('chapter:')&&(!blob?.size||blob.size>20*1024*1024))return null;if(!blob?.size||blob.size>20*1024*1024)throw Error('배경 음악은 0바이트 초과 20MiB 이하만 가능');let buffer;try{buffer=await ctx.decodeAudioData(await blob.arrayBuffer());}catch(_){if(id.startsWith('chapter:'))return null;throw Error('배경 음악 해독 실패 · 다른 곡 선택');}if(id.startsWith('chapter:')&&(!buffer.length||buffer.duration<.1||buffer.duration>600))return null;if(!buffer.length||buffer.duration<.1||buffer.duration>600)throw Error('배경 음악은 0.1초~10분만 가능');return buffer;
   }
   function stop(){const old=current;current=null;old?.stop();paint();}
-  function play(snapshot){if(!enabled()||context.locked()||!context.ready())return;if(!snapshot.tracks.length){context.report(Error('이후에 실제 녹음 없음'));return;}
+  function play(snapshot,completed=false){if((!enabled()&&!completed)||context.locked()||!context.ready())return;if(!snapshot.tracks.length){context.report(Error('이후에 실제 녹음 없음'));return;}
     stop();message='';
     try{const session=root.RelayMix.start({volume:config.volume,tracks:snapshot.tracks,loadVoice:item=>context.audio(item,snapshot.revision),musicKey:item=>JSON.stringify([item.book,item.chapter,item.startVerse]),loadMusic:(ctx,item)=>loadMusic(ctx,item),onVoice:item=>{if(current===session)context.voice(item);}});current=session;context.changed();paint();
       session.done.catch(error=>{if(current===session&&error.name!=='AbortError')context.report(error);}).finally(()=>{if(current===session){current=null;context.end();paint();}});
@@ -49,7 +50,7 @@
   }
   root.RelayF15={enabled,active:()=>!!current,play,stop,paint,manifest,
     inspect:()=>current?{phase:current.phase,musicLooping:!!current.musicLooping,stats:current.stats,volume:config.volume}:null,
-    init(next){context=next;if(!enabled())return;options();
+    init(next){context=next;if(!enabled()&&!root.RelayF16?.enabled())return;options();
       $('f15-track').onchange=()=>choose($('f15-track').value);$('f15-file').onchange=importFile;
       $('f15-volume').oninput=()=>{const value=Number($('f15-volume').value)/100;if(!Number.isFinite(value)||value<0||value>1)return;try{persist({...config,volume:value});current?.setVolume(value);message='';}catch(_){message='음악 음량을 이 폰에 기억할 수 없음';}paint();};
       $('f15-play').onclick=()=>{if(current){context.stop();return;}$('settings').close();context.play();};

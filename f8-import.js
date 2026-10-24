@@ -65,7 +65,7 @@
   }
   let context=null, candidate=null,fileEpoch=0;
   function open(activate=false){
-    if(!context||context.locked())return false;
+    if(!context||context.locked())return false;if(root.RelayAccess&&!root.RelayAccess.allowed())throw Object.assign(Error('관리자 키 확인 필요'),{code:'ADMIN_REQUIRED'});
     if(!enabled()){if(!activate)return false;root.RelayFeatures.enableImport();}
     $('f8-open').hidden=false;$('settings').close();$('f8-import').showModal();return true;
   }
@@ -74,7 +74,7 @@
     remember(text){if(enabled()&&!root.RelayStorage.connected)localStorage.setItem('relay.import.v1',JSON.stringify(text));},
     restore(){if(!enabled()||root.RelayStorage.connected)return null;try{const text=JSON.parse(localStorage.getItem('relay.import.v1')||'null');validate(text);return text;}catch(_){return null;}},
     init(ctx){
-      context=ctx;$('f8-open').hidden=!enabled();
+      context=ctx;$('f8-open').hidden=!enabled()||!!root.RelayAccess&&!root.RelayAccess.allowed();
       function invalidate(){candidate=null;$('f8-save').disabled=true;$('f8-preview').replaceChildren();$('f8-consent').checked=false;}
       $('f8-source').oninput=$('f8-title').oninput=()=>{fileEpoch++;invalidate();$('f8-file').value='';$('f8-preview-button').disabled=false;$('f8-status').textContent='';};
       $('f8-open').onclick=()=>open();

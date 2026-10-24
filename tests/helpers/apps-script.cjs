@@ -3,7 +3,7 @@ const fs=require('node:fs');
 function server() {
   let next = 0;
   const files = new Map();
-  const props = { API_KEY: 'test-key', DRIVE_FOLDER_ID: 'folder' };
+  const props = { API_KEY: 'test-key', ADMIN_KEY:'test-admin', DRIVE_FOLDER_ID: 'folder' };
   const blob = (bytes, mime) => ({ getBytes: () => [...bytes],
     getDataAsString: () => Buffer.from(bytes).toString('utf8'), mime });
   const folder = { createFile(name, content) {
@@ -27,9 +27,10 @@ function server() {
     }) }
   });
   vm.runInContext(fs.readFileSync(__dirname + '/../../apps-script/Code.gs', 'utf8'), context);
-  return { props, files, context, call: data => context.doPost({ postData: {
+  const call=data=>context.doPost({ postData: {
     contents: JSON.stringify({ key: 'test-key', ...data })
-  } }) };
+  } });
+  return {props,files,context,call,admin:data=>call({...data,adminKey:'test-admin'})};
 }
 
 module.exports={server};

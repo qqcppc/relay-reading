@@ -1,7 +1,7 @@
 /* F1/F2/F3 are opt-in experiments. Default OFF, independent of appearance settings. */
 (function(root) {
   'use strict';
-  const key='relay.features.v1', flags={F1:false,F2:false,F3:false,F4:false,F5:false,F7:false,F8:false,F9:false,F10:false,F11:false,F12:false,F13:false,F14:false,F15:false};
+  const key='relay.features.v1', flags={F1:false,F2:false,F3:false,F4:false,F5:false,F7:false,F8:false,F9:false,F10:false,F11:false,F12:false,F13:false,F14:false,F15:false,F16:false};
   try {const saved=JSON.parse(localStorage.getItem(key)||'null'); for(const name of Object.keys(flags)) flags[name]=saved?.[name]===true;} catch (_) {}
   root.RelayFeatures={enabled:name=>flags[name]===true,
     // The empty shared-text action explicitly enables the existing importer without a reload.
@@ -37,8 +37,8 @@
       catch (_) {$('f1-status').textContent='연결 실패. 주소·공유키·배포 권한 확인';}
       finally {$('f1-connect').disabled=false;}
     };
-    $('f1-text').hidden=!root.RelayStorage.connected;
-    $('f1-text').onclick=()=>{if(typeof root.locked==='function' && root.locked()) return;$('settings').close();$('editor').hidden=false;$('editor').open=true;$('editor').scrollIntoView({block:'start'});};
+    $('f1-text').hidden=!root.RelayStorage.connected||!root.RelayAccess?.allowed();
+    $('f1-text').onclick=()=>{if(!root.RelayAccess?.allowed())return;if(typeof root.locked==='function' && root.locked()) return;$('settings').close();$('editor').hidden=false;$('editor').open=true;$('editor').scrollIntoView({block:'start'});};
     $('f1-disconnect').onclick=()=>{
       if(typeof root.locked==='function' && root.locked()) return;
       try {root.RelayStorage.disconnect();location.reload();}

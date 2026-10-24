@@ -53,18 +53,37 @@ function dispatch_(request) {
     var state = stateFile ? JSON.parse(stateFile.getBlob().getDataAsString('UTF-8')) : {
       title: '', verses: [], revision: '0', recordings: {}
     };
+    if(request.action==='getAccess')return {admin:adminAllowed_(request,properties),configured:!!properties.getProperty('ADMIN_KEY')};
     if (request.action === 'getText') return text_(state);
     if (request.action === 'listRecordings') {
       return { revision: state.revision, recordings: Object.keys(state.recordings)
         .sort(function (a, b) { return Number(a) - Number(b); })
         .map(function (verse) { return recording_(state.recordings[verse]); }) };
     }
+    if(request.action==='listSoundChecks'){requireAdmin_(request,properties);return {revision:state.revision,checks:(state.soundChecks||[]).filter(function(check){return !check.resolvedAt&&state.recordings[check.verse]&&state.recordings[check.verse].playbackUrl===check.playbackUrl;})};}
     if (request.action === 'getAssignments') return f5Plan_(state);
     if (request.action === 'listLocks') return f2List_(state, properties);
-    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock','saveAssignments','saveGroups','deleteRecordings'].indexOf(request.action) < 0) {
+    if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock','saveAssignments','saveGroups','deleteRecordings','createSoundCheck','resolveSoundCheck'].indexOf(request.action) < 0) {
       fail_('INVALID_REQUEST', '지원하지 않는 action');
     }
+    if(['saveText','saveGroups','resolveSoundCheck'].indexOf(request.action)>=0)requireAdmin_(request,properties);
     if (request.revision !== state.revision) fail_('CONFLICT', '본문을 다시 조회한 뒤 재시도');
+    if(request.action==='createSoundCheck'){
+      var device=registeredDevice_(request,false),reader=string_(request.readerName,80,'읽은 사람 이름');
+      if(['cut','silent'].indexOf(request.reason)<0||!Array.isArray(request.targets)||!request.targets.length||request.targets.length>500)fail_('INVALID_REQUEST','점검 사유·대상 확인');
+      var checks=(state.soundChecks||[]).filter(function(check){return !check.resolvedAt&&state.recordings[check.verse]&&state.recordings[check.verse].playbackUrl===check.playbackUrl;}),created=[],seen={};
+      request.targets.forEach(function(target){
+        if(!target||!Number.isInteger(target.verse)||seen[target.verse]||typeof target.playbackUrl!=='string')fail_('INVALID_REQUEST','점검 대상 확인');seen[target.verse]=true;
+        var item=state.recordings[target.verse];if(!item||item.playbackUrl!==target.playbackUrl)fail_('CONFLICT','녹음이 바뀜 · 목록 새로고침');
+        if(ownsRecording_(item,device,reader)||(!item.deviceId&&item.readerName===reader))return;
+        if(checks.some(function(check){return check.playbackUrl===item.playbackUrl&&check.deviceId===device.id&&check.reason===request.reason;}))return;
+        var check={id:Utilities.getUuid(),verse:item.verse,endVerse:item.endVerse||item.verse,playbackUrl:item.playbackUrl,recordingReader:item.readerName,observer:reader,reason:request.reason,deviceId:device.id,createdAt:new Date().toISOString()};checks.push(check);created.push(check.id);
+      });
+      if(checks.length>500)fail_('BUSY','소리 점검 목록 확인 후 다시 시도');state.soundChecks=checks;persist_(folder,properties,stateFile,state);return {created:created.length};
+    }
+    if(request.action==='resolveSoundCheck'){
+      var check=(state.soundChecks||[]).filter(function(check){return check.id===request.id;})[0];if(!check)fail_('NOT_FOUND','점검 항목 없음');check.resolvedAt=new Date().toISOString();persist_(folder,properties,stateFile,state);return {resolved:true};
+    }
     if(request.action==='deleteRecordings'){
       var device=registeredDevice_(request,false),reader=string_(request.readerName,80,'읽은 사람 이름'),targets=request.targets;
       if(!Array.isArray(targets)||!targets.length||targets.length>500)fail_('INVALID_REQUEST','삭제할 녹음 필요');
@@ -315,3 +334,6 @@ function registeredDevice_(request,optional){
   return {id:request.deviceId,hash:bytes.map(function(b){return ('0'+(b&255).toString(16)).slice(-2);}).join('')};
 }
 function ownsRecording_(item,device,reader){return !!item&&!!device&&!!item.deviceId&&item.deviceId===device.id&&item.deviceHash===device.hash&&item.readerName===reader;}
+
+function adminAllowed_(request,properties){var key=properties.getProperty('ADMIN_KEY');return !!key&&typeof request.adminKey==='string'&&request.adminKey===key;}
+function requireAdmin_(request,properties){if(!properties.getProperty('ADMIN_KEY'))fail_('NOT_CONFIGURED','배포 설정에 ADMIN_KEY 필요');if(!adminAllowed_(request,properties))fail_('ADMIN_REQUIRED','관리자 키 확인 필요');}

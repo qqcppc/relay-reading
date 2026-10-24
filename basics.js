@@ -9,7 +9,7 @@
   const direction=(dx,dy,vertical)=>!vertical&&Math.abs(dx)>=60&&Math.abs(dx)>Math.abs(dy)*2?(dx<0?1:-1):0;
   function cancelGesture(){clearTimeout(singleTimer);singleTimer=null;clearTimeout(holdTimer);holdTimer=null;clearTimeout(headerTimer);headerTimer=null;gesture=null;}
   function paint(){if(!context)return;const r=selected();$('selection-panel').hidden=!r;document.body.classList.toggle('range-mode',!!r);if(!r)return;
-    const mine=context.owned(r);$('selection-label').textContent=context.label(r);$('selection-delete').hidden=!mine.length;$('selection-delete').disabled=working||!context.ready();$('selection-copy').disabled=working;
+    const mine=context.owned(r);$('selection-check').hidden=!!mine.length||!context.foreign?.(r).length;$('selection-check').disabled=working||!context.ready();$('selection-label').textContent=context.label(r);$('selection-delete').hidden=!mine.length;$('selection-delete').disabled=working||!context.ready();$('selection-copy').disabled=working;
   }
   function clear(back=true){if(!active())return;anchor=extent=null;lastTap=null;cancelGesture();$('selection-copy-text').hidden=true;const old=marker;marker=null;if(back&&old&&history.state?.relaySelection===old)history.back();context.render();}
   function select(index){if(context.locked()||!context.ready())return;context.stop();lastTap=null;cancelGesture();const span=context.unit(index);
@@ -54,6 +54,7 @@
       document.addEventListener('keydown',event=>{if(event.key==='Escape'&&active()){event.preventDefault();clear();}});
       root.addEventListener('popstate',()=>{if(active())clear(false);});
       $('selection-copy').onclick=async()=>{const r=selected();if(!r||working)return;working=true;paint();const text=context.copyText(r);try{await navigator.clipboard.writeText(text);clear();context.toast('복사됨');}catch(_){$('selection-copy-text').value=text;$('selection-copy-text').hidden=false;$('selection-copy-text').select();context.toast('길게 눌러 복사');}finally{working=false;paint();}};
+      $('selection-check').onclick=()=>{const r=selected();if(r&&!working)context.check(context.foreign(r));};
       $('selection-delete').onclick=async()=>{const r=selected();if(!r||working||context.locked())return;const items=context.owned(r);if(!items.length)return;if(items.length>1&&!root.confirm(items.length+'개 삭제?'))return;working=true;paint();try{const result=await context.remove(items);clear();context.toast(result.deleted.length+'개 삭제');}catch(error){context.report(error);}finally{working=false;paint();}};
       $('inapp-hint').hidden=!/KAKAOTALK/i.test(navigator.userAgent);paint();
     }
