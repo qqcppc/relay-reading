@@ -137,3 +137,7 @@ body.shared-loading #list,body.shared-loading #title-btn,body.shared-loading #pr
 #tb-book #version{font-size:var(--hfs,1.15rem)!important}#title-btn #tb-ch{font-size:var(--chapter-fs,3rem)!important}#title-btn #tb-ch.long-chapter{font-size:calc(var(--chapter-fs,3rem)*.8)!important}#top #progress .seg{font-size:var(--verse-fs,9px)!important;color:var(--muted)}
 body #picker-items.books{grid-template-columns:repeat(var(--book-columns,4),minmax(0,1fr))!important}#list{display:grid;grid-template-columns:repeat(var(--verse-columns,1),minmax(0,1fr));gap:8px}#list .line{box-sizing:border-box;min-width:0;margin-bottom:0}#list .t{overflow-wrap:anywhere}
 #admin-entry{display:block;width:auto;margin:16px auto 0;padding:8px;border:0;background:none;font:inherit;font-size:.75rem;color:var(--muted);touch-action:pan-y;user-select:none}#admin-area{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}#admin-build{font-size:.75rem;color:var(--muted)}#admin-area #experiments{margin-top:16px}#admin-connect-status,#settings-name-status{display:block;font-size:.8rem;color:var(--muted)}#settings-name{box-sizing:border-box;width:100%}
+
+/* #57 임시 요소 번호 표시 끔, 작업번호(#)만 유지 */
+[data-n]::after{display:none!important;content:none!important}
+#settings-open{display:inline!important}
