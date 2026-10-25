@@ -21,6 +21,6 @@
       }catch(_){return [...(duration<.7?['short']:[]),'unavailable'];}
       finally{if(context)await context.close().catch(()=>{});}
     },
-    label(warnings){const names={short:'짧음',silent:'무음',quiet:'작은 소리',unavailable:'검사 불가'};return warnings.length?'⚠ '+warnings.map(code=>names[code]).join(' · ')+(warnings.includes('unavailable')?'':' · 다시 녹음'):'';}
+    label(warnings){const names={short:'짧음',silent:'무음',quiet:'작은 소리',unavailable:'검사 불가'};return warnings.length?'녹음 확인 · '+warnings.map(code=>names[code]).join(' · ')+(warnings.includes('unavailable')?'':' · 다시 녹음'):'';}
   };
 })(globalThis);

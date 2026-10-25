@@ -36,7 +36,7 @@
     element.addEventListener('touchstart',event=>{if(event.touches.length!==1){touch=null;return;}touch={x:event.touches[0].clientX,y:event.touches[0].clientY||0,vertical:false};},{passive:true});
     element.addEventListener('touchmove',event=>{if(!touch)return;const dx=event.touches[0].clientX-touch.x,dy=(event.touches[0].clientY||0)-touch.y;if(Math.abs(dy)>12&&Math.abs(dy)>=Math.abs(dx))touch.vertical=true;},{passive:true});
     element.addEventListener('touchcancel',()=>{touch=null;},{passive:true});
-    root.addEventListener('scroll',()=>{if(touch)touch.vertical=true;lastTap=null;clearTimeout(singleTimer);singleTimer=null;},{passive:true});
+    document.getElementById('reading').addEventListener('scroll',()=>{if(touch)touch.vertical=true;lastTap=null;clearTimeout(singleTimer);singleTimer=null;},{passive:true});
     element.addEventListener('touchend',event=>{if(!touch)return;const dx=event.changedTouches[0].clientX-touch.x,dy=(event.changedTouches[0].clientY||0)-touch.y,step=direction(dx,dy,touch.vertical);touch=null;if(step&&!context.locked()&&context.ready()){cancelGesture();lastTap=null;clear();context.page(step);}},{passive:true});
   }
   function header(){let down=null,held=false;const element=$('title-btn');

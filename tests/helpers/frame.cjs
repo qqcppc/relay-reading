@@ -1,0 +1,5 @@
+// Navigate bounded UI pages before acting, just as the page arrows/tabs do.
+function framePage(page){if(page.__frameWrapped)return page;page.__frameWrapped=true;const locate=page.locator.bind(page),cache=new WeakMap();
+ function wrap(locator,selector){if(cache.has(locator))return cache.get(locator);const proxy=new Proxy(locator,{get(target,key){const value=target[key];if(typeof value!=='function')return value;if(['click','dblclick','fill','check','uncheck','setChecked','selectOption','setInputFiles','focus','scrollIntoViewIfNeeded'].includes(key))return async(...args)=>{if(selector&&!selector.includes('data-size-target'))await page.evaluate(selector=>globalThis.RelayFrame?.reveal(selector),selector).catch(()=>{});return value.apply(target,args);};return(...args)=>{const result=value.apply(target,args);return result&&typeof result.locator==='function'?wrap(result,selector):result;};}});cache.set(locator,proxy);return proxy;}
+ page.locator=(selector,...args)=>wrap(locate(selector,...args),selector);return page;}
+module.exports={framePage};
