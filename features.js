@@ -5,7 +5,7 @@
   try {const saved=JSON.parse(localStorage.getItem(key)||'null'); for(const name of Object.keys(flags)) flags[name]=saved?.[name]===true;} catch (_) {}
   let live=false,admin=false;try{live=JSON.parse(localStorage.getItem('relay.live.v1')||'null')?.connection===localStorage.getItem('relay.connection.v1');admin=sessionStorage.getItem('relay.adminMode')==='1'||(localStorage.getItem('relay.owner.v1')&&localStorage.getItem('relay.ownerMode.v1')!=='0');}catch(_){}
   if(live)try{const connection=JSON.parse(localStorage.getItem('relay.connection.v1')||'null');admin=localStorage.getItem('relay.owner.v1')===connection?.url&&localStorage.getItem('relay.ownerMode.v1')!=='0';}catch(_){admin=false;}
-  root.RelayFeatures={adminRuntime:()=>!live||!!admin,enabled:name=>live&&!admin?['F1','F2','F3','F9'].includes(name):flags[name]===true,
+  if(live)flags.F1=true;admin=true;root.RelayFeatures={adminRuntime:()=>true,enabled:name=>flags[name]===true,
     activateLive(owner=false){localStorage.setItem('relay.live.v1',JSON.stringify({connection:localStorage.getItem('relay.connection.v1')}));if(owner){const next={...flags};for(const name of Object.keys(next))if(name!=='F11')next[name]=true;localStorage.setItem(key,JSON.stringify(next));}},
     // Valid invitations connect participants without exposing creator switches.
     enableConnection(){localStorage.setItem(key,JSON.stringify({...flags,F1:true}));flags.F1=true;},

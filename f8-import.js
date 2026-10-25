@@ -67,7 +67,7 @@
   function open(activate=false){
     if(!context||context.locked())return false;
     if(!enabled()){if(!activate)return false;root.RelayFeatures.enableImport();activated=true;}
-    $('import-mode').textContent=!root.RelayStorage.connected?'이 폰에서 시험 · 공유 저장은 연결 후 가능':root.RelayAccess.allowed()?'공유 본문 입력':'파일 미리보기 가능 · 공유 저장은 등록된 관리자 폰에서';$('import-connect').hidden=root.RelayStorage.connected&&root.RelayAccess.allowed();$('f8-open').hidden=false;$('settings').close();$('f8-import').showModal();return true;
+    $('import-mode').textContent=!root.RelayStorage.connected?'이 폰에서 시험 · 공유 저장은 연결 후 가능':'공유 본문 입력 · 별도 관리자 키 입력 없음';$('import-connect').hidden=true;$('f8-open').hidden=false;$('settings').close();$('f8-import').showModal();return true;
   }
   const $=id=>document.getElementById(id);
   root.RelayF8={enabled,parse,validate,readFile,open,

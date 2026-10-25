@@ -41,11 +41,11 @@
   }
   function header(){let down=null,held=false;const element=$('title-btn');
     $('tb-book').onclick=null;$('tb-ch').onclick=null;$('settings-open').onclick=null;
-    element.addEventListener('pointerdown',event=>{if(event.button>0||event.isPrimary===false)return;clearTimeout(singleTimer);singleTimer=null;lastTap=null;held=false;down={x:event.clientX,y:event.clientY};clearTimeout(headerTimer);headerTimer=setTimeout(()=>{if(!down||context.locked())return;held=true;clear();context.sheet();},450);});
+    element.addEventListener('pointerdown',event=>{if(event.button>0||event.isPrimary===false)return;clearTimeout(singleTimer);singleTimer=null;lastTap=null;held=false;down={x:event.clientX,y:event.clientY};clearTimeout(headerTimer);headerTimer=setTimeout(()=>{if(!down||context.locked())return;held=true;const rect=element.getBoundingClientRect(),position=(down.x-rect.left)/rect.width;clear();context.sheet(position);},450);});
     element.addEventListener('pointermove',event=>{if(down&&Math.hypot(event.clientX-down.x,event.clientY-down.y)>12){clearTimeout(headerTimer);down=null;}});
     for(const type of ['pointerup','pointercancel','pointerleave'])element.addEventListener(type,()=>{clearTimeout(headerTimer);down=null;});
     element.addEventListener('click',event=>{if(held){held=false;event.preventDefault();return;}if(context.locked())return;clear();context.books();});
-    element.addEventListener('keydown',event=>{if(event.shiftKey&&['Enter',' '].includes(event.key)){event.preventDefault();context.sheet();}});
+    element.addEventListener('keydown',event=>{if(event.shiftKey&&['Enter',' '].includes(event.key)){event.preventDefault();context.sheet(0);}});
     element.addEventListener('contextmenu',event=>event.preventDefault());
   }
   root.RelayBasics={range,direction,paint,clear,select,cancelGesture,tap,wireCard,consume:index=>{if(suppressed?.index===index&&Date.now()-suppressed.time<900){suppressed=null;return true;}return false;},contains:index=>{const r=selected();return !!r&&index>=r.start&&index<=r.end;},active,
