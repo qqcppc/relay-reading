@@ -16,7 +16,7 @@
 - 버전 문자열은 index.html ?v · sw.js VERSION · f3-app.js 를 항상 같이 올릴 것
 
 ## 이번 할 일 (#59, Claude 검토·병합)
-1. `codex/live1` 검토 → main 병합 → 화면 작업번호 **59** 갱신. 캐시 버전(index ?v/sw/f3-app)은 이미 59. #57 배지 숨김/작업번호 표시·#52/#54 CSS·backGuard 원문 보존. main 직접 병합 안 함.
+1. `codex/live1` 검토 → main 병합 → 화면 작업번호 **59** 갱신. 캐시 버전(index ?v/sw/f3-app)은 이미 59. #57 배지 숨김/작업번호 표시·#52/#54 CSS·backGuard 원문 보존. main 직접 병합 안 함. PR 생성은 GitHub API `Forbidden`으로 차단: [PR 만들기](https://github.com/qqcppc/relay-reading/compare/main...codex/live1?expand=1)에서 생성·검토.
 2. **사용자 최신 Code.gs 새 버전 배포 필수, 액세스 Anyone 유지.** 기존 URL 유지. 관리자 비밀번호는 필수 아님. **단톡 초대 전에 사용자 폰을 먼저** 설정의 관리자 길게 누르기로 최초 등록. 이후 기기 증명으로 자동 유지. OWNER_DEVICE_ID/HASH 자동 생성, 다른 폰은 최초 폰을 덮어쓰지 못함. 기존 ADMIN_KEY API도 복구/Claude 기존 작업 호환용으로 허용.
 3. 새 서버 배포 뒤 Claude가 **잠언 전체** 본문 입력. saveText 최대 **31,102절/본문 JSON 8백만 자**, txt 32MiB(해독 후 글자 한도). 본문 배열을 별도 비공개 Drive 파일에 분리해 녹음 때 전체 본문을 다시 쓰지 않음. 기존 inline 상태도 읽음. **실제 Google Drive 지연은 배포 후 폰에서 확인**(이번 검증은 합성 데이터/모의 서버).
 4. 관리자 **참여 명단**에 `이름, 뒷자리4자리` 줄별 추가 → 명단 등록. 목록은 이름만, 삭제 가능. 서버에 원문 뒷자리/세션 토큰 저장 안 함(소금 섞은 해시). 명단을 한 번 저장한 뒤 이용자는 링크 → 이름+4자리 → 일치하면 즉시 시작, 다음 접속 세션 기억. 명단 변경/삭제 시 해당 세션 해제. 공유 링크는 기존 F3 방식, 홈 화면 설치 안내 한 줄.
