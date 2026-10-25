@@ -1,7 +1,7 @@
 /* F2: advisory name ownership + server-enforced, expiring per-verse lease. */
 (function(root) {
   'use strict';
-  let locks=[], lease=null, serverEnabled=false, renewal=null, pendingRelease=Promise.resolve();
+  let locks=[], lease=null, serverEnabled=false,known=false, renewal=null, pendingRelease=Promise.resolve();
   let onChange=()=>{}, onLost=()=>{};
   const active=()=>!!root.RelayFeatures?.enabled('F2');
   const shared=()=>active() && root.RelayStorage.connected;
@@ -10,7 +10,7 @@
     if(!shared()) return;
     const data=await root.RelayStorage.request('listLocks');
     if(data.revision!==root.RelayF2.revision()) throw new Error('본문을 새로고침해야 함');
-    serverEnabled=data.enabled===true; locks=data.locks || []; onChange();
+    known=true;serverEnabled=data.enabled===true; locks=data.locks || []; onChange();
   }
   async function release() {
     clearInterval(renewal);renewal=null;
@@ -27,9 +27,9 @@
     reader(verse){return shared()?locks.find(item=>item.verse<=verse&&(item.endVerse??item.verse)>=verse&&item.expiresAt>Date.now())?.readerName||'':'';},
     ownerBlocked(item,name) {return active() && item && !item.demo && item.readerName!==name.trim();},
     async acquire(target) {
-      if(!shared()) return;
+      if(!shared()||root.RelayAccess?.solo()) return;
       await pendingRelease;
-      await refresh();
+      if(!known)await refresh();
       if(!serverEnabled)return;
       const data=await root.RelayStorage.request('acquireLock',target);
       lease={...data,revision:target.revision,readerName:target.readerName};
@@ -41,12 +41,15 @@
         } catch (_) {if(lease===current) {clearInterval(renewal);lease.expiresAt=0;onLost();}}
       },30000);
     },
-    leaseValid:()=>!shared() || !serverEnabled || !!live(),
+    leaseValid:()=>root.RelayAccess?.solo()||!shared() || !serverEnabled || !!live(),
     uploadFields() {
       if(!shared()||!serverEnabled) return {};
       if(!live()) throw new Error('잠금 만료. 취소 후 다시 녹음');
       return {leaseToken:lease.leaseToken};
     },
+    needsLease:()=>shared()&&known&&serverEnabled,
+    canFastSave:()=>root.RelayAccess?.solo()||!shared()||(known&&!serverEnabled),
+    consumed(){clearInterval(renewal);renewal=null;if(lease)locks=locks.filter(item=>item.verse!==lease.verse);lease=null;},
     release,
     refresh,
     init(revision,onUpdate,onLeaseLost) {

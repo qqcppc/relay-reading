@@ -18,7 +18,7 @@
   function graph(ctx,volume){
     const master=ctx.createGain(),limiter=ctx.createDynamicsCompressor(),musicLevel=ctx.createGain(),musicVolume=ctx.createGain(),duck=ctx.createGain();
     master.gain.value=.9;limiter.threshold.value=-8;limiter.knee.value=8;limiter.ratio.value=5;limiter.attack.value=.003;limiter.release.value=.2;
-    musicVolume.gain.value=volume*.45;duck.gain.value=1;musicLevel.connect(musicVolume).connect(duck).connect(limiter);limiter.connect(master).connect(ctx.destination);
+    musicVolume.gain.value=volume*.65;duck.gain.value=1;musicLevel.connect(musicVolume).connect(duck).connect(limiter);limiter.connect(master).connect(ctx.destination);
     return {master,limiter,musicLevel,musicVolume,duck};
   }
   function voice(ctx,mix,buffer,start){
@@ -26,7 +26,7 @@
     start=Math.max(start,ctx.currentTime+.015);
     source.buffer=buffer;source.connect(gain).connect(mix.limiter);gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(stats.gain,start+edge);gain.gain.setValueAtTime(stats.gain,Math.max(start+edge,start+duration-edge));gain.gain.linearRampToValueAtTime(0,start+duration);
     const param=mix.duck.gain;param.cancelScheduledValues(Math.max(ctx.currentTime,start-.02));param.setValueAtTime(1,Math.max(ctx.currentTime,start-.02));
-    for(const segment of segments){const begin=start+segment.start;param.setValueAtTime(1,Math.max(start,begin-.06));param.linearRampToValueAtTime(.22,begin+.005);param.setValueAtTime(.22,start+segment.end);param.linearRampToValueAtTime(1,start+segment.end+.2);}
+    for(const segment of segments){const begin=start+segment.start;param.setValueAtTime(1,Math.max(start,begin-.06));param.linearRampToValueAtTime(.42,begin+.005);param.setValueAtTime(.22,start+segment.end);param.linearRampToValueAtTime(1,start+segment.end+.35);}
     source.start(start);return {source,gain,stats,segments,start,duration};
   }
   function loopFade(buffer){
@@ -45,7 +45,7 @@
     const check=()=>{if(stopped)throw abort();};
     const sleep=ms=>new Promise((resolve,reject)=>{const cancel=()=>{clearTimeout(timer);reject(abort());};const timer=setTimeout(()=>{timers.delete(timer);controller.signal.removeEventListener('abort',cancel);resolve();},ms);timers.add(timer);controller.signal.addEventListener('abort',cancel,{once:true});});
     const session={stats,context:ctx,mix,phase:'loading',
-      setVolume(value){if(!stopped)mix.musicVolume.gain.setTargetAtTime(value*.45,ctx.currentTime,.05);},
+      setVolume(value){if(!stopped)mix.musicVolume.gain.setTargetAtTime(value*.65,ctx.currentTime,.05);},
       stop(){if(stopped)return;stopped=true;controller.abort();mix.master.gain.cancelScheduledValues(ctx.currentTime);mix.master.gain.setValueAtTime(0,ctx.currentTime);for(const timer of timers)clearTimeout(timer);timers.clear();for(const source of sources){try{source.stop();source.disconnect();}catch(_){}}sources.clear();ctx.close().catch(()=>{});}
     };
     // Resume synchronously from the user's click, before network/IndexedDB reads.

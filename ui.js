@@ -13,7 +13,9 @@ let busy = false, ready = !RelayStorage.connected, acquiring = false;
 let recorder = null, stream = null, draft = null, recordTarget = null;
 let captureEpoch = 0;
 let playbackId = 0, playbackUrl = null;
-const local = new Map(), player = new Audio();
+const local = new Map(), player = new Audio(),recentAudio=new Map();
+function rememberAudio(item,blob){if(!item.playbackUrl)return;recentAudio.set(item.playbackUrl,blob);while(recentAudio.size>8)recentAudio.delete(recentAudio.keys().next().value);}
+async function getRecordingAudio(item,snapshotRevision){if(!RelayStorage.connected)return item.blob;const cached=recentAudio.get(item.playbackUrl);if(cached)return cached;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
 let playingIndex = -1;
 function status(message) { $('st').textContent = message; }
 function unitAt(index) {return globalThis.RelayF9?.unit(index) || {start:index,end:index};}
@@ -46,7 +48,7 @@ function render() {
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
   $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = !lines.length?'책이름':bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):'';globalThis.RelayBookNames?.mark($('version'),lines.length?bookAt(page).title:'책이름');$('tb-ch').classList?.toggle?.('long-chapter',$('tb-ch').textContent.length>2); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
-  review.remove();
+  $('draft-check').hidden=!globalThis.RelayF7?.enabled()&&!globalThis.RelayF10?.enabled();$('draft-check').disabled=busy||!!draft?.qualityChecking||!!draft?.trimChecking;review.remove();
   $('list').replaceChildren();
   for(let i=pageStarts[page]||0;i<(pageStarts[page+1]??lines.length);i++){let text=lines[i];
     const unit=unitAt(i);if(i!==unit.start)continue;
@@ -119,6 +121,7 @@ function readingMargin(){const rect=$('sticky')?.getBoundingClientRect?.();if(re
 function scrollReading(block='start',behavior='instant') {readingMargin();requestAnimationFrame(()=>{const row=(globalThis.RelayF16?.active()?$('completed-text'):$('list')).querySelector(`[data-verse="${unitAt(selected).start+1}"]`);if(!row)return;if(block==='center'&&row.getBoundingClientRect){const rect=row.getBoundingClientRect(),reader=$('reading');reader.scrollTo({top:Math.max(0,reader.scrollTop+rect.top+rect.height/2-(reader.getBoundingClientRect().top+reader.clientHeight/2)),behavior});}else row.scrollIntoView({block,behavior});});}
 function revealSelected() {followSelected();scrollReading();}
 function stopPlayback() {
+  globalThis.RelayF16?.stop();
   globalThis.RelayF15?.stop();
   playingIndex = -1;
   playbackId++; player.pause(); player.onended = null; player.removeAttribute('src'); player.load();
@@ -192,6 +195,9 @@ function finishAndContinue(index){nextCapture=index;continuousCapture=true;captu
 $('capture-cancel').onclick=cancelCapture;
 $('rerecord').onclick=async()=>{if(busy||!draft)return;const index=draft.verse-1;discard();render();await recordAt(index,continuousCapture);};
 window.addEventListener('beforeunload',event=>{if(recorder||acquiring||draft||startingCapture){event.preventDefault();event.returnValue='';}});
+function chapterComplete(){const from=pageStarts[page]||0,to=pageStarts[page+1]??lines.length;for(let i=from;i<to;i++)if(!recordingAt(i)||recordingAt(i).demo)return false;return to>from;}
+let chapterSyncTimer=null;function scheduleChapterSync(){if(chapterSyncTimer)return;const run=()=>{if(locked()){chapterSyncTimer=setTimeout(run,500);return;}chapterSyncTimer=null;globalThis.RelayChapterFlow?.refresh();};chapterSyncTimer=setTimeout(run,0);}
+$('draft-check').onclick=async()=>{if(draft&&!busy)await prepareDraft(draft,draft.duration||0);};
 async function start(event) {
   event.preventDefault();
   if (locked() || !ready || !lines.length) return;
@@ -229,7 +235,7 @@ async function start(event) {
       const blob = new Blob(chunks, {type: current.mimeType});
       if (tooLarge || blob.size > 5 * 1024 * 1024 || !blob.size) { globalThis.RelayF2?.release(); status('녹음은 0바이트 초과 5MiB 이하만 가능. 다시 녹음'); }
       else { toast('녹음 완료',1500,'done'); draft = {...target, blob, url: URL.createObjectURL(blob)}; $('au').src = draft.url; $('review').hidden = false; status(globalThis.RelayF2 && !RelayF2.leaseValid() ? '잠금 만료. 취소 후 다시 녹음' : ''); }
-      if(draft)await prepareDraft(draft,(Date.now()-startedAt)/1000);
+      if(draft)draft.duration=(Date.now()-startedAt)/1000;
       render();if(nextCapture!==null){const next=nextCapture;nextCapture=null;if(draft)await saveAndContinue(next);}
     };
     current.onerror = () => { status('녹음 장치 오류. 취소 후 다시 시도'); stop(); };
@@ -263,14 +269,15 @@ $('ok').onclick = async () => {
   if (!draft || busy || !ready || draft.qualityChecking || draft.trimChecking) return;
   busy = true;globalThis.RelayFeedback?.begin('ok','저장 중');controls(); const pending = draft; let saved = false, autoNext = -1; const f4Ticket = globalThis.RelayF4?.ticket(),wasContinuous=continuousCapture;
   try {
+    if(RelayStorage.connected&&globalThis.RelayAccess?.solo()&&globalThis.RelayF2?.canFastSave()&&globalThis.RelayF11?.enabled()){pending.uploadId||=crypto.randomUUID();pending.fast=true;pending.needsLease=!!globalThis.RelayF2?.needsLease();await RelayF11.enqueue(pending);await globalThis.RelayFeedback?.finish('ok','이 폰에 저장','queued');discard();selected=Math.min(lines.length-1,pending.endVerse??pending.verse);saved=true;toast('이 폰에 저장 · 서버 전송 중');setTimeout(()=>RelayF11.flush(),0);return;}
     if (RelayStorage.connected) {
       if(globalThis.RelayF11?.enabled()&&!pending.uploadId)pending.uploadId=crypto.randomUUID();
       const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), ...deviceFields(pending),expectedPrevious:pending.expectedPrevious,...(pending.uploadId?{uploadId:pending.uploadId,expectedPrevious:pending.expectedPrevious}:{}), revision: pending.revision, verse: pending.verse, endVerse:pending.endVerse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
-      recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
+      recordings = recordings.filter(r => r.verse !== item.verse).concat(item);rememberAudio(item,pending.blob);globalThis.RelayF2?.consumed();
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName, endVerse:pending.endVerse,deviceId:pending.deviceId});
     await globalThis.RelayFeedback?.finish('ok','저장 완료');discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
     if (!wasContinuous&&globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,index=>hasAudio(index)||!!globalThis.RelayF11?.pending(index+1),pending.readerName);if(autoNext>=0) selected=autoNext;}
-    await globalThis.RelayChapterFlow?.refresh();if(globalThis.RelayChapterFlow?.enabled())await refresh();status('');toast('저장완료',1500,'done'); saved = true;
+    if(chapterComplete())scheduleChapterSync();status('');toast('저장완료',1500,'done'); saved = true;
   } catch (err) {
     if(globalThis.RelayF11?.enabled() && pending.uploadId && RelayF11.retryable(err)){
       try{await RelayF11.enqueue(pending);await globalThis.RelayFeedback?.finish('ok','전송 대기','queued');discard();status('이 폰에 보관 · 연결되면 재전송');}
@@ -566,12 +573,12 @@ $('settings-open').addEventListener?.('click', e => e.stopPropagation());
 $('center').addEventListener?.('touchmove', e => { e.preventDefault?.(); e.stopPropagation(); }, {passive: false});
 
 // F11 never advances F4 on a local-only queued take.
-globalThis.RelayF11?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},base64,refresh:async()=>{await refresh();render();},render:()=>render(),report:status});
+globalThis.RelayF11?.init({uploaded:(take,item)=>{if(take.revision!==revision)return;rememberAudio(item,take.blob);recordings=recordings.filter(r=>r.verse!==item.verse).concat(item);render();if(chapterComplete())scheduleChapterSync();},locked,ready:()=>ready,busy:value=>{busy=value;controls();},base64,refresh:async()=>{await refresh();render();},render:()=>render(),report:status});
 
 // F12 takes a stable chapter snapshot; no demo or queued blobs become exported audio.
 globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},report:status,
-  snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,chapterMusic:globalThis.RelayF16?.material(bookAt(page).title,chapterAt(page).title).music||null,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&globalThis.RelayChapterFlow?.canHear(item)!==false&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
-  audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
+  snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,complete:chapterComplete(),book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,chapterMusic:globalThis.RelayF16?.material(bookAt(page).title,chapterAt(page).title).music||null,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&globalThis.RelayChapterFlow?.canHear(item)!==false&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
+  audio:getRecordingAudio
 });
 
 globalThis.RelayF13?.init({notify:toast,state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length,name=$('reader').value.trim();let mine=0;for(let index=0;index<lines.length;index++){const r=recordingAt(index);if(r&&!r.demo&&r.readerName===name)mine++;}let chapterComplete=to>from;for(let index=from;index<to;index++){const r=recordingAt(index);if(!r||r.demo)chapterComplete=false;}return {revision:revision||JSON.stringify([title,lines]),book:bookAt(page).title,chapter:chapterAt(page).title,chapterComplete,name,mine,goal:myGoal};}});
@@ -588,7 +595,7 @@ function musicSnapshot(){
 globalThis.RelayF15?.init({locked,ready:()=>ready,snapshot:musicSnapshot,play:()=>$('all').onclick(),stop:stopPlayback,end:stopPlayback,
   changed:()=>{$('all').textContent='■';$('play-ic').innerHTML=globalThis.RelayIcons?.svg('stop')||'멈춤';$('center-txt').textContent='음악과 듣기';drawProgress();},
   voice:item=>{playingIndex=item.verse-1;selected=playingIndex;followSelected();scrollReading('center','smooth');},report:error=>failure(error),
-  audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
+  audio:getRecordingAudio
 });
 
 function actualItems(){return RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}));}
@@ -644,7 +651,7 @@ globalThis.RelayAccess?.init({locked,changed:()=>render()});
 // Follow-up modules initialize after the preserved #50 history guard.
 globalThis.RelayWelcome?.init({name:name=>{$('reader').value=name;nameView();render();}});
 globalThis.RelaySoundChecks?.init({revision:()=>revision,name:()=>$('reader').value.trim(),clear:()=>RelayBasics.clear(),toast});
-globalThis.RelayF16?.init({state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;let complete=to>from;for(let i=from;i<to;i++){const r=recordingAt(i);if(!r||r.demo)complete=false;}return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,from,to,complete,capture:!!recorder||acquiring||!!draft,lines,playing:playingIndex,recording:recordingAt};},stop:stopPlayback,changed:render,play:index=>{if(locked()||!ready)return;stopPlayback();selected=index;RelayF15.play(musicSnapshot(),true);}});
+globalThis.RelayF16?.init({scope:()=>RelayStorage.connectionUrl+':'+RelayStorage.dataset,follow:index=>{if(playingIndex===index)return;playingIndex=index;selected=index;followSelected();scrollReading('center','smooth');},listen:()=>{selected=pageStarts[page];stopPlayback();const snapshot=musicSnapshot(),to=pageStarts[page+1]??lines.length;snapshot.tracks=snapshot.tracks.filter(item=>item.verse>pageStarts[page]&&item.verse<=to);RelayF15.play(snapshot,true);},state:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;let complete=to>from;for(let i=from;i<to;i++){const r=recordingAt(i);if(!r||r.demo)complete=false;}return {revision,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,from,to,complete,capture:!!recorder||acquiring||!!draft,lines,playing:playingIndex,recording:recordingAt};},stop:stopPlayback,changed:render,play:index=>{if(locked()||!ready)return;stopPlayback();selected=index;RelayF15.play(musicSnapshot(),true);}});
 
 // General preferences and the explicit creator-only settings area.
 globalThis.RelayAdmin?.init({locked,changed:render,name:()=>{$('reader').value=RelayStorage.readerName;nameView();render();}});

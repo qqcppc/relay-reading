@@ -21,7 +21,7 @@
     $('f15-play').textContent=current?'■ 멈춤':'선택 절부터 이어듣기';$('f15-play').disabled=!current&&(working||locked||!context.ready()||!snapshot.tracks.length);
     $('f15-status').textContent=message||(current?(current.phase==='loading'?'전체 듣기 준비 중':'음악과 듣는 중'):'이 장의 곡을 선택 · 폰 파일은 이 폰에만 보관');
   }
-  function persist(next){localStorage.setItem(KEY,JSON.stringify(next));config=next;root.RelayF12?.paint();}
+  function persist(next){localStorage.setItem(KEY,JSON.stringify(next));config=next;root.RelayF12?.paint();root.RelayF16?.paint();}
   function choose(id,snapshot=context.snapshot()){const key=chapterKey(snapshot);if(!key||!known(id))return;
     try{persist({...config,chapters:Object.fromEntries(Object.entries({...config.chapters,[key]:id}).slice(-500))});context.stop();message='';}
     catch(_){message='장별 음악 선택을 이 폰에 기억할 수 없음';}paint();
