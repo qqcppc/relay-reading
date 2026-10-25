@@ -45,7 +45,7 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = !lines.length?'책이름':bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):'';$('tb-ch').classList?.toggle?.('long-chapter',$('tb-ch').textContent.length>2); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = !lines.length?'책이름':bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):'';globalThis.RelayBookNames?.mark($('version'),lines.length?bookAt(page).title:'책이름');$('tb-ch').classList?.toggle?.('long-chapter',$('tb-ch').textContent.length>2); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
   for(let i=pageStarts[page]||0;i<(pageStarts[page+1]??lines.length);i++){let text=lines[i];
@@ -84,7 +84,7 @@ function render() {
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && !globalThis.RelayF15?.active() && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();globalThis.RelayBasics?.paint();globalThis.RelayAccess?.paint();globalThis.RelayNavigator?.sync();globalThis.RelayShell?.sync();globalThis.RelayChapterFlow?.paint();captureLabel();readingMargin();
+  controls();globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();globalThis.RelayBasics?.paint();globalThis.RelayAccess?.paint();globalThis.RelayNavigator?.sync();globalThis.RelayShell?.sync();globalThis.RelayBookNames?.refresh();globalThis.RelayChapterFlow?.paint();captureLabel();readingMargin();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
 function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1); }
@@ -364,8 +364,8 @@ function fillPicker(button,from,to,label){
   button.title=`불러온 본문 기준 ${count}/${total}절 · ${Math.round(percent)}%`;
 }
 function bookButton(label, index) {
-  const button = document.createElement('button'); button.type = 'button'; const [short, rn] = shortBook(label); const text=document.createElement('span');text.className='book-name';text.textContent=short;button.append(text);
-  button.setAttribute('aria-label', label); if (rn) { const r = document.createElement('span'); r.className = 'rn'; r.textContent = rn; button.append?.(r); }
+  const button = document.createElement('button'); button.type = 'button'; const text=document.createElement('span');globalThis.RelayBookNames?.mark(text,label);if(!globalThis.RelayBookNames)text.textContent=label;button.append(text);
+  button.setAttribute('aria-label', label);
   if (index < 0) { button.className = 'empty'; button.onclick = () => toast('준비 중'); }
   else { button.setAttribute('aria-current', String(index === bookIndex(page)));const first=books[index].startChapter,last=books[index+1]?.startChapter??pageStarts.length;fillPicker(button,pageStarts[first],pageStarts[last]??lines.length,label);button.onclick = () => showChapters(index); }
   return button;
@@ -402,7 +402,7 @@ function showBooks(flash) {
   if(globalThis.RelayAdmin?.active()&&RelayStorage.connected){const test=document.createElement('button');test.type='button';test.textContent='테스트';test.onclick=()=>RelayLive.enterTest();items.append(test);}
   items.scrollTop = 0;
 }
-function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true); }
+function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true);globalThis.RelayBookNames?.refresh(); }
 function showChapters(index) {
   if(globalThis.RelayNavigator?.ready()){RelayNavigator.chapters(index);return;}
   const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
@@ -662,3 +662,5 @@ globalThis.RelayChapterFlow?.init({page:()=>page,chapter:v=>pageFor(v-1),revisio
 (function pullRefresh(){let touch=null;const reader=$('reading');reader.addEventListener('touchstart',e=>{touch=e.touches.length===1&&reader.scrollTop<=0&&!locked()?{x:e.touches[0].clientX,y:e.touches[0].clientY,dy:0}:null;},{passive:true});reader.addEventListener('touchmove',e=>{if(!touch)return;const dx=e.touches[0].clientX-touch.x;touch.dy=e.touches[0].clientY-touch.y;if(Math.abs(dx)>30)touch=null;else if(touch.dy>90)toast('놓으면 새로고침');},{passive:true});reader.addEventListener('touchend',()=>{if(touch?.dy>100&&!locked())location.reload();touch=null;},{passive:true});reader.addEventListener('touchcancel',()=>touch=null,{passive:true});})();
 
 globalThis.RelayShell?.init({locked,book:()=>lines.length?bookAt(page).title:'책이름'});
+
+globalThis.RelayBookNames?.init(BIBLE,COPY_BOOKS,shortBook);
