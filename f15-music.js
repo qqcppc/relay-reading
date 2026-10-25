@@ -21,12 +21,12 @@
     $('f15-play').textContent=current?'■ 멈춤':'선택 절부터 이어듣기';$('f15-play').disabled=!current&&(working||locked||!context.ready()||!snapshot.tracks.length);
     $('f15-status').textContent=message||(current?(current.phase==='loading'?'전체 듣기 준비 중':'음악과 듣는 중'):'이 장의 곡을 선택 · 폰 파일은 이 폰에만 보관');
   }
-  function persist(next){localStorage.setItem(KEY,JSON.stringify(next));config=next;}
+  function persist(next){localStorage.setItem(KEY,JSON.stringify(next));config=next;root.RelayF12?.paint();}
   function choose(id,snapshot=context.snapshot()){const key=chapterKey(snapshot);if(!key||!known(id))return;
     try{persist({...config,chapters:Object.fromEntries(Object.entries({...config.chapters,[key]:id}).slice(-500))});context.stop();message='';}
     catch(_){message='장별 음악 선택을 이 폰에 기억할 수 없음';}paint();
   }
-  async function loadMusic(ctx,snapshot){await readyPromise;const id=Object.hasOwn(snapshot,'chapterMusic')?(snapshot.chapterMusic?'chapter:'+snapshot.chapterMusic:'none'):selected(snapshot);if(id==='none')return null;if(id==='tone')return root.RelayMix.tone(ctx);
+  async function loadMusic(ctx,snapshot){await readyPromise;const id=Object.hasOwn(config.chapters,chapterKey(snapshot))?selected(snapshot):(snapshot.chapterMusic?'chapter:'+snapshot.chapterMusic:'none');if(id==='none')return null;if(id==='tone')return root.RelayMix.tone(ctx);
     let blob;
     if(id.startsWith('chapter:')){try{const response=await fetch(new URL(snapshot.chapterMusic,location.href));if(!response.ok)return null;const length=Number(response.headers.get('Content-Length'));if(length>20*1024*1024)return null;blob=await response.blob();}catch(_){return null;}}
     else if(id.startsWith('asset:')){const track=catalog.find(track=>track.id===id);if(!track)throw Error('선택한 곡 없음 · 음악을 다시 선택');const response=await fetch(new URL('assets/music/'+encodeURIComponent(track.file),location.href));if(!response.ok)throw Error('배경 음악 불러오기 실패');const length=Number(response.headers.get('Content-Length'));if(length>20*1024*1024)throw Error('배경 음악은 20MiB 이하만 가능');blob=await response.blob();}
@@ -48,7 +48,7 @@
       await transaction(true,(store,done,tx)=>{store.getAll().onsuccess=e=>{const list=e.target.result;if(list.length>=20||list.reduce((sum,item)=>sum+item.blob.size,0)+file.size>100*1024*1024){tx.abort();return;}const id='file:'+crypto.randomUUID();store.add({id,name:file.name.slice(0,120),blob:file,duration:decoded.duration});done(id);};}).then(async id=>{await reloadFiles();options();choose(id,target);});
     }catch(error){message=error.message;}finally{if(decoder)await decoder.close().catch(()=>{});working=false;$('f15-file').value='';paint();}
   }
-  root.RelayF15={enabled,active:()=>!!current,play,stop,paint,manifest,
+  root.RelayF15={hasMusic:s=>(Object.hasOwn(config.chapters,chapterKey(s))?selected(s)!=='none':!!s.chapterMusic),ensure:()=>readyPromise||root.RelayF15.init(context),exportMusic:loadMusic,exportKey:s=>JSON.stringify([selected(s),config.volume,s.chapterMusic||null]),volume:()=>config.volume,enabled,active:()=>!!current,play,stop,paint,manifest,
     inspect:()=>current?{phase:current.phase,musicLooping:!!current.musicLooping,stats:current.stats,volume:config.volume}:null,
     init(next){context=next;if(!enabled()&&!root.RelayF16?.enabled())return;options();
       $('f15-track').onchange=()=>choose($('f15-track').value);$('f15-file').onchange=importFile;
@@ -59,7 +59,7 @@
         scope=root.RelayStorage.connected?'shared:'+await root.RelayStorage.queueScope():'trial';
         await Promise.all([fetch('assets/music/catalog.json').then(response=>{if(!response.ok)throw Error();return response.json();}).then(value=>{catalog=manifest(value);}).catch(()=>{message='기본 음악 목록 불러오기 실패 · 폰 파일/시험 소리 사용 가능';}),reloadFiles().catch(()=>{available=false;message='이 폰 음악 보관 미지원 · 기본 곡 선택 가능';})]);options();paint();
       })();readyPromise.catch(()=>{message='장별 음악 설정을 불러올 수 없음';paint();});
-      root.addEventListener('pagehide',stop);paint();
+      root.addEventListener('pagehide',stop);paint();return readyPromise;
     }
   };
 })(globalThis);

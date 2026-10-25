@@ -83,5 +83,12 @@
     })();
     return session;
   }
-  root.RelayMix={level,speech,graph,voice,loopFade,tone,start,GAP};
+  async function exportChapter(chunks,loadMusic,volume){
+    const Offline=root.OfflineAudioContext||root.webkitOfflineAudioContext;if(!Offline)throw Error('이 브라우저는 음악 합본 미지원');
+    const duration=chunks.reduce((sum,c)=>sum+(c.duration||c.length/24000),0)+GAP*Math.max(0,chunks.length-1)+.6,ctx=new Offline(2,Math.ceil(duration*48000),48000),music=await loadMusic(ctx);if(!music)return null;
+    const mix=graph(ctx,volume),song=ctx.createBufferSource();song.buffer=loopFade(music);song.loop=true;mix.musicLevel.gain.setValueAtTime(0,0);mix.musicLevel.gain.linearRampToValueAtTime(level(music,.16).gain,.15);mix.musicLevel.gain.setValueAtTime(level(music,.16).gain,Math.max(.15,duration-.4));mix.musicLevel.gain.linearRampToValueAtTime(0,duration);song.connect(mix.musicLevel);song.start();song.stop(duration);
+    let at=.15;for(const pcm of chunks){let buffer=pcm;if(!pcm.getChannelData){buffer=ctx.createBuffer(1,pcm.length,24000);buffer.copyToChannel(pcm,0);}voice(ctx,mix,buffer,at);at+=buffer.duration+GAP;}
+    const buffer=await ctx.startRendering(),bytes=new ArrayBuffer(44+buffer.length*4),view=new DataView(bytes);function str(at,value){for(let i=0;i<value.length;i++)view.setUint8(at+i,value.charCodeAt(i));}str(0,'RIFF');view.setUint32(4,bytes.byteLength-8,true);str(8,'WAVE');str(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,2,true);view.setUint32(24,48000,true);view.setUint32(28,192000,true);view.setUint16(32,4,true);view.setUint16(34,16,true);str(36,'data');view.setUint32(40,bytes.byteLength-44,true);const left=buffer.getChannelData(0),right=buffer.getChannelData(1);for(let i=0;i<buffer.length;i++)for(let c=0;c<2;c++){const value=Math.max(-1,Math.min(1,(c?right:left)[i]));view.setInt16(44+i*4+c*2,Math.round(value*(value<0?32768:32767)),true);}return new Blob([bytes],{type:'audio/wav'});
+  }
+  root.RelayMix={exportChapter,level,speech,graph,voice,loopFade,tone,start,GAP};
 })(globalThis);

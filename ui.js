@@ -571,7 +571,7 @@ globalThis.RelayF11?.init({locked,ready:()=>ready,busy:value=>{busy=value;contro
 
 // F12 takes a stable chapter snapshot; no demo or queued blobs become exported audio.
 globalThis.RelayF12?.init({locked,ready:()=>ready,busy:value=>{busy=value;controls();},report:status,
-  snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
+  snapshot:()=>{const from=pageStarts[page],to=pageStarts[page+1]??lines.length;return {revision,from,to,book:bookAt(page).title,chapter:chapterAt(page).title,startVerse:chapterAt(page).startVerse,chapterMusic:globalThis.RelayF16?.material(bookAt(page).title,chapterAt(page).title).music||null,name:`${bookAt(page).title} ${chapterAt(page).title}`,items:(RelayStorage.connected?recordings:[...local].map(([index,item])=>({...item,verse:index+1}))).filter(item=>!item.demo&&globalThis.RelayChapterFlow?.canHear(item)!==false&&item.verse>from&&item.verse<=to).sort((a,b)=>a.verse-b.verse)};},
   audio:async(item,snapshotRevision)=>{if(!RelayStorage.connected)return item.blob;const data=await RelayStorage.request('getAudio',{revision:snapshotRevision,verse:item.verse});return new Blob([Uint8Array.from(atob(data.audioBase64),c=>c.charCodeAt(0))],{type:data.mimeType});}
 });
 
@@ -664,3 +664,5 @@ globalThis.RelayChapterFlow?.init({page:()=>page,chapter:v=>pageFor(v-1),revisio
 globalThis.RelayShell?.init({locked,book:()=>lines.length?bookAt(page).title:'책이름'});
 
 globalThis.RelayBookNames?.init(BIBLE,COPY_BOOKS,shortBook);
+
+$('chapter-music-open').onclick=async()=>{if(locked())return;try{RelayFeatures.enableMedia();await RelayF15.ensure();RelayF12.paint();RelayFrame.reveal('#f15-file');}catch(error){status(error.message);}};
