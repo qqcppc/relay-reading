@@ -53,5 +53,5 @@ test('책 편집 왕복, 책 경계 장 이동 및 66권 선택',async()=>{
  const roundtrip=s.ctx.parsePages(s.ctx.editorText().split('\n').slice(1).join('\n'));
  assert.equal(roundtrip.books.length,2);assert.equal(roundtrip.books[1].startChapter,2);assert.equal(roundtrip.verses.join(','),'첫 줄,둘째 줄,셋째 줄');
  s.$('text-input').value='66권\n'+Array.from({length:66},(_,i)=>`# 책${i+1}\n@1장 | 1\n내용${i+1}`).join('\n\n');s.$('erase-confirm').checked=true;await s.$('save-text').onclick();
- s.$('book-open').onclick();assert.equal(s.$('picker-items').children.length,66);s.$('picker-items').children[65].onclick();assert.equal(s.$('picker-items').children.length,1);s.$('picker-items').children[0].onclick();assert.equal(s.$('book-open').textContent,'📖 책66 ▾');assert.equal(s.$('book-picker').open,false);
+ s.$('book-open').onclick();assert.equal(s.$('picker-items').children.length,39);s.ctx.setBookSide(1);assert.equal(s.$('picker-items').children.length,93);s.$('picker-items').children[92].onclick();assert.equal(s.$('picker-items').children.length,1);s.$('picker-items').children[0].onclick();assert.equal(s.$('book-open').textContent,'📖 책66 ▾');assert.equal(s.$('book-picker').open,false);
 });

@@ -4,7 +4,7 @@
   const CONFIG = 'relay.connection.v1', NAME = 'relay.reader.v1', DEVICE='relay.device.v1';
   let device=null;
   try{const saved=JSON.parse(localStorage.getItem(DEVICE)||'null');if(saved&&/^[a-zA-Z0-9-]{8,80}$/.test(saved.id)&&/^[a-f0-9]{64}$/.test(saved.token))device=saved;}catch(_){}
-  let config = null, readerName = '';
+  let config = null, readerName = '',dataset='main';
   try {
     const candidate = JSON.parse(localStorage.getItem(CONFIG) || 'null');
     if (candidate) config = validate(candidate.url, candidate.key);
@@ -25,7 +25,7 @@
     try {
       const response = await fetch(connection.url, {
         method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'},
-        body: JSON.stringify({...fields, action, key: connection.key}), signal: controller.signal,
+        body: JSON.stringify({...sessionFields(connection),...(dataset==='test'?{dataset:'test',...root.RelayAccess?.fields()}:{}),...fields, action, key: connection.key}), signal: controller.signal,
         credentials: 'omit', referrerPolicy: 'no-referrer'
       });
       if (!response.ok) throw new Error('서버 응답 오류');
@@ -37,6 +37,7 @@
       return result.data;
     } finally { clearTimeout(timer); }
   }
+  function sessionFields(connection){const proof=device?{deviceId:device.id,deviceToken:device.token}:{};try{const saved=JSON.parse(localStorage.getItem('relay.member.v1')||'null');if(saved?.connection===JSON.stringify(connection))return {...root.RelayStorage.deviceFields(),sessionToken:saved.sessionToken};}catch(_){}return proof;}
   root.RelayStorage = {
     get connected() {return !!config && (!root.RelayFeatures || root.RelayFeatures.enabled('F1'));}, get readerName() {return readerName;},
     // F1: explicit connection setup, validated against the actual deployment before saving.
@@ -77,7 +78,7 @@
     },
     async queueScope(){
       if(!config)throw Error('공유 연결 정보 없음');
-      const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(config)));
+      const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(dataset==='test'?{...config,dataset}:config)));
       return Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');
     },
     deviceFields(){
@@ -85,6 +86,10 @@
       return {deviceId:device.id,deviceToken:device.token};
     },
     owns(item,name){return !!device&&!!item&&!item.demo&&item.deviceId===device.id&&item.readerName===name.trim();},
+    get dataset(){return dataset;},
+    setDataset(value){if(!['main','test'].includes(value))throw Error('공간 확인');dataset=value;},
+    saveSession(member){localStorage.setItem('relay.member.v1',JSON.stringify({...member,connection:JSON.stringify(config)}));this.setReaderName(member.name);},
+    sessionName(){try{const saved=JSON.parse(localStorage.getItem('relay.member.v1')||'null');return saved?.connection===JSON.stringify(config)?saved.name:null;}catch(_){return null;}},
     request,
     async load() {
       // A changed text between reads must never attach old audio to new verses.

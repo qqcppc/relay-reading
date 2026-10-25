@@ -14,7 +14,7 @@ function doGet(e) {
 function doPost(e) {
   return respond_(function () {
     var raw = e && e.postData && e.postData.contents;
-    if (!raw || raw.length > 7200000) fail_('INVALID_REQUEST', '요청 크기 초과 또는 빈 요청');
+    if (!raw || raw.length > 12000000) fail_('INVALID_REQUEST', '요청 크기 초과 또는 빈 요청');
     var request;
     try { request = JSON.parse(raw); }
     catch (_) { fail_('INVALID_REQUEST', 'JSON 형식 오류'); }
@@ -53,7 +53,27 @@ function dispatch_(request) {
     var state = stateFile ? JSON.parse(stateFile.getBlob().getDataAsString('UTF-8')) : {
       title: '', verses: [], revision: '0', recordings: {}
     };
-    if(request.action==='getAccess')return {admin:adminAllowed_(request,properties),configured:!!properties.getProperty('ADMIN_KEY')};
+    if(request.action==='getAccess')return {admin:adminAllowed_(request,properties),configured:!!properties.getProperty('ADMIN_KEY'),ownerRegistered:!!properties.getProperty('OWNER_DEVICE_ID'),joinRequired:state.rosterEnabled===true};
+    if(request.action==='claimOwner'){
+      var device=registeredDevice_(request,false),owner=properties.getProperty('OWNER_DEVICE_ID');
+      if(owner&&!ownerAllowed_(request,properties))fail_('FORBIDDEN','처음 등록한 관리자 폰에서 열기');
+      if(!owner){properties.setProperty('OWNER_DEVICE_ID',device.id);properties.setProperty('OWNER_DEVICE_HASH',device.hash);}return {admin:true};
+    }
+    if(request.action==='join')return join_(request,state,properties,folder,stateFile);
+    if(request.action==='getRoster'){requireAdmin_(request,properties);return {members:(state.roster||[]).map(function(row){return {id:row.id,name:row.name};})};}
+    if(request.action==='saveRoster'){requireAdmin_(request,properties);saveRoster_(request,state,properties);persist_(folder,properties,stateFile,state);return {members:state.roster.map(function(row){return {id:row.id,name:row.name};})};}
+    if(request.action==='prepareTest'){requireAdmin_(request,properties);return prepareTest_(state,folder,properties);}
+    if(request.dataset!==undefined&&request.dataset!=='main'&&request.dataset!=='test')fail_('INVALID_REQUEST','공간 확인');
+    if(request.dataset==='test'){
+      requireAdmin_(request,properties);var baseProperties=properties;
+      properties={getProperty:function(key){return baseProperties.getProperty(key==='STATE_FILE_ID'?'TEST_STATE_FILE_ID':key);},setProperty:function(key,value){return baseProperties.setProperty(key==='STATE_FILE_ID'?'TEST_STATE_FILE_ID':key,value);}};
+      fileId=properties.getProperty('STATE_FILE_ID');if(!fileId)fail_('NOT_FOUND','테스트 준비 필요');stateFile=DriveApp.getFileById(fileId);state=JSON.parse(stateFile.getBlob().getDataAsString('UTF-8'));
+      if(request.action==='clearTest'){if(request.revision!==state.revision)fail_('CONFLICT','테스트 본문 다시 확인');var previous=state.recordings;state.recordings={};state.locks={};state.revision=Utilities.getUuid();persist_(folder,properties,stateFile,state);Object.keys(previous).forEach(function(v){trash_(previous[v].fileId);});return {text:text_(state),recordings:[]};}
+    }else if(state.rosterEnabled&&!adminAllowed_(request,properties)){
+      var member=member_(request,state);if(request.readerName!==undefined&&request.readerName!==member.name)fail_('FORBIDDEN','등록한 이름으로 참여');
+      if(request.action==='saveAssignments')requireAdmin_(request,properties);
+    }
+
     if (request.action === 'getText') return text_(state);
     if (request.action === 'listRecordings') {
       return { revision: state.revision, recordings: Object.keys(state.recordings)
@@ -89,7 +109,7 @@ function dispatch_(request) {
       if(!Array.isArray(targets)||!targets.length||targets.length>500)fail_('INVALID_REQUEST','삭제할 녹음 필요');
       var seen={},removed=[],skipped=[];
       targets.forEach(function(target){
-        if(!target||!Number.isInteger(target.verse)||target.verse<1||target.verse>state.verses.length||seen[target.verse]||typeof target.playbackUrl!=='string'||target.playbackUrl.length>2000)fail_('INVALID_REQUEST','삭제 대상 형식 오류');
+        if(!target||!Number.isInteger(target.verse)||target.verse<1||target.verse>verseCount_(state)||seen[target.verse]||typeof target.playbackUrl!=='string'||target.playbackUrl.length>2000)fail_('INVALID_REQUEST','삭제 대상 형식 오류');
         seen[target.verse]=true;var item=state.recordings[target.verse];
         if(!ownsRecording_(item,device,reader)){skipped.push(target.verse);return;}
         if(item.playbackUrl!==target.playbackUrl)fail_('CONFLICT','녹음이 바뀜 · 목록 다시 확인');
@@ -103,10 +123,10 @@ function dispatch_(request) {
     if (request.action === 'saveAssignments') {
       if (request.assignmentRevision !== (state.assignmentRevision || '0')) fail_('CONFLICT', '배정표 다시 조회 필요');
       var plan=request.assignments;
-      if (!plan || typeof plan !== 'object' || Array.isArray(plan) || Object.keys(plan).length > state.verses.length) fail_('INVALID_REQUEST', '배정표 형식 오류');
+      if (!plan || typeof plan !== 'object' || Array.isArray(plan) || Object.keys(plan).length > verseCount_(state)) fail_('INVALID_REQUEST', '배정표 형식 오류');
       var clean={};
       Object.keys(plan).forEach(function (verse) {
-        if (!/^[1-9][0-9]*$/.test(verse) || Number(verse)>state.verses.length) fail_('INVALID_REQUEST', '배정 절 번호 오류');
+        if (!/^[1-9][0-9]*$/.test(verse) || Number(verse)>verseCount_(state)) fail_('INVALID_REQUEST', '배정 절 번호 오류');
         clean[verse]=string_(plan[verse],80,'배정 이름');
       });
       (state.groups || []).forEach(function (group) {for(var verse=group.start;verse<=group.end;verse++)if(clean[verse]!==clean[group.start])fail_('INVALID_REQUEST','묶음 배정 이름은 같아야 함');});
@@ -115,11 +135,11 @@ function dispatch_(request) {
     }
     if (request.action === 'saveText') {
       var title = string_(request.title, 200, '제목');
-      if (!Array.isArray(request.verses) || !request.verses.length || request.verses.length > 500) {
-        fail_('INVALID_REQUEST', '절은 1~500개 필요');
+      if (!Array.isArray(request.verses) || !request.verses.length || request.verses.length > 31102) {
+        fail_('INVALID_REQUEST', '절은 1~31,102개 필요');
       }
       var verses = request.verses.map(function (v) { return string_(v, 10000, '절'); });
-      if (JSON.stringify({ title: title, verses: verses }).length > 500000) {
+      if (JSON.stringify({ title: title, verses: verses }).length > 8000000) {
         fail_('INVALID_REQUEST', '본문 크기 초과');
       }
       var pageStarts = request.pageStarts === undefined ? [0] : request.pageStarts;
@@ -145,14 +165,16 @@ function dispatch_(request) {
       });
       var groups=f9Groups_(request.groups === undefined ? [] : request.groups,verses,pageStarts);
       var previous = state.recordings;
-      state = { groups:groups, title: title, verses: verses, pageStarts: pageStarts, chapters: chapters, books: books, revision: Utilities.getUuid(), recordings: {} };
+      var oldText=state.textFileId,roster=state.roster,sessions=state.sessions,rosterEnabled=state.rosterEnabled;
+      var textFile=folder.createFile('reading-text-'+Utilities.getUuid()+'.json',JSON.stringify(verses),MimeType.PLAIN_TEXT);
+      state = {roster:roster||[],sessions:sessions||{},rosterEnabled:!!rosterEnabled,textFileId:textFile.getId(),verseCount:verses.length, groups:groups, title: title, verses: [], pageStarts: pageStarts, chapters: chapters, books: books, revision: Utilities.getUuid(), recordings: {} };
       persist_(folder, properties, stateFile, state);
-      Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });
+      Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });if(oldText)trash_(oldText);
       return text_(state);
     }
     // F9: regrouping changes recording units and invalidates pending old-revision writes.
     if(request.action === 'saveGroups') {
-      var next=f9Groups_(request.groups,state.verses,state.pageStarts || [0]);
+      var next=f9Groups_(request.groups,{length:verseCount_(state)},state.pageStarts || [0]);
       if(JSON.stringify(next)===JSON.stringify(state.groups || []))return f9Result_(state);
       var affected=Object.keys(state.recordings).filter(function(key){return f9Changed_(state.recordings[key],next);});
       if(affected.length && request.discardRecordings!==true)fail_('RECORDINGS_EXIST','변경될 녹음 삭제 동의 필요');
@@ -164,7 +186,7 @@ function dispatch_(request) {
       removed.forEach(function(item){trash_(item.fileId);});return f9Result_(state);
     }
     var verse = request.verse;
-    if (!Number.isInteger(verse) || verse < 1 || verse > state.verses.length) {
+    if (!Number.isInteger(verse) || verse < 1 || verse > verseCount_(state)) {
       fail_('INVALID_REQUEST', '현재 본문의 절 번호 필요');
     }
     var unit=f9Range_(state.groups || [],verse);
@@ -236,7 +258,7 @@ function trash_(fileId) {
 }
 
 function text_(state) {
-  return { groups:state.groups || [], books: state.books || [{title:state.title.slice(0, 80) || '본문', startChapter:0}], title: state.title, verses: state.verses, pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
+  return { groups:state.groups || [], books: state.books || [{title:state.title.slice(0, 80) || '본문', startChapter:0}], title: state.title, verses: verses_(state), pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
 }
 
 function recording_(value) {
@@ -335,5 +357,14 @@ function registeredDevice_(request,optional){
 }
 function ownsRecording_(item,device,reader){return !!item&&!!device&&!!item.deviceId&&item.deviceId===device.id&&item.deviceHash===device.hash&&item.readerName===reader;}
 
-function adminAllowed_(request,properties){var key=properties.getProperty('ADMIN_KEY');return !!key&&typeof request.adminKey==='string'&&request.adminKey===key;}
-function requireAdmin_(request,properties){if(!properties.getProperty('ADMIN_KEY'))fail_('NOT_CONFIGURED','배포 설정에 ADMIN_KEY 필요');if(!adminAllowed_(request,properties))fail_('ADMIN_REQUIRED','관리자 키 확인 필요');}
+function ownerAllowed_(request,properties){if(!properties.getProperty('OWNER_DEVICE_ID'))return false;try{var device=registeredDevice_(request,false);return device.id===properties.getProperty('OWNER_DEVICE_ID')&&device.hash===properties.getProperty('OWNER_DEVICE_HASH');}catch(_){return false;}}
+function adminAllowed_(request,properties){var key=properties.getProperty('ADMIN_KEY');return (!!key&&typeof request.adminKey==='string'&&request.adminKey===key)||ownerAllowed_(request,properties);}
+function requireAdmin_(request,properties){if(adminAllowed_(request,properties))return;if(!properties.getProperty('ADMIN_KEY')&&!properties.getProperty('OWNER_DEVICE_ID'))fail_('NOT_CONFIGURED','관리자 폰 등록 필요');fail_('ADMIN_REQUIRED','등록된 관리자 폰 필요');}
+function verseCount_(state){return state.textFileId?state.verseCount:state.verses.length;}
+function verses_(state){return state.textFileId?JSON.parse(DriveApp.getFileById(state.textFileId).getBlob().getDataAsString('UTF-8')):state.verses;}
+function digest_(value){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,value,Utilities.Charset.UTF_8).map(function(b){return ('0'+(b&255).toString(16)).slice(-2);}).join('');}
+function contactHash_(properties,name,last4){if(typeof last4!=='string'||!/^\d{4}$/.test(last4))fail_('INVALID_REQUEST','연락처 뒷자리 4자리 필요');var salt=properties.getProperty('ROSTER_SALT');if(!salt){salt=Utilities.getUuid()+Utilities.getUuid();properties.setProperty('ROSTER_SALT',salt);}return digest_(salt+':'+name+':'+last4);}
+function saveRoster_(request,state,properties){if(!Array.isArray(request.members)||request.members.length>1000)fail_('INVALID_REQUEST','명단은 최대 1,000명');var old=state.roster||[],seen={};var rows=request.members.map(function(row){if(!row)fail_('INVALID_REQUEST','명단 확인');var name=string_(row.name,80,'이름'),previous=old.filter(function(x){return x.id===row.id;})[0],hash=row.last4===undefined&&previous?previous.contactHash:contactHash_(properties,name,row.last4);if(previous&&row.last4===undefined&&previous.name!==name)fail_('INVALID_REQUEST','이름 변경 시 뒷자리 다시 입력');var signature=name+':'+hash;if(seen[signature])fail_('INVALID_REQUEST','중복 명단');seen[signature]=true;return {id:previous?previous.id:Utilities.getUuid(),name:name,contactHash:hash};});var sessions=state.sessions||{};Object.keys(sessions).forEach(function(id){var session=sessions[id],current=rows.filter(function(r){return r.id===session.memberId;})[0],previous=old.filter(function(r){return r.id===session.memberId;})[0];if(!current||!previous||current.contactHash!==previous.contactHash||current.name!==previous.name)delete sessions[id];});state.sessions=sessions;state.roster=rows;state.rosterEnabled=true;}
+function join_(request,state,properties,folder,stateFile){var device=registeredDevice_(request,false),name=string_(request.readerName,80,'이름'),hash=contactHash_(properties,name,request.last4),now=Date.now(),attempts=state.joinAttempts||{};Object.keys(attempts).forEach(function(id){if(attempts[id].until<now)delete attempts[id];});var attempt=attempts[device.id]||{count:0,until:now+900000};if(attempt.count>=5)fail_('BUSY','15분 뒤 다시 확인');attempt.count++;attempts[device.id]=attempt;var ids=Object.keys(attempts);if(ids.length>1000)fail_('BUSY','잠시 후 다시 확인');state.joinAttempts=attempts;var row=(state.roster||[]).filter(function(r){return r.name===name&&r.contactHash===hash;})[0];if(!state.rosterEnabled||!row){persist_(folder,properties,stateFile,state);fail_('MEMBER_REQUIRED','이름·뒷자리 또는 등록 명단 확인');}var token=Utilities.getUuid()+Utilities.getUuid();state.sessions=state.sessions||{};state.sessions[device.id]={memberId:row.id,name:row.name,deviceHash:device.hash,tokenHash:digest_(token)};delete attempts[device.id];persist_(folder,properties,stateFile,state);return {name:row.name,memberId:row.id,sessionToken:token};}
+function member_(request,state){var device=registeredDevice_(request,true),session=device&&(state.sessions||{})[device.id];if(!session||session.deviceHash!==device.hash||typeof request.sessionToken!=='string'||digest_(request.sessionToken)!==session.tokenHash||!(state.roster||[]).some(function(row){return row.id===session.memberId;}))fail_('MEMBER_REQUIRED','이름·연락처 뒷자리 확인 필요');return session;}
+function prepareTest_(state,folder,properties){var existing=properties.getProperty('TEST_STATE_FILE_ID');if(existing){var saved=JSON.parse(DriveApp.getFileById(existing).getBlob().getDataAsString('UTF-8'));return text_(saved);}var books=state.books||[],book=books.filter(function(b){return b.title==='잠언';})[0];if(!book)fail_('NOT_FOUND','잠언 본문 준비 필요');var ch=book.startChapter,first=(state.pageStarts||[0])[ch],chapter=(state.chapters||[])[ch];if(chapter&&(chapter.startVerse!==1||chapter.title!=='1장'))fail_('INVALID_REQUEST','잠언 1장 1절부터 필요');var copy=verses_(state).slice(first,Math.min(first+10,state.pageStarts[ch+1]||verseCount_(state)));if(copy.length<10)fail_('NOT_FOUND','잠언 1장 1~10절 준비 필요');var test={title:'테스트',verses:copy,revision:Utilities.getUuid(),recordings:{},pageStarts:[0],chapters:[{title:'1장',startVerse:1}],books:[{title:'테스트',startChapter:0}],groups:[]};var file=folder.createFile('reading-test.json',JSON.stringify(test),MimeType.PLAIN_TEXT);properties.setProperty('TEST_STATE_FILE_ID',file.getId());return text_(test);}

@@ -6,7 +6,7 @@
   const aliases=Object.fromEntries(names.flatMap((name,i)=>[[name,name],[short[i],name]]));
   const enabled=()=>!!root.RelayFeatures?.enabled('F8');
   function parse(source,title='본문'){
-    if(typeof source!=='string' || !source.trim() || source.length>500000)throw Error('본문 크기 확인');
+    if(typeof source!=='string' || !source.trim() || source.length>8000000)throw Error('본문 크기 확인');
     const result={title:title.trim(),verses:[],pageStarts:[],chapters:[],books:[]};
     const groupMarkers=[];
     let book=result.title || '본문', chapter='1장', page=null, last=0, start=1, paragraph=true, pending=null;
@@ -50,18 +50,18 @@
     if(pending!==null)throw Error('절 내용 필요');if(page===null && result.verses.length)throw Error('빈 장 내용 확인');if(root.RelayF9?.enabled())result.groups=root.RelayF9.fromMarkers(result,groupMarkers);validate(result);return result;
   }
   function validate(text){
-    if(!text || typeof text.title!=='string' || !text.title.trim() || text.title.length>200 || !Array.isArray(text.verses) || !text.verses.length || text.verses.length>500 || text.verses.some(v=>typeof v!=='string'||!v.trim()||v.length>10000) || JSON.stringify(text).length>500000)throw Error('제목·본문 길이 확인');
+    if(!text || typeof text.title!=='string' || !text.title.trim() || text.title.length>200 || !Array.isArray(text.verses) || !text.verses.length || text.verses.length>31102 || text.verses.some(v=>typeof v!=='string'||!v.trim()||v.length>10000) || JSON.stringify(text).length>8000000)throw Error('제목·본문 길이 확인');
     if(!Array.isArray(text.pageStarts)||!text.pageStarts.length||text.pageStarts[0]!==0||text.pageStarts.some((n,i)=>!Number.isInteger(n)||n<0||n>=text.verses.length||(i>0&&n<=text.pageStarts[i-1])))throw Error('장 구분 확인');
     if(!Array.isArray(text.chapters)||text.chapters.length!==text.pageStarts.length||text.chapters.some(c=>!c||typeof c.title!=='string'||!c.title.trim()||c.title.length>80||!Number.isInteger(c.startVerse)||c.startVerse<1||c.startVerse>1000000))throw Error('장 정보 확인');
     if(text.groups!==undefined && root.RelayF9)root.RelayF9.validate(text.groups,text);
     if(!Array.isArray(text.books)||!text.books.length||text.books[0].startChapter!==0||text.books.some((b,i)=>!b||typeof b.title!=='string'||!b.title.trim()||b.title.length>80||!Number.isInteger(b.startChapter)||b.startChapter<0||b.startChapter>=text.chapters.length||(i>0&&b.startChapter<=text.books[i-1].startChapter)))throw Error('책 정보 확인');
   }
   async function readFile(file){
-    if(!file||!/\.txt$/i.test(file.name)||file.size<=0||file.size>2*1024*1024)throw Error('.txt 파일은 0바이트 초과 2MiB 이하만 가능');
+    if(!file||!/\.txt$/i.test(file.name)||file.size<=0||file.size>32*1024*1024)throw Error('.txt 파일은 0바이트 초과 32MiB 이하만 가능');
     const bytes=new Uint8Array(await file.arrayBuffer());
     const encoding=bytes[0]===255&&bytes[1]===254?'utf-16le':bytes[0]===254&&bytes[1]===255?'utf-16be':'utf-8';
     let text;try{text=new TextDecoder(encoding,{fatal:true}).decode(bytes);}catch(_){throw Error('UTF-8 또는 BOM 있는 UTF-16 .txt로 저장 후 다시 선택');}
-    if(!text.trim()||text.length>500000||text.includes('\0'))throw Error('본문 크기·텍스트 형식 확인');return text;
+    if(!text.trim()||text.length>8000000||text.includes('\0'))throw Error('본문 크기·텍스트 형식 확인');return text;
   }
   let context=null, candidate=null,fileEpoch=0;
   function open(activate=false){
@@ -90,8 +90,8 @@
       $('f8-preview-button').onclick=()=>{
         if(!enabled()||context.locked())return;invalidate();try{
           const text=parse($('f8-source').value,$('f8-title').value);candidate={text,source:$('f8-source').value,title:$('f8-title').value};
-          const summary=document.createElement('p');summary.textContent=`${text.books.length}권 · ${text.chapters.length}장 · ${text.verses.length}절`+(text.groups?.length?` · ${text.groups.length}묶음`:'');$('f8-preview').append(summary);
-          text.chapters.forEach((chapter,index)=>{const heading=document.createElement('b');const book=text.books.findLast(b=>b.startChapter<=index);heading.textContent=book.title+' '+chapter.title;$('f8-preview').append(heading);const list=document.createElement('ol');list.start=chapter.startVerse;for(const verse of text.verses.slice(text.pageStarts[index],text.pageStarts[index+1]??text.verses.length)){const li=document.createElement('li');const position=text.pageStarts[index]+list.children.length+1;const group=text.groups?.find(g=>g.start===position);li.textContent=verse+(group?` [${chapter.startVerse+group.start-text.pageStarts[index]-1}–${chapter.startVerse+group.end-text.pageStarts[index]-1} 묶음]`:'');list.append(li);}$('f8-preview').append(list);});
+          const summary=document.createElement('p');summary.textContent=`${text.books.length}권 · ${text.chapters.length}장 · ${text.verses.length}절`+(text.groups?.length?` · ${text.groups.length}묶음`:'');if(text.chapters.length>3||text.verses.length>30)summary.textContent+=' · 미리보기는 앞부분만, 전체 저장';$('f8-preview').append(summary);
+          text.chapters.slice(0,3).forEach((chapter,index)=>{const heading=document.createElement('b');const book=text.books.findLast(b=>b.startChapter<=index);heading.textContent=book.title+' '+chapter.title;$('f8-preview').append(heading);const list=document.createElement('ol');list.start=chapter.startVerse;for(const verse of text.verses.slice(text.pageStarts[index],Math.min(text.pageStarts[index]+10,text.pageStarts[index+1]??text.verses.length))){const li=document.createElement('li');const position=text.pageStarts[index]+list.children.length+1;const group=text.groups?.find(g=>g.start===position);li.textContent=verse+(group?` [${chapter.startVerse+group.start-text.pageStarts[index]-1}–${chapter.startVerse+group.end-text.pageStarts[index]-1} 묶음]`:'');list.append(li);}$('f8-preview').append(list);});
           $('f8-status').textContent='';$('f8-save').disabled=false;
         }catch(error){$('f8-status').textContent=error.message;}
       };

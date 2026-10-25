@@ -22,7 +22,7 @@ const http=require('node:http');const fs=require('node:fs');const path=require('
   const c1=await context();const p1=await c1.newPage();p1.on('pageerror',e=>errors.push(e.message));await p1.addInitScript(()=>{try{if(!localStorage.getItem('relay.reader.v1'))localStorage.setItem('relay.reader.v1','나');}catch(_){}});await p1.goto(origin);
   const demo=await p1.locator('.t').allTextContents(),badges=await p1.locator('[data-n]').count();
   await p1.evaluate(()=>openSheet('settings'));for(const id of ['#feature-f1','#feature-f2','#feature-f3'])assert.equal(await p1.locator(id).isChecked(),false);
-  assert.equal(await p1.locator('#f1-connection').isVisible(),false);assert.equal(await p1.locator('link[rel=manifest]').count(),0);assert.equal(calls,1);
+  assert.equal(await p1.locator('#f1-connection').isVisible(),false);assert.equal(await p1.locator('link[rel=manifest]').count(),0);assert.equal(calls,2);
   await switchFeature(p1,'#feature-f1',true);await p1.evaluate(()=>openSheet('settings'));
   await p1.locator('#f1-url').fill(apiUrl);await p1.locator('#f1-key').fill('test-key');await Promise.all([p1.waitForEvent('load'),p1.locator('#f1-connect').click()]);await p1.waitForFunction(()=>document.querySelector('.t')?.textContent==='공유 첫 줄');
   assert.deepEqual(await p1.locator('.t').allTextContents(),['공유 첫 줄','공유 둘째 줄']);assert.equal(await p1.locator('[data-n]').count(),badges);

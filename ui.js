@@ -17,8 +17,9 @@ const local = new Map(), player = new Audio();
 let playingIndex = -1;
 function status(message) { $('st').textContent = message; }
 function unitAt(index) {return globalThis.RelayF9?.unit(index) || {start:index,end:index};}
+let recordIndex=null,recordSource=null;
 function recordingAt(index) {
-  if(RelayStorage.connected)return recordings.find(r=>r.verse<=index+1&&(r.endVerse??r.verse)>=index+1);
+  if(RelayStorage.connected){if(recordSource!==recordings){recordSource=recordings;recordIndex=new Map();for(const r of recordings)for(let v=r.verse;v<=(r.endVerse??r.verse);v++)recordIndex.set(v,r);}return recordIndex.get(index+1);}
   for(const [key,item]of local)if(key<=index&&(item.endVerse??key+1)>=index+1)return {...item,verse:key+1};
 }
 function hasAudio(index) {return !!recordingAt(index);}
@@ -44,13 +45,13 @@ function render() {
   $('book-open').textContent = `📖 ${bookAt(page).title} ▾`;
   const chapter = chapterAt(page);
   const endVerse = chapter.startVerse + (pageStarts[page + 1] ?? lines.length) - pageStarts[page] - 1;
-  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):'';$('tb-ch').classList?.toggle?.('long-chapter',$('tb-ch').textContent.length>2); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
+  $('page-label').textContent = `${chapter.title} · ${chapter.startVerse}~${endVerse}절 ▾`; $('version').textContent = !lines.length?'잠언':bookAt(page).title; $('tb-ch').textContent = lines.length?chapter.title.replace(/장$/, ''):'';$('tb-ch').classList?.toggle?.('long-chapter',$('tb-ch').textContent.length>2); $('tb-vs').textContent = `${chapter.startVerse}~${endVerse}절`;
   review.remove();
   $('list').replaceChildren();
-  lines.forEach((text, i) => {
-    const unit=unitAt(i);if(i!==unit.start)return;
+  for(let i=pageStarts[page]||0;i<(pageStarts[page+1]??lines.length);i++){let text=lines[i];
+    const unit=unitAt(i);if(i!==unit.start)continue;
     text=lines.slice(unit.start,unit.end+1).join('\n');
-    if (i < pageStarts[page] || i >= (pageStarts[page + 1] ?? lines.length)) return;
+    if (i < pageStarts[page] || i >= (pageStarts[page + 1] ?? lines.length)) continue;
     const row = document.createElement('div');row.setAttribute('data-verse',String(i+1));
     const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'card-trigger';
     row.className = 'line' + (i === selected ? ' sel' : '') + (hasAudio(i) ? ' done' : '') + (recorder && i === selected ? ' recording' : '');
@@ -74,7 +75,7 @@ function render() {
     wireCard(trigger, i);
     if (draft && draft.verse === i + 1) row.append(review);
     $('list').append(row);
-  });
+  }
   if (!draft) { review.hidden = true; $('list').after(review); }
   if($('f7-warning')){const warning=globalThis.RelayF7?.enabled() && draft?.quality ? RelayF7.label(draft.quality) : ''; $('f7-warning').textContent='⚠';$('f7-warning').title=warning;$('f7-warning').setAttribute('aria-label',warning);$('f7-warning').onclick=()=>status(warning);$('f7-warning').hidden=!warning;}
   if($('f10-compare')){$('f10-compare').hidden=!draft || !globalThis.RelayF10?.enabled();$('f10-status').textContent=draft?.trimChecking?'무음 확인 중':draft?.trimMessage||'';for(const id of ['f10-original','f10-trimmed'])$(id).disabled=busy||!!draft?.trimChecking; $('f10-trimmed').hidden=!draft?.trimChanged;}
@@ -111,7 +112,7 @@ function drawProgress() {
     bar.append(seg);
   }
 }
-function pageFor(i) { return Math.max(0, pageStarts.findLastIndex(start => start <= i)); }
+function pageFor(i) {let lo=0,hi=pageStarts.length;while(lo<hi){const mid=(lo+hi)>>1;if(pageStarts[mid]<=i)lo=mid+1;else hi=mid;}return Math.max(0,lo-1);}
 function followSelected() { selected=unitAt(selected).start; page = pageFor(selected); render(); }
 function readingMargin(){const rect=$('sticky')?.getBoundingClientRect?.();if(rect)document.documentElement?.style?.setProperty('--reading-top',Math.max(0,Math.round(rect.bottom))+'px');}
 function scrollReading(block='start',behavior='instant') {readingMargin();requestAnimationFrame(()=>{const row=(globalThis.RelayF16?.active()?$('completed-text'):$('list')).querySelector(`[data-verse="${unitAt(selected).start+1}"]`);if(!row)return;if(block==='center'&&row.getBoundingClientRect){const rect=row.getBoundingClientRect();window.scrollTo({top:Math.max(0,window.scrollY+rect.top+rect.height/2-window.innerHeight/2),behavior});}else row.scrollIntoView({block,behavior});});}
@@ -162,6 +163,7 @@ async function refresh() {
 async function failure(err) {
   if(err.code==='ADMIN_REQUIRED')globalThis.RelayAccess?.revoke();
   status('실패: ' + err.message);
+  if(err.code==='MEMBER_REQUIRED')globalThis.RelayLive?.requireJoin();
   if (err.code === 'CONFLICT') {
     // Keep draft bound to its original revision; never silently upload to a new text.
     ready = false;
@@ -172,7 +174,7 @@ async function loadShared() {
   if (locked()) return;
   stopPlayback(); busy = true; controls();
   try { await refresh(); status(''); }
-  catch (err) { ready = false; $('connection').textContent = '연결 실패: ' + err.message; status('공유 연결 실패. 새로고침 또는 F1 해제'); }
+  catch (err) { ready = false;if(err.code==='MEMBER_REQUIRED')globalThis.RelayLive?.requireJoin();$('connection').textContent = '연결 실패: ' + err.message; status('공유 연결 실패. 새로고침 또는 F1 해제'); }
   finally { busy = false; document.body?.classList?.remove?.('shared-loading'); render();globalThis.RelayF11?.flush(); }
 }
 function discard() {
@@ -354,7 +356,7 @@ function fillPicker(button,from,to,label){
 function bookButton(label, index) {
   const button = document.createElement('button'); button.type = 'button'; const nt = BIBLE.findIndex(b => b[0] === label) >= 39; const [short, rn] = nt ? shortBook(label) : [label, '']; button.textContent = short;
   button.setAttribute('aria-label', label); if (rn) { const r = document.createElement('span'); r.className = 'rn'; r.textContent = rn; button.append?.(r); }
-  if (index < 0) { button.className = 'empty'; button.onclick = () => showSampleChapters(label); }
+  if (index < 0) { button.className = 'empty'; button.onclick = () => toast('준비 중'); }
   else { button.setAttribute('aria-current', String(index === bookIndex(page)));const first=books[index].startChapter,last=books[index+1]?.startChapter??pageStarts.length;fillPicker(button,pageStarts[first],pageStarts[last]??lines.length,label);button.onclick = () => showChapters(index); }
   return button;
 }
@@ -379,14 +381,15 @@ try { bookSide = Number(localStorage.getItem('relay.bookSide')) || 0; } catch {}
 function showBooks(flash) {
   $('picker-tabs').hidden = true;
   const known = new Set(BIBLE.map(b => b[0]));
-  const extra = books.map((b, i) => [b, i]).filter(([b]) => !known.has(b.title));
+  const extra = books.map((b, i) => [b, i]).filter(([b]) => !known.has(b.title)&&b.title!=='테스트');
   const items = $('picker-items'); items.replaceChildren(); items.className = 'books';
   const anyKnown = books.some(b => known.has(b.title));
-  if (!anyKnown) { extra.forEach(([b, i]) => items.append(bookButton(b.title, i))); items.scrollTop = 0; return; }
+
   (bookSide === 0 ? BIBLE.slice(0, 39) : BIBLE.slice(39)).forEach(([t]) => items.append(bookButton(t, books.findIndex(b => b.title === t))));
   if (bookSide === 1) extra.forEach(([b, i]) => items.append(bookButton(b.title, i)));
   const hint = $('picker-hint'); if (hint) { hint.hidden = false; hint.textContent = bookSide ? '‹ 구약' : '신약 ›'; }
   const f = $('picker-flash'); if (f) { f.textContent = ['구약', '신약', '기타'][bookSide]; f.style.opacity = flash ? '1' : '.55'; if (flash) setTimeout(() => { f.style.opacity = '.55'; }, 600); }
+  if(globalThis.RelayAdmin?.active()&&RelayStorage.connected){const test=document.createElement('button');test.type='button';test.textContent='테스트';test.onclick=()=>RelayLive.enterTest();items.append(test);}
   items.scrollTop = 0;
 }
 function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true); }
@@ -635,3 +638,5 @@ globalThis.RelayF16?.init({state:()=>{const from=pageStarts[page],to=pageStarts[
 
 // General preferences and the explicit creator-only settings area.
 globalThis.RelayAdmin?.init({locked,changed:render,name:()=>{$('reader').value=RelayStorage.readerName;nameView();render();}});
+
+globalThis.RelayLive?.init({locked,transition:()=>{ready=false;render();},load:loadShared,revision:()=>revision,name:()=>{$('reader').value=RelayStorage.readerName;nameView();render();},report:status});

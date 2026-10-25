@@ -3,7 +3,10 @@
   'use strict';
   const key='relay.features.v1', flags={F1:false,F2:false,F3:false,F4:false,F5:false,F7:false,F8:false,F9:false,F10:false,F11:false,F12:false,F13:false,F14:false,F15:false,F16:false};
   try {const saved=JSON.parse(localStorage.getItem(key)||'null'); for(const name of Object.keys(flags)) flags[name]=saved?.[name]===true;} catch (_) {}
-  root.RelayFeatures={enabled:name=>flags[name]===true,
+  let live=false,admin=false;try{live=JSON.parse(localStorage.getItem('relay.live.v1')||'null')?.connection===localStorage.getItem('relay.connection.v1');admin=sessionStorage.getItem('relay.adminMode')==='1'||(localStorage.getItem('relay.owner.v1')&&localStorage.getItem('relay.ownerMode.v1')!=='0');}catch(_){}
+  if(live)try{const connection=JSON.parse(localStorage.getItem('relay.connection.v1')||'null');admin=localStorage.getItem('relay.owner.v1')===connection?.url&&localStorage.getItem('relay.ownerMode.v1')!=='0';}catch(_){admin=false;}
+  root.RelayFeatures={enabled:name=>live&&!admin?['F1','F2','F3','F9'].includes(name):flags[name]===true,
+    activateLive(owner=false){localStorage.setItem('relay.live.v1',JSON.stringify({connection:localStorage.getItem('relay.connection.v1')}));if(owner){const next={...flags};for(const name of Object.keys(next))if(name!=='F11')next[name]=true;localStorage.setItem(key,JSON.stringify(next));}},
     // Valid invitations connect participants without exposing creator switches.
     enableConnection(){localStorage.setItem(key,JSON.stringify({...flags,F1:true}));flags.F1=true;},
     // The empty shared-text action explicitly enables the existing importer without a reload.
