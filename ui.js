@@ -399,7 +399,6 @@ function showBooks(flash) {
   if (bookSide === 1) extra.forEach(([b, i]) => items.append(bookButton(b.title, i)));
   const hint = $('picker-hint'); if (hint) { hint.hidden = false; hint.textContent = bookSide ? '‹ 구약' : '신약 ›'; }
   const f = $('picker-flash'); if (f) { f.textContent = ['구약', '신약', '기타'][bookSide]; f.style.opacity = flash ? '1' : '.55'; if (flash) setTimeout(() => { f.style.opacity = '.55'; }, 600); }
-  if(globalThis.RelayAdmin?.active()&&RelayStorage.connected){const test=document.createElement('button');test.type='button';test.textContent='테스트';test.onclick=()=>RelayLive.enterTest();items.append(test);}
   items.scrollTop = 0;
 }
 function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true);globalThis.RelayBookNames?.refresh(); }
