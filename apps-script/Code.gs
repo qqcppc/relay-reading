@@ -74,15 +74,16 @@ function dispatch_(request) {
       if(request.action==='saveAssignments')requireAdmin_(request,properties);
     }
 
+    if(['getChapterFlow','setChapterFlow','toggleReaction','savePrayer','passPrayer'].indexOf(request.action)>=0)return chapterFlowAction_(request,state,properties,folder,stateFile);
     if (request.action === 'getText') return text_(state);
     if (request.action === 'listRecordings') {
       return { revision: state.revision, recordings: Object.keys(state.recordings)
         .sort(function (a, b) { return Number(a) - Number(b); })
-        .map(function (verse) { return recording_(state.recordings[verse]); }) };
+        .map(function (verse) { return flowRecording_(state,state.recordings[verse],request); }) };
     }
     if(request.action==='listSoundChecks'){requireAdmin_(request,properties);return {revision:state.revision,checks:(state.soundChecks||[]).filter(function(check){return !check.resolvedAt&&state.recordings[check.verse]&&state.recordings[check.verse].playbackUrl===check.playbackUrl;})};}
-    if (request.action === 'getAssignments') return f5Plan_(state);
-    if (request.action === 'listLocks') return f2List_(state, properties);
+    if (request.action === 'getAssignments') return state.flow&&state.flow.enabled?{revision:state.revision,assignmentRevision:state.assignmentRevision||'0',assignments:{}}:f5Plan_(state);
+    if (request.action === 'listLocks') {var result=f2List_(state,properties);if(state.flow&&state.flow.enabled)result.locks.forEach(function(item){item.readerName='익명';});return result;}
     if (['saveText', 'uploadRecording', 'getAudio', 'acquireLock', 'renewLock', 'releaseLock','saveAssignments','saveGroups','deleteRecordings','createSoundCheck','resolveSoundCheck'].indexOf(request.action) < 0) {
       fail_('INVALID_REQUEST', '지원하지 않는 action');
     }
@@ -117,7 +118,7 @@ function dispatch_(request) {
       });
       removed.forEach(function(item){delete state.recordings[item.verse];});
       if(removed.length){persist_(folder,properties,stateFile,state);removed.forEach(function(item){trash_(item.fileId);});}
-      return {revision:state.revision,deleted:removed.map(function(item){return item.verse;}),skipped:skipped,recordings:Object.keys(state.recordings).map(function(v){return recording_(state.recordings[v]);})};
+      return {revision:state.revision,deleted:removed.map(function(item){return item.verse;}),skipped:skipped,recordings:Object.keys(state.recordings).map(function(v){return flowRecording_(state,state.recordings[v],request);})};
     }
     // F5: plans use an independent revision to reject stale simultaneous edits.
     if (request.action === 'saveAssignments') {
@@ -165,9 +166,9 @@ function dispatch_(request) {
       });
       var groups=f9Groups_(request.groups === undefined ? [] : request.groups,verses,pageStarts);
       var previous = state.recordings;
-      var oldText=state.textFileId,roster=state.roster,sessions=state.sessions,rosterEnabled=state.rosterEnabled;
+      var policy=state.flow?{enabled:state.flow.enabled,reactionLimit:state.flow.reactionLimit,reactions:{},chapters:{}}:null;var oldText=state.textFileId,roster=state.roster,sessions=state.sessions,rosterEnabled=state.rosterEnabled;
       var textFile=folder.createFile('reading-text-'+Utilities.getUuid()+'.json',JSON.stringify(verses),MimeType.PLAIN_TEXT);
-      state = {roster:roster||[],sessions:sessions||{},rosterEnabled:!!rosterEnabled,textFileId:textFile.getId(),verseCount:verses.length, groups:groups, title: title, verses: [], pageStarts: pageStarts, chapters: chapters, books: books, revision: Utilities.getUuid(), recordings: {} };
+      state = {flow:policy,roster:roster||[],sessions:sessions||{},rosterEnabled:!!rosterEnabled,textFileId:textFile.getId(),verseCount:verses.length, groups:groups, title: title, verses: [], pageStarts: pageStarts, chapters: chapters, books: books, revision: Utilities.getUuid(), recordings: {} };
       persist_(folder, properties, stateFile, state);
       Object.keys(previous).forEach(function (v) { trash_(previous[v].fileId); });if(oldText)trash_(oldText);
       return text_(state);
@@ -175,7 +176,7 @@ function dispatch_(request) {
     // F9: regrouping changes recording units and invalidates pending old-revision writes.
     if(request.action === 'saveGroups') {
       var next=f9Groups_(request.groups,{length:verseCount_(state)},state.pageStarts || [0]);
-      if(JSON.stringify(next)===JSON.stringify(state.groups || []))return f9Result_(state);
+      if(JSON.stringify(next)===JSON.stringify(state.groups || []))return f9Result_(state,request);
       var affected=Object.keys(state.recordings).filter(function(key){return f9Changed_(state.recordings[key],next);});
       if(affected.length && request.discardRecordings!==true)fail_('RECORDINGS_EXIST','변경될 녹음 삭제 동의 필요');
       var removed=affected.map(function(key){var item=state.recordings[key];delete state.recordings[key];return item;});
@@ -183,7 +184,7 @@ function dispatch_(request) {
       state.assignments=state.assignments || {};
       next.forEach(function(group){var owner=state.assignments[group.start];for(var verse=group.start;verse<=group.end;verse++){if(owner)state.assignments[verse]=owner;else delete state.assignments[verse];}});
       state.assignmentRevision=Utilities.getUuid();persist_(folder,properties,stateFile,state);
-      removed.forEach(function(item){trash_(item.fileId);});return f9Result_(state);
+      removed.forEach(function(item){trash_(item.fileId);});return f9Result_(state,request);
     }
     var verse = request.verse;
     if (!Number.isInteger(verse) || verse < 1 || verse > verseCount_(state)) {
@@ -193,6 +194,7 @@ function dispatch_(request) {
     if(request.action!=='getAudio' && verse!==unit.start)fail_('INVALID_REQUEST','묶음 첫 절 번호 필요');
     if(request.action==='uploadRecording' && (request.endVerse===undefined?verse:request.endVerse)!==unit.end)fail_('INVALID_REQUEST','묶음 범위 변경됨. 본문 새로고침 필요');
     var old = state.recordings[verse];
+    if(state.flow&&state.flow.enabled&&['uploadRecording','acquireLock'].indexOf(request.action)>=0&&!flowOpened_(state,flowChapter_(state,verse)))fail_('CHAPTER_LOCKED','이전 장 대표기도 완료 후 열림');
     // F2: server policy is deployment-wide, never trusted from a caller's toggle.
     if (['acquireLock','renewLock','releaseLock'].indexOf(request.action) >= 0) return f2Lease_(request, state, properties, folder, stateFile);
     if(request.action==='uploadRecording' && request.uploadId!==undefined){
@@ -203,6 +205,7 @@ function dispatch_(request) {
     if (request.action === 'uploadRecording' && f2Enabled_(properties)) f2AuthorizeUpload_(request, state);
     if (request.action === 'getAudio') {
       if (!old) fail_('NOT_FOUND', '아직 녹음하지 않은 절');
+      if(state.flow&&state.flow.enabled&&!flowComplete_(state,flowChapter_(state,verse))&&!flowOwn_(old,request))fail_('CHAPTER_INCOMPLETE','장 녹음 완성 전에는 내 녹음만 재생 가능');
       return { mimeType: old.mimeType,
         audioBase64: Utilities.base64Encode(DriveApp.getFileById(old.fileId).getBlob().getBytes()) };
     }
@@ -230,7 +233,7 @@ function dispatch_(request) {
       // Dedicated folder must be private; never enable public link sharing here.
       file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
       state.recordings[verse] = { verse: verse, endVerse:unit.end, readerName: readerName,
-        deviceId:device?device.id:null,deviceHash:device?device.hash:null,uploadId:request.uploadId || null, fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
+        memberId:state.rosterEnabled&&!adminAllowed_(request,properties)?member_(request,state).memberId:null,deviceId:device?device.id:null,deviceHash:device?device.hash:null,uploadId:request.uploadId || null, fileId: file.getId(), playbackUrl: file.getUrl(), mimeType: mime,
         recordedAt: new Date().toISOString() };
       if (f2Enabled_(properties) && state.locks) delete state.locks[verse];
       persist_(folder, properties, stateFile, state);
@@ -244,6 +247,7 @@ function dispatch_(request) {
 }
 
 function persist_(folder, properties, file, state) {
+  if(state.flow&&state.flow.enabled)flowSync_(state);
   var json = JSON.stringify(state);
   if (file) { file.setContent(json); return; }
   var created = folder.createFile('relay-reading-state.json', json, MimeType.PLAIN_TEXT);
@@ -258,7 +262,7 @@ function trash_(fileId) {
 }
 
 function text_(state) {
-  return { groups:state.groups || [], books: state.books || [{title:state.title.slice(0, 80) || '본문', startChapter:0}], title: state.title, verses: verses_(state), pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
+  return { chapterFlowEnabled:!!(state.flow&&state.flow.enabled), groups:state.groups || [], books: state.books || [{title:state.title.slice(0, 80) || '본문', startChapter:0}], title: state.title, verses: verses_(state), pageStarts: state.pageStarts || [0], chapters: state.chapters || (state.pageStarts || [0]).map(function (start, index) { return {title: (index + 1) + '장', startVerse: start + 1}; }), revision: state.revision };
 }
 
 function recording_(value) {
@@ -339,7 +343,7 @@ function f9Groups_(groups,verses,starts) {
 }
 function f9Range_(groups,verse) {for(var i=0;i<groups.length;i++)if(groups[i].start<=verse&&groups[i].end>=verse)return groups[i];return {start:verse,end:verse};}
 function f9Changed_(recording,groups) {var unit=f9Range_(groups,recording.verse);return unit.start!==recording.verse||unit.end!==(recording.endVerse || recording.verse);}
-function f9Result_(state) {return {text:text_(state),recordings:Object.keys(state.recordings).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){return recording_(state.recordings[key]);})};}
+function f9Result_(state,request) {return {text:text_(state),recordings:Object.keys(state.recordings).sort(function(a,b){return Number(a)-Number(b);}).map(function(key){return flowRecording_(state,state.recordings[key],request);})};}
 
 // F10 produces canonical 24kHz mono PCM16 WAV. Reject misleading RIFF headers.
 function wavValid_(bytes) {
@@ -368,3 +372,32 @@ function saveRoster_(request,state,properties){if(!Array.isArray(request.members
 function join_(request,state,properties,folder,stateFile){var device=registeredDevice_(request,false),name=string_(request.readerName,80,'이름'),hash=contactHash_(properties,name,request.last4),now=Date.now(),attempts=state.joinAttempts||{};Object.keys(attempts).forEach(function(id){if(attempts[id].until<now)delete attempts[id];});var attempt=attempts[device.id]||{count:0,until:now+900000};if(attempt.count>=5)fail_('BUSY','15분 뒤 다시 확인');attempt.count++;attempts[device.id]=attempt;var ids=Object.keys(attempts);if(ids.length>1000)fail_('BUSY','잠시 후 다시 확인');state.joinAttempts=attempts;var row=(state.roster||[]).filter(function(r){return r.name===name&&r.contactHash===hash;})[0];if(!state.rosterEnabled||!row){persist_(folder,properties,stateFile,state);fail_('MEMBER_REQUIRED','이름·뒷자리 또는 등록 명단 확인');}var token=Utilities.getUuid()+Utilities.getUuid();state.sessions=state.sessions||{};state.sessions[device.id]={memberId:row.id,name:row.name,deviceHash:device.hash,tokenHash:digest_(token)};delete attempts[device.id];persist_(folder,properties,stateFile,state);return {name:row.name,memberId:row.id,sessionToken:token};}
 function member_(request,state){var device=registeredDevice_(request,true),session=device&&(state.sessions||{})[device.id];if(!session||session.deviceHash!==device.hash||typeof request.sessionToken!=='string'||digest_(request.sessionToken)!==session.tokenHash||!(state.roster||[]).some(function(row){return row.id===session.memberId;}))fail_('MEMBER_REQUIRED','이름·연락처 뒷자리 확인 필요');return session;}
 function prepareTest_(state,folder,properties){var existing=properties.getProperty('TEST_STATE_FILE_ID');if(existing){var saved=JSON.parse(DriveApp.getFileById(existing).getBlob().getDataAsString('UTF-8'));return text_(saved);}var books=state.books||[],book=books.filter(function(b){return b.title==='잠언';})[0];if(!book)fail_('NOT_FOUND','잠언 본문 준비 필요');var ch=book.startChapter,first=(state.pageStarts||[0])[ch],chapter=(state.chapters||[])[ch];if(chapter&&(chapter.startVerse!==1||chapter.title!=='1장'))fail_('INVALID_REQUEST','잠언 1장 1절부터 필요');var copy=verses_(state).slice(first,Math.min(first+10,state.pageStarts[ch+1]||verseCount_(state)));if(copy.length<10)fail_('NOT_FOUND','잠언 1장 1~10절 준비 필요');var test={title:'테스트',verses:copy,revision:Utilities.getUuid(),recordings:{},pageStarts:[0],chapters:[{title:'1장',startVerse:1}],books:[{title:'테스트',startChapter:0}],groups:[]};var file=folder.createFile('reading-test.json',JSON.stringify(test),MimeType.PLAIN_TEXT);properties.setProperty('TEST_STATE_FILE_ID',file.getId());return text_(test);}
+
+// Chapter covenant: opt-in on the registered administrator phone; all privacy is enforced here.
+function flowChapter_(state,verse){var starts=state.pageStarts||[0],i=0;while(i+1<starts.length&&starts[i+1]<verse)i++;return i;}
+function flowComplete_(state,ch){var starts=state.pageStarts||[0],from=starts[ch],to=starts[ch+1]===undefined?verseCount_(state):starts[ch+1];if(from===undefined||to<=from)return false;for(var v=from+1;v<=to;v++){var unit=f9Range_(state.groups||[],v);if(!state.recordings[unit.start])return false;}return true;}
+function flowOwn_(item,request){if(!item)return false;var device=registeredDevice_(request,true);return !!device&&item.deviceId===device.id&&item.deviceHash===device.hash;}
+function flowOpened_(state,ch){if(!state.flow||!state.flow.enabled||ch===0)return true;return !!(state.flow.chapters&&state.flow.chapters[ch-1]&&state.flow.chapters[ch-1].prayer);}
+function flowIdentity_(state,request){var device=registeredDevice_(request,false);return state.rosterEnabled&&!ownerAllowed_(request,PropertiesService.getScriptProperties())?'member:'+member_(request,state).memberId:'device:'+device.id+':'+device.hash;}
+function flowHearts_(state,ch){var result={},starts=state.pageStarts||[0],from=starts[ch],to=starts[ch+1]===undefined?verseCount_(state):starts[ch+1];Object.keys(state.flow.reactions||{}).forEach(function(key){(state.flow.reactions[key]||[]).forEach(function(v){if(v>from&&v<=to)result[v]=(result[v]||0)+1;});});return result;}
+function flowCandidates_(state,ch){var hearts=flowHearts_(state,ch),seen={},result=[];Object.keys(hearts).sort(function(a,b){return hearts[b]-hearts[a]||Number(a)-Number(b);}).forEach(function(v){var item=state.recordings[f9Range_(state.groups||[],Number(v)).start],key=item&&(item.memberId?'member:'+item.memberId:'device:'+item.deviceId);if(item&&item.deviceId&&!seen[key]){seen[key]=true;result.push({id:item.deviceId,hash:item.deviceHash,memberId:item.memberId||null,name:item.readerName,verse:Number(v)});}});return result;}
+function flowCandidateOwn_(candidate,state,request){if(!candidate)return false;if(candidate.memberId&&state.rosterEnabled){try{return member_(request,state).memberId===candidate.memberId;}catch(_){return false;}}var device=registeredDevice_(request,false);return candidate.id===device.id&&candidate.hash===device.hash;}
+function flowSync_(state){var flow=state.flow;flow.chapters=flow.chapters||{};flow.reactions=flow.reactions||{};(state.pageStarts||[0]).forEach(function(_,ch){if(!flowComplete_(state,ch)){delete flow.chapters[ch];return;}if(!flow.chapters[ch]){var candidates=flowCandidates_(state,ch);flow.chapters[ch]={completedAt:Date.now(),assignee:candidates[0]||null};}});}
+function flowStage_(state,ch){var entry=state.flow.chapters[ch];if(!entry)return 'recording';if(entry.prayer)return 'done';if(!entry.assignee)return 'all';var elapsed=Date.now()-entry.completedAt;if(entry.passed||elapsed>=21600000)return Date.now()>=(entry.recipientsAt||entry.completedAt+21600000)+21600000?'all':'recipients';return 'assignee';}
+function flowCanPray_(state,ch,request){var entry=state.flow.chapters[ch];if(!entry||entry.prayer)return false;var device=registeredDevice_(request,false),stage=flowStage_(state,ch);if(stage==='all'){if(state.rosterEnabled&&!ownerAllowed_(request,PropertiesService.getScriptProperties()))member_(request,state);return true;}if(stage==='assignee')return flowCandidateOwn_(entry.assignee,state,request);return flowCandidates_(state,ch).some(function(row){return (row.memberId?'member:'+row.memberId:'device:'+row.id)!==(entry.assignee.memberId?'member:'+entry.assignee.memberId:'device:'+entry.assignee.id)&&flowCandidateOwn_(row,state,request);});}
+function flowStatus_(state,request){var flow=state.flow;if(!flow||!flow.enabled)return {revision:state.revision,enabled:false,reactionLimit:3,mine:[],chapters:[]};flowSync_(state);var identity=null;try{identity=flowIdentity_(state,request);}catch(_){}return {revision:state.revision,enabled:true,reactionLimit:flow.reactionLimit||3,mine:identity?(flow.reactions[identity]||[]):[],chapters:(state.pageStarts||[0]).map(function(_,ch){var entry=flow.chapters[ch],complete=flowComplete_(state,ch),stage=flowStage_(state,ch),can=false;try{can=flowCanPray_(state,ch,request);}catch(_){}return {chapter:ch,opened:flowOpened_(state,ch),complete:complete,hearts:complete?flowHearts_(state,ch):{},stage:stage,canPray:can,canPass:stage==='assignee'&&can,assignee:complete&&entry.assignee?entry.assignee.name:null,deadline:entry&&!entry.prayer&&entry.assignee?(stage==='assignee'?entry.completedAt+21600000:stage==='recipients'?(entry.recipientsAt||entry.completedAt+21600000)+21600000:null):null,prayer:entry&&entry.prayer?{text:entry.prayer.text,readerName:entry.prayer.readerName,createdAt:entry.prayer.createdAt}:null};})};}
+function flowRecording_(state,item,request){var value=recording_(item);if(state.flow&&state.flow.enabled&&!flowComplete_(state,flowChapter_(state,item.verse))&&!flowOwn_(item,request))return {verse:item.verse,endVerse:item.endVerse||item.verse,readerName:'익명',deviceId:null,playbackUrl:null,recordedAt:null,uploadId:null,anonymous:true};return value;}
+function chapterFlowAction_(request,state,properties,folder,file){
+  if(request.action==='getChapterFlow')return flowStatus_(state,request);
+  if(request.revision!==state.revision)fail_('CONFLICT','본문 다시 확인');
+  if(request.action==='setChapterFlow'){requireAdmin_(request,properties);if(request.enabled===true&&folder.getSharingAccess()!==DriveApp.Access.PRIVATE)fail_('FOLDER_PUBLIC','녹음 폴더 공유를 제한됨으로 바꾼 뒤 켜기');if(typeof request.enabled!=='boolean'||(request.reactionLimit!==undefined&&(!Number.isInteger(request.reactionLimit)||request.reactionLimit<1||request.reactionLimit>10)))fail_('INVALID_REQUEST','리액션 한도는 1~10');state.flow=state.flow||{reactions:{},chapters:{}};state.flow.enabled=request.enabled;state.flow.reactionLimit=request.reactionLimit||state.flow.reactionLimit||3;persist_(folder,properties,file,state);return flowStatus_(state,request);}
+  if(!state.flow||!state.flow.enabled)fail_('NOT_CONFIGURED','관리자에서 완성·기도 규칙 켜기');flowSync_(state);
+  var identity=flowIdentity_(state,request),device=registeredDevice_(request,false),ch=request.chapter;
+  if(request.action==='toggleReaction'){
+    if(!Number.isInteger(request.verse)||request.verse<1||request.verse>verseCount_(state))fail_('INVALID_REQUEST','절 번호 확인');ch=flowChapter_(state,request.verse);if(!flowOpened_(state,ch))fail_('CHAPTER_LOCKED','이전 장 대표기도 완료 후 열림');if(flowComplete_(state,ch))fail_('REACTIONS_CLOSED','장 완성 후 리액션 마감');var mine=state.flow.reactions[identity]||[],index=mine.indexOf(request.verse);if(index>=0)mine.splice(index,1);else{if(mine.filter(function(v){return flowChapter_(state,v)===ch;}).length>=(state.flow.reactionLimit||3))fail_('REACTION_LIMIT','이 장의 하트는 최대 '+state.flow.reactionLimit+'개');mine.push(request.verse);}state.flow.reactions[identity]=mine;
+  }else{
+    if(!Number.isInteger(ch)||ch<0||ch>=(state.pageStarts||[0]).length)fail_('INVALID_REQUEST','장 번호 확인');if(!flowCanPray_(state,ch,request))fail_('FORBIDDEN','현재 대표기도 참여 대상이 아님');var entry=state.flow.chapters[ch];if(request.action==='passPrayer'){if(flowStage_(state,ch)!=='assignee')fail_('FORBIDDEN','대표기도자만 양도 가능');entry.passed=true;entry.recipientsAt=Date.now();}
+    else if(request.action==='savePrayer'){var text=string_(request.text,500,'기도문'),name=string_(request.readerName,80,'이름');if(state.rosterEnabled&&!adminAllowed_(request,properties)&&name!==member_(request,state).name)fail_('FORBIDDEN','등록한 이름으로 참여');entry.prayer={text:text,readerName:name,deviceId:device.id,createdAt:new Date().toISOString()};}
+  }
+  persist_(folder,properties,file,state);return flowStatus_(state,request);
+}

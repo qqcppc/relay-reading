@@ -24,6 +24,6 @@ const {chromium}=require('playwright');const {PNG}=require('pngjs');const fs=req
   }
   // Exercise actual switch reload and OFF restoration for all new flags.
   for(const n of ['f10','f12','f13','f14','f15','f16']){await p.evaluate(()=>openSheet('settings'));await switchFeature(p,'#feature-'+n,true);await p.evaluate(()=>openSheet('settings'));assert.equal(await p.locator('#feature-'+n).isChecked(),true);await switchFeature(p,'#feature-'+n,false);assert.deepEqual(await p.locator('.t').allTextContents(),before);}
-  assert.deepEqual(errors,[]);console.log('PASS: current one-row header/20-cell swipe/books/people/settings, F1–F15 combinations, 390x800 PNG baselines');
+  assert.deepEqual(errors,[]);console.log('PASS: bottom home/book-chapter-verse tabs/layered names/people/settings, F1–F15 combinations, 390x800 PNG baselines');
  }finally{await browser.close();await new Promise(r=>web.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1});

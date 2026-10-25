@@ -30,7 +30,7 @@
       if(!shared()) return;
       await pendingRelease;
       await refresh();
-      if(!serverEnabled) throw new Error('배포 설정에 F2_ENABLED=true 필요');
+      if(!serverEnabled)return;
       const data=await root.RelayStorage.request('acquireLock',target);
       lease={...data,revision:target.revision,readerName:target.readerName};
       renewal=setInterval(async()=>{
@@ -41,9 +41,9 @@
         } catch (_) {if(lease===current) {clearInterval(renewal);lease.expiresAt=0;onLost();}}
       },30000);
     },
-    leaseValid:()=>!shared() || !!live(),
+    leaseValid:()=>!shared() || !serverEnabled || !!live(),
     uploadFields() {
-      if(!shared()) return {};
+      if(!shared()||!serverEnabled) return {};
       if(!live()) throw new Error('잠금 만료. 취소 후 다시 녹음');
       return {leaseToken:lease.leaseToken};
     },

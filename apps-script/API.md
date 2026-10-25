@@ -202,3 +202,25 @@ F11 대기열은 #51부터 F1 연결의 기본 동작이다. 이전 F11 스위�
 명단을 한 번 등록하면(빈 명단 포함) 일반 본문/녹음/잠금 API에 참여 세션이 필요하다. 참여 폰은 deviceId/deviceToken/sessionToken을 보낸다. 등록 이름과 다른 readerName으로 녹음하지 못한다. 관리자 폰과 기존 ADMIN_KEY 도구는 참여 세션 없이 접근한다. 아직 명단을 등록하지 않은 배포는 구형 연결 흐름과 호환한다.
 
 테스트 데이터는 TEST_STATE_FILE_ID에 별도 보관. `dataset:"test"`를 붙이는 모든 요청은 관리자 인증 필수. 본문/절 번호/녹음/잠금/revision이 실제 공간과 독립이다. prepareTest는 이미 준비된 복사본을 유지하며 재호출로 녹음을 지우지 않는다. clearTest는 현재 테스트 revision 확인 후 테스트 녹음·잠금만 비우고 새 revision을 부여한다. 실제 본문/녹음에는 영향 없다. 대기열 범위에도 dataset을 포함하므로 테스트 보관본이 실제 절에 업로드되지 않는다. 실제 본문이 바뀌어도 테스트 복사본은 자동 교체하지 않는다.
+
+## #63 장 완성·하트·대표기도 (서버 재배포 필요)
+
+등록된 관리자 폰이 `setChapterFlow`로 활성화한다. 기존 배포는 기본 비활성, 기존 녹음·본문을 지우지 않는다. 모든 쓰기는 `revision`과 기기 증명 필드가 필요하며, 명단 사용 시 기존 참여 세션을 검증한다. 리액션은 명단의 동일 회원 기준(여러 폰 합산), 명단 미사용 시 기기 기준이다.
+
+| action | 추가 입력 | 결과 |
+|---|---|---|
+| getChapterFlow | 없음 | revision, enabled, reactionLimit, mine(내 절 번호), chapters |
+| setChapterFlow | 관리자 증명, enabled(boolean), reactionLimit(1~10, 시험값3) | 위 상태 |
+| toggleReaction | verse(전체 본문의 1기반 절 번호) | 내 하트 토글 후 상태 |
+| savePrayer | chapter(0기반), readerName, text(1~500자) | 기도 제출 후 상태 |
+| passPrayer | chapter(0기반) | 대표기도자가 대상자에게 양도한 상태 |
+
+chapters 각 항목: `chapter, opened, complete, hearts, stage, canPray, canPass, assignee, deadline, prayer`. hearts는 완성 전 `{}`이며 mine만 본인에게 보인다. prayer는 없으면 null, 완료 시 `{text,readerName,createdAt}`. stage는 recording / assignee / recipients / all / done. deadline은 서버 UTC 밀리초이며 판정도 서버 시각이다.
+
+장 완성 전 타인의 listRecordings 항목은 `{verse,endVerse,readerName:'익명',deviceId:null,playbackUrl:null,recordedAt:null,uploadId:null,anonymous:true}`로 반환한다. 같은 사람 여부·사람 수를 식별할 키는 없다. 내 녹음은 기존 모양이고 타인의 getAudio는 CHAPTER_INCOMPLETE로 거부한다. 잠금 이름·배정 정보도 익명/비공개 처리한다. 녹음 파일은 비공개 Drive 그대로다. 장 완성 후 목록과 음성을 공개하고 하트 입력을 마감한다.
+
+최다 하트 구절 낭독자가 최초 대표기도자다. 동률은 앞 절 우선. 하트가 전혀 없으면 즉시 전체 참여자에게 연다. 첫 6시간은 대표기도자, 다음 6시간은 하트 받은 다른 낭독자, 그 뒤는 전체 참여자 선착순이다. 수동 양도는 양도 시점부터 대상자 6시간을 준다. 매 요청마다 자격·서버 시각을 계산하므로 예약 작업이 필요 없다. savePrayer는 잠금 안에서 한 번만 성공하며 완료 전에는 다음 장 uploadRecording/acquireLock을 CHAPTER_LOCKED로 거부한다. 기도는 이번에 텍스트로 지원한다.
+
+본문 교체는 규칙 활성 여부·한도를 유지하고 하트/기도/완성 상태를 초기화한다. 완성된 장의 녹음을 삭제하면 그 장의 기도 상태도 초기화된다. 관리자 설정 해제는 정책을 비활성화하며 다음 장을 잠그지 않는다.
+
+완성·기도 규칙 활성화 시 Drive 녹음 폴더의 링크 공유가 제한됨(PRIVATE)인지 검사한다. 공개 링크면 FOLDER_PUBLIC로 활성화를 거부한다. **Drive 폴더는 사용자 본인 전용·제한됨**, **Apps Script 웹 앱은 모든 사용자(Anyone)**로 구분한다. 앱의 공유 재생은 비공개 Drive 파일을 서버가 권한 검사 후 전달하는 방식이다.

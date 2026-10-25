@@ -20,13 +20,13 @@
     if(active()){select(index);return;}if(context.groupEditing())return;
     clearTimeout(singleTimer);singleTimer=null;context.stop();context.point(index);
     if(event?.detail===0){lastTap=null;context.locate(index);return;}
-    if(lastTap?.index===index&&Date.now()-lastTap.time<350){lastTap=null;root.RelayFeedback?.react(index+1);context.record(index);return;}
+    if(lastTap?.index===index&&Date.now()-lastTap.time<350){lastTap=null;root.RelayFeedback?.react(index+1);context.react?.(index);return;}
     lastTap={index,time:Date.now()};singleTimer=setTimeout(()=>{singleTimer=null;lastTap=null;if(!context.locked())context.locate(index);},350);
   }
   function wireCard(element,index){
     element.addEventListener('contextmenu',event=>event.preventDefault());
-    element.addEventListener('pointerdown',event=>{if(context.locked()||!context.ready()||event.isPrimary===false||event.button>0)return;suppressed=null;clearTimeout(singleTimer);singleTimer=null;clearTimeout(holdTimer);gesture={x:event.clientX,y:event.clientY};
-      holdTimer=setTimeout(()=>{if(!gesture)return;suppressed={index,time:Date.now()};lastTap=null;if(context.groupEditing())context.group(index);else select(index);},450);
+    element.addEventListener('pointerdown',event=>{if((context.locked()&&!context.capture?.())||!context.ready()||event.isPrimary===false||event.button>0)return;suppressed=null;clearTimeout(singleTimer);singleTimer=null;clearTimeout(holdTimer);gesture={x:event.clientX,y:event.clientY,continuous:lastTap?.index===index&&Date.now()-lastTap.time<500};
+      holdTimer=setTimeout(()=>{if(!gesture)return;suppressed={index,time:Date.now()};lastTap=null;if(context.capture?.())context.cancelCapture();else if(context.groupEditing())context.group(index);else context.record(index,gesture.continuous);},450);
     });
     element.addEventListener('pointermove',event=>{if(gesture&&Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>12){clearTimeout(holdTimer);holdTimer=null;gesture=null;lastTap=null;}});
     for(const type of ['pointerup','pointercancel','pointerleave'])element.addEventListener(type,()=>{clearTimeout(holdTimer);holdTimer=null;gesture=null;});
@@ -48,14 +48,14 @@
     element.addEventListener('keydown',event=>{if(event.shiftKey&&['Enter',' '].includes(event.key)){event.preventDefault();context.sheet();}});
     element.addEventListener('contextmenu',event=>event.preventDefault());
   }
-  root.RelayBasics={range,direction,paint,clear,cancelGesture,tap,wireCard,contains:index=>{const r=selected();return !!r&&index>=r.start&&index<=r.end;},active,
+  root.RelayBasics={range,direction,paint,clear,select,cancelGesture,tap,wireCard,consume:index=>{if(suppressed?.index===index&&Date.now()-suppressed.time<900){suppressed=null;return true;}return false;},contains:index=>{const r=selected();return !!r&&index>=r.start&&index<=r.end;},active,
     init(next){context=next;header();wireSwipe($('list'));
-      document.addEventListener('pointerdown',event=>{if(active()&&!working&&!event.target.closest('.card-trigger,#selection-panel'))clear();});
+      document.addEventListener('pointerdown',event=>{if(active()&&!working&&!event.target.closest('.card-trigger,.card-actions,#selection-panel'))clear();});
       document.addEventListener('keydown',event=>{if(event.key==='Escape'&&active()){event.preventDefault();clear();}});
       root.addEventListener('popstate',()=>{if(active())clear(false);});
       $('selection-copy').onclick=async()=>{const r=selected();if(!r||working)return;working=true;paint();const text=context.copyText(r);try{await navigator.clipboard.writeText(text);clear();context.toast('복사됨');}catch(_){$('selection-copy-text').value=text;$('selection-copy-text').hidden=false;$('selection-copy-text').select();context.toast('길게 눌러 복사');}finally{working=false;paint();}};
       $('selection-check').onclick=()=>{const r=selected();if(r&&!working)context.check(context.foreign(r));};
-      $('selection-delete').onclick=async()=>{const r=selected();if(!r||working||context.locked())return;const items=context.owned(r);if(!items.length)return;if(items.length>1&&!root.confirm(items.length+'개 삭제?'))return;working=true;root.RelayFeedback?.begin('selection-delete','삭제 중');paint();try{const result=await context.remove(items);await root.RelayFeedback?.finish('selection-delete',result.deleted.length?'삭제 완료':'변경 없음',result.deleted.length?'done':'queued');clear();context.toast(result.deleted.length?result.deleted.length+'개 삭제':'삭제할 파일 없음');}catch(error){await root.RelayFeedback?.finish('selection-delete',error.code?'삭제 실패':'삭제 확인 필요','error');context.report(error);}finally{working=false;paint();}};
+      $('selection-delete').onclick=async()=>{const r=selected();if(!r||working||context.locked())return;const items=context.owned(r);if(!items.length)return;if(items.length>1&&!root.confirm(items.length+'개 삭제?'))return;working=true;root.RelayFeedback?.begin('selection-delete','삭제 중');paint();try{const result=await context.remove(items);await root.RelayFeedback?.finish('selection-delete',result.deleted.length?'삭제 완료':'변경 없음',result.deleted.length?'done':'queued');clear();context.toast(result.deleted.length?'삭제완료':'삭제할 파일 없음');}catch(error){await root.RelayFeedback?.finish('selection-delete',error.code?'삭제 실패':'삭제 확인 필요','error');context.report(error);}finally{working=false;paint();}};
       $('inapp-hint').hidden=!/KAKAOTALK/i.test(navigator.userAgent);paint();
     }
   };

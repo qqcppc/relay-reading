@@ -6,7 +6,7 @@ function server() {
   const props = { API_KEY: 'test-key', ADMIN_KEY:'test-admin', DRIVE_FOLDER_ID: 'folder' };
   const blob = (bytes, mime) => ({ getBytes: () => [...bytes],
     getDataAsString: () => Buffer.from(bytes).toString('utf8'), mime });
-  const folder = { createFile(name, content) {
+  const folder = { getSharingAccess:()=>props.folderAccess||'private', createFile(name, content) {
     const id = String(++next);
     const file = { id, trashed: false, data: typeof name === 'string' ? blob(Buffer.from(content)) : name,
       getId: () => id, getUrl: () => 'https://drive.google.com/file/d/' + id + '/view',

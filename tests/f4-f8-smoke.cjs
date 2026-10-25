@@ -21,6 +21,6 @@ const {chromium}=require('playwright');const {server}=require('./helpers/apps-sc
   for(const f of ['F4','F5','F7','F8'])await toggle(p,f,false);assert.deepEqual(await p.locator('.t').allTextContents(),baseline);assert.equal(await p.locator('.f5-assigned').count(),0);
   const a=await page({F1:true,F5:true});await a.waitForFunction(()=>revision!==null);await settings(a);await a.locator('#f5-names').fill('나, 친구');await a.locator('#f5-round-2').click();await a.waitForFunction(()=>RelayF5.owner(4)==='친구');await close(a);
   const b=await page({F1:true,F5:true});await b.waitForFunction(()=>RelayF5.owner(4)==='친구');await settings(b);await b.locator('#f5-manual').check();await close(b);await b.evaluate(()=>RelayNavigator.verses());await b.locator('.verse-option').first().click();await b.locator('#f5-people button').filter({hasText:/^친구$/}).click();await b.waitForFunction(()=>RelayF5.owner(1)==='친구');await settings(a);await a.locator('#f5-refresh').click();await a.waitForFunction(()=>RelayF5.owner(1)==='친구');
-  assert.deepEqual(errors,[]);console.log('PASS: default OFF, 48px header, local import/consent/restore, F4+F5 assigned auto-start, F7 real audio warning, shared/manual assignment sync, OFF baseline');
+  assert.deepEqual(errors,[]);console.log('PASS: default OFF, 66px bottom home, local import/consent/restore, F4+F5 assigned auto-start, F7 real audio warning, shared/manual assignment sync, OFF baseline');
  }finally{await browser.close();await new Promise(r=>web.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1});

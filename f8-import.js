@@ -4,7 +4,7 @@
   const names='창세기,출애굽기,레위기,민수기,신명기,여호수아,사사기,룻기,사무엘상,사무엘하,열왕기상,열왕기하,역대상,역대하,에스라,느헤미야,에스더,욥기,시편,잠언,전도서,아가,이사야,예레미야,예레미야애가,에스겔,다니엘,호세아,요엘,아모스,오바댜,요나,미가,나훔,하박국,스바냐,학개,스가랴,말라기,마태복음,마가복음,누가복음,요한복음,사도행전,로마서,고린도전서,고린도후서,갈라디아서,에베소서,빌립보서,골로새서,데살로니가전서,데살로니가후서,디모데전서,디모데후서,디도서,빌레몬서,히브리서,야고보서,베드로전서,베드로후서,요한일서,요한이서,요한삼서,유다서,요한계시록'.split(',');
   const short='창 출 레 민 신 수 삿 룻 삼상 삼하 왕상 왕하 대상 대하 스 느 에 욥 시 잠 전 아 사 렘 애 겔 단 호 욜 암 옵 욘 미 나 합 습 학 슥 말 마 막 눅 요 행 롬 고전 고후 갈 엡 빌 골 살전 살후 딤전 딤후 딛 몬 히 약 벧전 벧후 요일 요이 요삼 유 계'.split(' ');
   const aliases=Object.fromEntries(names.flatMap((name,i)=>[[name,name],[short[i],name]]));
-  const enabled=()=>!!root.RelayFeatures?.enabled('F8');
+  let activated=false;const enabled=()=>activated||!!root.RelayFeatures?.enabled('F8');
   function parse(source,title='본문'){
     if(typeof source!=='string' || !source.trim() || source.length>8000000)throw Error('본문 크기 확인');
     const result={title:title.trim(),verses:[],pageStarts:[],chapters:[],books:[]};
@@ -65,16 +65,16 @@
   }
   let context=null, candidate=null,fileEpoch=0;
   function open(activate=false){
-    if(!context||context.locked())return false;if(root.RelayAccess&&!root.RelayAccess.allowed())throw Object.assign(Error('관리자 키 확인 필요'),{code:'ADMIN_REQUIRED'});
-    if(!enabled()){if(!activate)return false;root.RelayFeatures.enableImport();}
-    $('f8-open').hidden=false;$('settings').close();$('f8-import').showModal();return true;
+    if(!context||context.locked())return false;
+    if(!enabled()){if(!activate)return false;root.RelayFeatures.enableImport();activated=true;}
+    $('import-mode').textContent=!root.RelayStorage.connected?'이 폰에서 시험 · 공유 저장은 연결 후 가능':root.RelayAccess.allowed()?'공유 본문 입력':'파일 미리보기 가능 · 공유 저장은 등록된 관리자 폰에서';$('import-connect').hidden=root.RelayStorage.connected&&root.RelayAccess.allowed();$('f8-open').hidden=false;$('settings').close();$('f8-import').showModal();return true;
   }
   const $=id=>document.getElementById(id);
   root.RelayF8={enabled,parse,validate,readFile,open,
     remember(text){if(enabled()&&!root.RelayStorage.connected)localStorage.setItem('relay.import.v1',JSON.stringify(text));},
     restore(){if(!enabled()||root.RelayStorage.connected)return null;try{const text=JSON.parse(localStorage.getItem('relay.import.v1')||'null');validate(text);return text;}catch(_){return null;}},
     init(ctx){
-      context=ctx;$('f8-open').hidden=!enabled()||!!root.RelayAccess&&!root.RelayAccess.allowed();
+      context=ctx;$('import-connect').onclick=()=>{$('f8-import').close();root.RelayFrame.open('screen');root.RelayAdmin.open();};$('f8-open').hidden=!enabled()||!!root.RelayAccess&&!root.RelayAccess.allowed();
       function invalidate(){candidate=null;$('f8-save').disabled=true;$('f8-preview').replaceChildren();$('f8-consent').checked=false;}
       $('f8-source').oninput=$('f8-title').oninput=()=>{fileEpoch++;invalidate();$('f8-file').value='';$('f8-preview-button').disabled=false;$('f8-status').textContent='';};
       $('f8-open').onclick=()=>open();
