@@ -1,11 +1,11 @@
 /* F3 only: app shell cache. Never cache shared API responses, keys or recordings. Approved static music may be cached. */
-const VERSION='61';
+const VERSION='62';
 const ROOT=new URL('./',self.location.href);
 const PREFIX='relay-reading:'+ROOT.pathname+':';
 const CACHE=PREFIX+VERSION;
 const ASSETS=['./','index.html','settings.css?v='+VERSION,'f14-background.css?v='+VERSION,'f14-background.js?v='+VERSION,'settings.js?v='+VERSION,
   'audio-tools.js?v='+VERSION,'f10-trim.js?v='+VERSION,'f11-queue.js?v='+VERSION,'f12-chapter.js?v='+VERSION,'f13-progress.js?v='+VERSION,'drafts.js?v='+VERSION,'f15-audio.js?v='+VERSION,'f15-music.js?v='+VERSION,'assets/music/catalog.json','basics.js?v='+VERSION,'welcome.js?v='+VERSION,'sound-checks.js?v='+VERSION,'f16-completed.js?v='+VERSION,'assets/chapters/catalog.json','admin-mode.js?v='+VERSION,'access.js?v='+VERSION,'features.js?v='+VERSION,'storage.js?v='+VERSION,'f2-locks.js?v='+VERSION,
-  'f9-groups.js?v='+VERSION,'f8-import.js?v='+VERSION,'f7-quality.js?v='+VERSION,'f5-assignments.js?v='+VERSION,'f4-continuation.js?v='+VERSION,'f3-app.js?v='+VERSION,'live.js?v='+VERSION,'frame.js?v='+VERSION,'ui.js?v='+VERSION,'manifest.webmanifest?v='+VERSION,
+  'f9-groups.js?v='+VERSION,'f8-import.js?v='+VERSION,'f7-quality.js?v='+VERSION,'f5-assignments.js?v='+VERSION,'f4-continuation.js?v='+VERSION,'f3-app.js?v='+VERSION,'live.js?v='+VERSION,'frame.js?v='+VERSION,'navigator.js?v='+VERSION,'feedback.js?v='+VERSION,'ui.js?v='+VERSION,'manifest.webmanifest?v='+VERSION,
   'assets/bg/genesis-creation.webp','assets/bg/proverbs/1.webp','icons/icon-192.png','icons/icon-512.png'].map(path=>new URL(path,ROOT).href);
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);await cache.addAll(ASSETS);await self.skipWaiting();

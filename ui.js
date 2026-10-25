@@ -33,7 +33,7 @@ function controls() {
   ['ok','listen','no'].forEach(id => { $(id).disabled = busy; });
   $('ok').disabled = busy || !!draft?.qualityChecking || !!draft?.trimChecking;
   $('text-input').disabled = locked();
-  $('reader').disabled = busy || acquiring || !!recorder;
+  $('reader').disabled = busy || acquiring || !!recorder;globalThis.RelayFeedback?.enforce();
   globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();
 }
 function render() {
@@ -55,6 +55,7 @@ function render() {
     const row = document.createElement('div');row.setAttribute('data-verse',String(i+1));
     const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'card-trigger';
     row.className = 'line' + (i === selected ? ' sel' : '') + (hasAudio(i) ? ' done' : '') + (recorder && i === selected ? ' recording' : '');
+    if(globalThis.RelayFeedback?.reacting(i+1))row.className+=' tap-react';
     if(unit.end>unit.start)row.className+=' f9-unit';if(globalThis.RelayBasics?.contains(i))row.className+=' range-selected';
     if(globalThis.RelayF9?.selected(i))row.className+=' f9-selected';
     if (globalThis.RelayF2?.blocked(i + 1)) row.className += ' f2-locked';
@@ -83,7 +84,7 @@ function render() {
   drawProgress();globalThis.RelayF12?.paint();globalThis.RelayF13?.paint();
   const fromNo = chapter.startVerse + Math.max(0, selected - pageStarts[page]);
   if (!playbackUrl && !globalThis.RelayF15?.active() && $('center-txt')) $('center-txt').textContent = selected === pageStarts[page] ? '처음부터 듣기' : `${fromNo}절부터 듣기`;
-  controls();globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();globalThis.RelayBasics?.paint();globalThis.RelayAccess?.paint();readingMargin();
+  controls();globalThis.RelayF16?.paint();globalThis.RelayF14?.paint();globalThis.RelayDrafts?.reveal();globalThis.RelayF15?.paint();globalThis.RelayBasics?.paint();globalThis.RelayAccess?.paint();globalThis.RelayNavigator?.sync();readingMargin();
 }
 let gridBand = 0, gridManual = false, gridSwiped = false;
 function otherRecording(i) { return !!globalThis.RelayF2?.blocked(i + 1); }
@@ -114,8 +115,8 @@ function drawProgress() {
 }
 function pageFor(i) {let lo=0,hi=pageStarts.length;while(lo<hi){const mid=(lo+hi)>>1;if(pageStarts[mid]<=i)lo=mid+1;else hi=mid;}return Math.max(0,lo-1);}
 function followSelected() { selected=unitAt(selected).start; page = pageFor(selected); render(); }
-function readingMargin(){const rect=$('sticky')?.getBoundingClientRect?.();if(rect)document.documentElement?.style?.setProperty('--reading-top',Math.max(0,Math.round(rect.bottom))+'px');}
-function scrollReading(block='start',behavior='instant') {readingMargin();requestAnimationFrame(()=>{const row=(globalThis.RelayF16?.active()?$('completed-text'):$('list')).querySelector(`[data-verse="${unitAt(selected).start+1}"]`);if(!row)return;if(block==='center'&&row.getBoundingClientRect){const rect=row.getBoundingClientRect(),reader=$('reading');reader.scrollTo({top:Math.max(0,reader.scrollTop+rect.top+rect.height/2-window.innerHeight/2),behavior});}else row.scrollIntoView({block,behavior});});}
+function readingMargin(){const rect=$('sticky')?.getBoundingClientRect?.();if(rect){document.documentElement?.style?.setProperty('--panel-height',Math.round(rect.height)+'px');document.documentElement?.style?.setProperty('--reading-top','0px');}}
+function scrollReading(block='start',behavior='instant') {readingMargin();requestAnimationFrame(()=>{const row=(globalThis.RelayF16?.active()?$('completed-text'):$('list')).querySelector(`[data-verse="${unitAt(selected).start+1}"]`);if(!row)return;if(block==='center'&&row.getBoundingClientRect){const rect=row.getBoundingClientRect(),reader=$('reading');reader.scrollTo({top:Math.max(0,reader.scrollTop+rect.top+rect.height/2-(reader.getBoundingClientRect().top+reader.clientHeight/2)),behavior});}else row.scrollIntoView({block,behavior});});}
 function revealSelected() {followSelected();scrollReading();}
 function stopPlayback() {
   globalThis.RelayF15?.stop();
@@ -249,25 +250,25 @@ function base64(blob) {
 }
 $('ok').onclick = async () => {
   if (!draft || busy || !ready || draft.qualityChecking || draft.trimChecking) return;
-  busy = true; controls(); const pending = draft; let saved = false, autoNext = -1; const f4Ticket = globalThis.RelayF4?.ticket();
+  busy = true;globalThis.RelayFeedback?.begin('ok','저장 중');controls(); const pending = draft; let saved = false, autoNext = -1; const f4Ticket = globalThis.RelayF4?.ticket();
   try {
     if (RelayStorage.connected) {
       if(globalThis.RelayF11?.enabled()&&!pending.uploadId)pending.uploadId=crypto.randomUUID();
       const item = await RelayStorage.request('uploadRecording', {...globalThis.RelayF2?.uploadFields(), ...deviceFields(pending),expectedPrevious:pending.expectedPrevious,...(pending.uploadId?{uploadId:pending.uploadId,expectedPrevious:pending.expectedPrevious}:{}), revision: pending.revision, verse: pending.verse, endVerse:pending.endVerse, readerName: pending.readerName, mimeType: pending.blob.type, audioBase64: await base64(pending.blob)});
       recordings = recordings.filter(r => r.verse !== item.verse).concat(item);
     } else local.set(pending.verse - 1, {blob: pending.blob, readerName: pending.readerName, endVerse:pending.endVerse,deviceId:pending.deviceId});
-    discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
+    await globalThis.RelayFeedback?.finish('ok','저장 완료');discard(); selected = lines.findIndex((_, i) => !hasAudio(i)); if (selected < 0) selected = pending.verse - 1;
     if (globalThis.RelayF4?.enabled()) {autoNext=RelayF4.next((pending.endVerse??pending.verse)-1,lines.length,index=>hasAudio(index)||!!globalThis.RelayF11?.pending(index+1),pending.readerName);if(autoNext>=0) selected=autoNext;}
     status(''); saved = true;
   } catch (err) {
     if(globalThis.RelayF11?.enabled() && pending.uploadId && RelayF11.retryable(err)){
-      try{await RelayF11.enqueue(pending);discard();status('이 폰에 보관 · 연결되면 재전송');}
-      catch(queueError){status(queueError.message+' · 임시 녹음 유지');}
-    }else {await failure(err);if(ready)status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침');}
+      try{await RelayF11.enqueue(pending);await globalThis.RelayFeedback?.finish('ok','전송 대기','queued');discard();status('이 폰에 보관 · 연결되면 재전송');}
+      catch(queueError){await globalThis.RelayFeedback?.finish('ok','저장 확인 필요','error');status(queueError.message+' · 임시 녹음 유지');}
+    }else {await globalThis.RelayFeedback?.finish('ok','저장 실패','error');await failure(err);if(ready)status('저장 확인 실패. 임시 녹음 유지 · 재시도하거나 취소 후 목록 새로고침');}
   }
   finally { busy = false; render(); if (saved) {revealSelected();if(autoNext>=0 && RelayF4.current(f4Ticket) && !document.hidden) await start({preventDefault(){}});} }
 };
-$('no').onclick = () => { if (!busy) { globalThis.RelayF4?.cancel(); discard(); const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status(''); } };
+$('no').onclick = async () => { if (!busy) {busy=true;globalThis.RelayFeedback?.begin('no','삭제 중');controls();globalThis.RelayF4?.cancel();await globalThis.RelayFeedback?.finish('no','삭제 완료');discard();busy=false; const next = lines.findIndex((_, i) => !hasAudio(i)); if (next >= 0) selected = next; render(); revealSelected(); status(''); } };
 $('save-text').onclick = async () => {
   if (locked() || !ready) return;
   if (!$('erase-confirm').checked) { status('기존 녹음 삭제 동의에 체크 필요'); return; }
@@ -394,6 +395,7 @@ function showBooks(flash) {
 }
 function setBookSide(next) { if (next < 0 || next > 1 || next === bookSide) return; bookSide = next; try { localStorage.setItem('relay.bookSide', next); } catch {} showBooks(true); }
 function showChapters(index) {
+  if(globalThis.RelayNavigator?.ready()){RelayNavigator.chapters(index);return;}
   const book = books[index]; $('picker-title').textContent = book.title; $('picker-back').hidden = false; $('picker-tabs').hidden = true;
   const end = books[index + 1]?.startChapter ?? pageStarts.length;
   chPage = Math.floor(Math.max(0, page - book.startChapter) / 50);
@@ -404,7 +406,7 @@ function showChapters(index) {
     button.onclick = () => { if (locked() || !ready) return; $('book-picker').close(); changePage(chapter); };
     return button; });
 }
-$('book-open').onclick = () => { if (locked() || !ready) return; showBooks(); $('book-picker').showModal(); };
+$('book-open').onclick = () => { if (locked() || !ready) return;if(globalThis.RelayNavigator?.ready()){RelayNavigator.books();return;} showBooks(); $('book-picker').showModal(); };
 $('picker-back').onclick = showBooks;
 $('picker-close').onclick = () => $('book-picker').close();
 function chapterAt(index) { return chapters[index] || {title:`${index + 1}장`, startVerse:pageStarts[index] + 1}; }
@@ -540,11 +542,11 @@ globalThis.RelayF9?.init({text:()=>({title,verses:lines,pageStarts,chapters,book
 let toastTimer = null;
 function toast(msg,duration=1200,kind='') { const t = $('toast'); if (!t) return; t.textContent = msg; if (t.dataset) t.dataset.kind = kind; t.classList?.add?.('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList?.remove?.('show'), duration); }
 // 시트 위치: 틀 고정 줄 바로 아래
-function sheetTop() { const r = document.getElementById('sticky')?.getBoundingClientRect?.(); if (r) document.documentElement?.style?.setProperty?.('--sheet-top', Math.round(r.bottom) + 'px'); }
+function sheetTop() { const r = document.getElementById('sticky')?.getBoundingClientRect?.(); if (r) document.documentElement?.style?.setProperty?.('--sheet-top', '8px'); }
 ['book-picker','people','settings'].forEach(id => { const d = $(id); const o = d.showModal?.bind(d); if (o) d.showModal = () => { sheetTop(); o(); }; });
 // 책 창 좌우 쓸기: 구약 ↔ 신약 (넘어가지 않음)
 { let x0 = null; const it = $('picker-items');
-  it.addEventListener?.('touchstart', e => { x0 = e.touches[0].clientX; }, {passive: true});
+  it.addEventListener?.('touchstart', e => {if(globalThis.RelayNavigator?.ready())return;x0 = e.touches[0].clientX; }, {passive: true});
   it.addEventListener?.('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) <= 60) return; if(globalThis.RelayFrame?.bookSwipe(dx<0?1:-1))return;if (it.className === 'books') setBookSide(bookSide + (dx < 0 ? 1 : -1)); else chRender?.(dx < 0 ? 1 : -1); }); }
 // ⑥ 절 블록 좌우 쓸기
 { let x0 = null; const c = $('center');
@@ -641,3 +643,6 @@ globalThis.RelayAdmin?.init({locked,changed:render,name:()=>{$('reader').value=R
 globalThis.RelayLive?.init({locked,transition:()=>{ready=false;render();},load:loadShared,revision:()=>revision,name:()=>{$('reader').value=RelayStorage.readerName;nameView();render();},report:status});
 
 globalThis.RelayFrame?.init({people:()=>{nameView();showPeople();},preview:()=>lines.slice(pageStarts[page],Math.min((pageStarts[page+1]??lines.length),pageStarts[page]+3)).join('\n'),verseCount:()=>((pageStarts[page+1]??lines.length)-pageStarts[page])});
+
+globalThis.RelayNavigator?.init({locked,ready:()=>ready,state:()=>({revision,page,selected,from:pageStarts[page]||0,to:pageStarts[page+1]??lines.length,bookIndex:bookIndex(page),book:bookAt(page).title,chapter:chapterAt(page),books,pageStarts,chapters,total:lines.length,records:recordings,side:bookSide}),books:showBooks,side:setBookSide,recording:recordingAt,color:personColor,unit:unitAt,fill:fillPicker,clear:()=>RelayBasics.clear(),
+ chooseChapter:index=>changePage(index),pickVerse:index=>{if(locked()||!ready)return false;if(globalThis.RelayF5?.manual()){RelayF5.choose(index+1);return false;}$('book-picker').close();selected=unitAt(index).start;revealSelected();return true;},toast});

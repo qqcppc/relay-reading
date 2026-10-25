@@ -9,7 +9,7 @@ const {chromium}=require('playwright');const {server}=require('./helpers/apps-sc
  async function pseudo(p,property){return p.locator('#f14-scene').evaluate((el,key)=>getComputedStyle(el,'::before')[key],property);}
  try{
   const off=await page();assert.equal(await off.locator('#f14-scene').isVisible(),false);await off.evaluate(()=>openSheet('settings'));assert.equal(await off.locator('#feature-f14').isChecked(),false);await off.keyboard.press('Escape');const before=await off.locator('.t').allTextContents();
-  const p=await page({F3:true,F14:true});assert.deepEqual(await p.locator('.t').allTextContents(),before);assert.equal((await p.locator('#top').boundingBox()).height,48);await p.waitForFunction(()=>$('f14-scene').style.getPropertyValue('--f14-y')==='0.00%');assert.match(await pseudo(p,'backgroundImage'),/genesis-creation.webp/);
+  const p=await page({F3:true,F14:true});assert.deepEqual(await p.locator('.t').allTextContents(),before);assert.equal((await p.locator('#top').boundingBox()).height,66);await p.waitForFunction(()=>$('f14-scene').style.getPropertyValue('--f14-y')==='0.00%');assert.match(await pseudo(p,'backgroundImage'),/genesis-creation.webp/);
   await p.evaluate(()=>$('reading').scrollTo(0,$('reading').scrollHeight/2));await p.waitForFunction(()=>parseFloat($('f14-scene').style.getPropertyValue('--f14-y'))>0);const middle=await p.locator('#f14-scene').evaluate(e=>parseFloat(e.style.getPropertyValue('--f14-y')));assert(middle<100);await p.evaluate(()=>$('reading').scrollTo(0,$('reading').scrollHeight));await p.waitForFunction(()=>$('f14-scene').style.getPropertyValue('--f14-y')==='100.00%');
   fs.mkdirSync('tests/results',{recursive:true});
   for(let chapter=0;chapter<10;chapter++){

@@ -9,7 +9,7 @@
   const direction=(dx,dy,vertical)=>!vertical&&Math.abs(dx)>=60&&Math.abs(dx)>Math.abs(dy)*2?(dx<0?1:-1):0;
   function cancelGesture(){clearTimeout(singleTimer);singleTimer=null;clearTimeout(holdTimer);holdTimer=null;clearTimeout(headerTimer);headerTimer=null;gesture=null;}
   function paint(){if(!context)return;const r=selected();$('selection-panel').hidden=!r;document.body.classList.toggle('range-mode',!!r);if(!r)return;
-    const mine=context.owned(r);$('selection-check').hidden=!!mine.length||!context.foreign?.(r).length;$('selection-check').disabled=working||!context.ready();$('selection-label').textContent=context.label(r);$('selection-delete').hidden=!mine.length;$('selection-delete').disabled=working||!context.ready();$('selection-copy').disabled=working;
+    const mine=context.owned(r);$('selection-check').hidden=!!mine.length||!context.foreign?.(r).length;$('selection-check').disabled=working||!context.ready();$('selection-label').textContent=context.label(r);$('selection-delete').hidden=!mine.length&&!working;$('selection-delete').disabled=working||!context.ready();$('selection-copy').disabled=working;
   }
   function clear(back=true){if(!active())return;anchor=extent=null;lastTap=null;cancelGesture();$('selection-copy-text').hidden=true;const old=marker;marker=null;if(back&&old&&history.state?.relaySelection===old)history.back();context.render();}
   function select(index){if(context.locked()||!context.ready())return;context.stop();lastTap=null;cancelGesture();const span=context.unit(index);
@@ -20,7 +20,7 @@
     if(active()){select(index);return;}if(context.groupEditing())return;
     clearTimeout(singleTimer);singleTimer=null;context.stop();context.point(index);
     if(event?.detail===0){lastTap=null;context.locate(index);return;}
-    if(lastTap?.index===index&&Date.now()-lastTap.time<350){lastTap=null;context.record(index);return;}
+    if(lastTap?.index===index&&Date.now()-lastTap.time<350){lastTap=null;root.RelayFeedback?.react(index+1);context.record(index);return;}
     lastTap={index,time:Date.now()};singleTimer=setTimeout(()=>{singleTimer=null;lastTap=null;if(!context.locked())context.locate(index);},350);
   }
   function wireCard(element,index){
@@ -55,7 +55,7 @@
       root.addEventListener('popstate',()=>{if(active())clear(false);});
       $('selection-copy').onclick=async()=>{const r=selected();if(!r||working)return;working=true;paint();const text=context.copyText(r);try{await navigator.clipboard.writeText(text);clear();context.toast('복사됨');}catch(_){$('selection-copy-text').value=text;$('selection-copy-text').hidden=false;$('selection-copy-text').select();context.toast('길게 눌러 복사');}finally{working=false;paint();}};
       $('selection-check').onclick=()=>{const r=selected();if(r&&!working)context.check(context.foreign(r));};
-      $('selection-delete').onclick=async()=>{const r=selected();if(!r||working||context.locked())return;const items=context.owned(r);if(!items.length)return;if(items.length>1&&!root.confirm(items.length+'개 삭제?'))return;working=true;paint();try{const result=await context.remove(items);clear();context.toast(result.deleted.length+'개 삭제');}catch(error){context.report(error);}finally{working=false;paint();}};
+      $('selection-delete').onclick=async()=>{const r=selected();if(!r||working||context.locked())return;const items=context.owned(r);if(!items.length)return;if(items.length>1&&!root.confirm(items.length+'개 삭제?'))return;working=true;root.RelayFeedback?.begin('selection-delete','삭제 중');paint();try{const result=await context.remove(items);await root.RelayFeedback?.finish('selection-delete',result.deleted.length?'삭제 완료':'변경 없음',result.deleted.length?'done':'queued');clear();context.toast(result.deleted.length?result.deleted.length+'개 삭제':'삭제할 파일 없음');}catch(error){await root.RelayFeedback?.finish('selection-delete',error.code?'삭제 실패':'삭제 확인 필요','error');context.report(error);}finally{working=false;paint();}};
       $('inapp-hint').hidden=!/KAKAOTALK/i.test(navigator.userAgent);paint();
     }
   };

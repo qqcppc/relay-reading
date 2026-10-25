@@ -31,7 +31,7 @@ test('공유 녹음 저장·교체·실패 보존·재생 및 본문 삭제 동�
 });
 test('녹음 시작·정지·취소와 페이지 편집·충돌 처리',async()=>{
  const s=setup();await tick();s.$('reader').value='민수';
- await s.ctx.start({preventDefault(){}});assert.equal(vm.runInContext('recorder.state',s.ctx),'recording');assert.equal(s.$('review').hidden,true);s.ctx.stop();assert.equal(s.$('review').hidden,false);assert.equal(s.$('list').children[0].children[1],s.$('review'));s.$('no').onclick();
+ await s.ctx.start({preventDefault(){}});assert.equal(vm.runInContext('recorder.state',s.ctx),'recording');assert.equal(s.$('review').hidden,true);s.ctx.stop();assert.equal(s.$('review').hidden,false);assert.equal(s.$('list').children[0].children[1],s.$('review'));await s.$('no').onclick();
  const parsed=s.ctx.parsePages('첫 줄\n\n둘째 줄\n\n---\n\n셋째 줄');assert.equal(parsed.verses.length,3);assert.equal(parsed.pageStarts.join(','),'0,2');
  s.setConflict(true);s.$('text-input').value='새 제목\n새 절';s.$('erase-confirm').checked=true;await s.$('save-text').onclick();assert.match(s.$('st').textContent,/본문이 변경됨/);assert.equal(s.$('save-text').disabled,true);assert.equal(s.$('refresh').disabled,false);
 });

@@ -12,7 +12,7 @@
   function update(){
     frame=null;if(!context||active!=='A'||reduce?.matches||document.hidden)return;
     const state=context.state(),rows=[...$('list').querySelectorAll('.line[data-verse]')];if(!rows.length)return;
-    const height=root.innerHeight,readerY=($('sticky')?.getBoundingClientRect().bottom||0)+Math.min(100,height*.12);
+    const height=$('reading').clientHeight,readerY=$('reading').getBoundingClientRect().top+Math.min(100,height*.12);
     let verse=state.startVerse;
     const reader=$('reading'),scroll=reader.scrollTop,maxScroll=Math.max(0,reader.scrollHeight-reader.clientHeight);
     if(scroll>=maxScroll-2&&maxScroll>0)verse=state.startVerse+state.count-1;
